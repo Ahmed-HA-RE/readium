@@ -13,17 +13,29 @@ enum UserRole {
   ADMIN
 }
 
+enum ReportReason {
+  SPAM
+  RULES_VIOLATION
+  HARASSMENT
+  AI_GENERATED
+}
+
 model User {
-  id            String    @id
+  id            String     @id
   name          String
   email         String
-  emailVerified Boolean   @default(false)
-  role          UserRole  @default(USER)
+  emailVerified Boolean    @default(false)
+  role          UserRole   @default(USER)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   sessions      Session[]
   accounts      Account[]
+  blogs         Blog[]
+  comments      Comment[]
+  likes         Like[]
+  bookmarks     Bookmark[]
+  reports       Report[]
 
   @@unique([email, name])
   @@map("user")
@@ -75,4 +87,90 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model Blog {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  content     String
+  tags        String[]
+  coverImage  String?
+  isPublished Boolean  @default(false)
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  comments  Comment[]
+  likes     Like[]
+  bookmarks Bookmark[]
+  report    Report[]
+
+  @@index([authorId])
+  @@index([isPublished])
+  @@map("blog")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  authorId  String
+  blogId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  blog   Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@index([authorId, blogId])
+  @@map("comment")
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String
+  blogId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blogId])
+  @@map("like")
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  blogId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blogId])
+  @@map("bookmark")
+}
+
+model Report {
+  id        String       @id @default(uuid())
+  reason    ReportReason
+  userId    String
+  blogId    String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blogId])
+  @@map("report")
 }
