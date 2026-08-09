@@ -3,6 +3,7 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { adapter } from './adapter';
 import { openAPI } from 'better-auth/plugins';
+import sendEmailVerification from '../mails/send-email-verification';
 
 const prisma = new PrismaClient({ adapter });
 
@@ -12,10 +13,15 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
   },
   emailVerification: {
     sendOnSignUp: true,
     sendOnSignIn: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendEmailVerification(user.email, url);
+    },
+    expiresIn: 1000 * 60 * 60, // 1 hour
   },
 
   databaseHooks: {
