@@ -14,6 +14,7 @@ import { APP_NAME } from '@repo/constants';
 import { APP_LOGO } from '@repo/assets';
 import EmailButton from './components/email-button';
 import EmailFooter from './components/email-footer';
+import ExpireToken from './components/expire-token';
 
 interface VerifyEmailProps {
   url: string;
@@ -68,9 +69,7 @@ const VerifyEmail = ({ url }: VerifyEmailProps): React.ReactNode => (
               </Section>
 
               <EmailButton content="Confirm Email" url={url} />
-              <Text className="text-sm text-gray-400 mt-6 mb-0">
-                This link expires in 1 hour.
-              </Text>
+              <ExpireToken content="This link expires in 1 hour." />
             </Section>
           </Section>
 

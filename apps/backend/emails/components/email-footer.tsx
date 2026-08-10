@@ -29,7 +29,7 @@ const socialLinks = [
 const EmailFooter = (): React.ReactNode => {
   return (
     <Section className="px-6 pt-10 pb-10 text-center">
-      <Row className="max-w-[160px] mx-auto mb-6">
+      <Row className="max-w-[160px] mx-auto mb-4">
         {socialLinks.map((link, index) => (
           // eslint-disable-next-line @typescript-eslint/no-unsafe-return
           <Column
@@ -53,7 +53,7 @@ const EmailFooter = (): React.ReactNode => {
         Follow us to stay up to date with the latest news and features.
       </Text>
 
-      <Text className="text-gray-400 text-[11px] mt-3 mb-0">
+      <Text className="text-gray-400 text-[11px] mt-1.5 mb-0">
         © {currentYear} {APP_NAME}. All rights reserved.
       </Text>
     </Section>
