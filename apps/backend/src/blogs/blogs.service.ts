@@ -1,14 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { BlogQueryDto, BlogSortOptions } from './dto/blog-query-dto';
 import { Prisma } from '../generated/prisma/client';
+import { GetAllBlogsResponse, GetBlogBySlugResponse } from '@repo/types';
 
 @Injectable()
 export class BlogsService {
   constructor(private readonly prisma: DatabaseService) {}
+  private logger = new Logger(BlogsService.name);
 
-  async getAllBlogs(query: BlogQueryDto) {
+  async getAllBlogs(query: BlogQueryDto): Promise<GetAllBlogsResponse> {
     const { search, sort, page, limit } = query;
+
+    this.logger.verbose('Fetching all blogs with query parameters', {
+      search,
+      sort,
+      page,
+      limit,
+    });
 
     const limitValue = limit ? Number(limit) : 10;
     const pageValue = page ? Number(page) : 1;
@@ -59,6 +68,64 @@ export class BlogsService {
     return {
       blogs,
       totalPages,
+    };
+  }
+  async getBlogBySlug(
+    slug: string,
+    userId?: string,
+  ): Promise<GetBlogBySlugResponse> {
+    this.logger.verbose(
+      `Fetching blog with slug: ${slug} for ${userId ? `userId: ${userId}` : 'anonymous user'}`,
+    );
+
+    const blog = await this.prisma.blog.findUnique({
+      where: { slug },
+      include: {
+        _count: {
+          select: {
+            bookmarks: true,
+            likes: true,
+            comments: true,
+          },
+        },
+        author: {
+          select: {
+            name: true,
+            image: true,
+          },
+        },
+        comments: {
+          select: {
+            content: true,
+            createdAt: true,
+            author: {
+              select: {
+                name: true,
+                image: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+        likes: {
+          where: {
+            userId,
+          },
+        },
+      },
+    });
+
+    if (!blog) {
+      throw new NotFoundException(`Blog with slug ${slug} not found`);
+    }
+
+    const isLikedByLoggedInUser = userId ? blog.likes.length > 0 : false;
+
+    return {
+      ...blog,
+      isLikedByLoggedInUser,
     };
   }
 }

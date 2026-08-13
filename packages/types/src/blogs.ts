@@ -1,0 +1,51 @@
+export interface Blog {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  tags: string[];
+  coverImage: string | null;
+  isPublished: boolean;
+  authorId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BlogComments {
+  content: string;
+  createdAt: Date;
+  author: {
+    name: string;
+    image: string | null;
+  };
+}
+
+export interface BlogLikes {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: string;
+  blogId: string;
+}
+
+export interface BlogAuthor {
+  name: string;
+  image: string | null;
+}
+
+export interface GetAllBlogsResponse {
+  blogs: Blog[];
+  totalPages: number;
+}
+
+export interface GetBlogBySlugResponse extends Blog {
+  comments: BlogComments[];
+  author: BlogAuthor;
+  likes: BlogLikes[];
+  _count: {
+    comments: number;
+    likes: number;
+    bookmarks: number;
+  };
+  isLikedByLoggedInUser: boolean;
+}
