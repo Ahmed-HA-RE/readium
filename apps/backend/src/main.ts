@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 const bootstrap = async () => {
@@ -13,6 +13,7 @@ const bootstrap = async () => {
     origin: ['http://localhost:3000'],
     credentials: true,
   });
+  app.useGlobalPipes(new ValidationPipe());
   await app.listen(port);
   logger.log(`Server is running on port ${port}`);
 };
