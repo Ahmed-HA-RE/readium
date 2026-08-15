@@ -74,11 +74,23 @@ export class BlogsService {
 
     const totalPages = Math.ceil(totalBlogs / limitValue);
 
+    const blogsWithPresignedUrls = blogs.map(async (blog) => {
+      const presignedUrl = blog.coverImage
+        ? await this.s3Service.getSignedUrl(blog.coverImage)
+        : null;
+
+      return {
+        ...blog,
+        coverImage: presignedUrl,
+      };
+    });
+
     return {
-      blogs,
+      blogs: await Promise.all(blogsWithPresignedUrls),
       totalPages,
     };
   }
+
   async getBlogBySlug(
     slug: string,
     userId?: string,
@@ -132,8 +144,15 @@ export class BlogsService {
 
     const isLikedByLoggedInUser = userId ? blog.likes.length > 0 : false;
 
+    const presignedUrl = blog.coverImage
+      ? await this.s3Service.getSignedUrl(blog.coverImage)
+      : null;
+
     return {
-      ...blog,
+      blog: {
+        ...blog,
+        coverImage: presignedUrl,
+      },
       isLikedByLoggedInUser,
     };
   }

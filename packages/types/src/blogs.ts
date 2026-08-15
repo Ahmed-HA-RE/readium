@@ -38,14 +38,16 @@ export interface GetAllBlogsResponse {
   totalPages: number;
 }
 
-export interface GetBlogBySlugResponse extends Blog {
-  comments: BlogComments[];
-  author: BlogAuthor;
-  likes: BlogLikes[];
-  _count: {
-    comments: number;
-    likes: number;
-    bookmarks: number;
+export interface GetBlogBySlugResponse {
+  blog: Blog & {
+    comments: BlogComments[];
+    author: BlogAuthor;
+    likes: BlogLikes[];
+    _count: {
+      comments: number;
+      likes: number;
+      bookmarks: number;
+    };
   };
   isLikedByLoggedInUser: boolean;
 }
