@@ -5,6 +5,7 @@ import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from '../lib/auth';
 import { AppController } from './app.controller';
 import { BlogsModule } from './blogs/blogs.module';
+import { S3ServiceModule } from './s3-service/s3-service.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { BlogsModule } from './blogs/blogs.module';
     DatabaseModule,
     AuthModule.forRoot({ auth }),
     BlogsModule,
+    S3ServiceModule,
   ],
   controllers: [AppController],
 })

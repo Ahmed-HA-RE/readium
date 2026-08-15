@@ -1,4 +1,16 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  FileTypeValidator,
+  Get,
+  MaxFileSizeValidator,
+  Param,
+  ParseFilePipe,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { BlogsService } from './blogs.service';
 import {
   AllowAnonymous,
@@ -6,6 +18,10 @@ import {
   type UserSession,
 } from '@thallesp/nestjs-better-auth';
 import { BlogQueryDto } from './dto/blog-query-dto';
+import type { Express } from 'express';
+import 'multer';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { CreateBlogDto } from './dto/create-blog-dto';
 
 @Controller('api/blogs')
 export class BlogsController {
@@ -29,5 +45,28 @@ export class BlogsController {
   ) {
     const userId = session?.user?.id;
     return this.blogsService.getBlogBySlug(slug, userId);
+  }
+
+  // Method           POST /api/blogs
+  // Description      Create a new blog
+  @Post()
+  @UseInterceptors(FileInterceptor('coverImage'))
+  createBlog(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
+          new FileTypeValidator({
+            fileType: '^image/(jpeg|jpg|png|webp)$',
+          }),
+        ],
+      }),
+    )
+    coverImage: Express.Multer.File,
+    @Body() newBlogData: CreateBlogDto,
+    @Session() session: UserSession,
+  ) {
+    const userId = session.user.id;
+    return this.blogsService.createBlog(coverImage, newBlogData, userId);
   }
 }

@@ -13,7 +13,11 @@ const bootstrap = async () => {
     origin: ['http://localhost:3000'],
     credentials: true,
   });
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      stopAtFirstError: true,
+    }),
+  );
   await app.listen(port);
   logger.log(`Server is running on port ${port}`);
 };
