@@ -16,6 +16,7 @@ const bootstrap = async () => {
   app.useGlobalPipes(
     new ValidationPipe({
       stopAtFirstError: true,
+      transform: true,
     }),
   );
   await app.listen(port);

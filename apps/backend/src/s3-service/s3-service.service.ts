@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -17,7 +18,6 @@ export class S3ServiceService {
     });
   }
   async uploadFile(file: Express.Multer.File, key: string): Promise<void> {
-    console.log(file);
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.configService.getOrThrow('AWS_BUCKET_NAME'),
@@ -38,5 +38,14 @@ export class S3ServiceService {
       expiresIn: 4 * 60 * 60, // 4 hours
     });
     return url;
+  }
+
+  async deleteFile(key: string): Promise<void> {
+    await this.s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: this.configService.getOrThrow('AWS_BUCKET_NAME'),
+        Key: key,
+      }),
+    );
   }
 }

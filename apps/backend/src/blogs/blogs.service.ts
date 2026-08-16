@@ -4,10 +4,9 @@ import { BlogQueryDto, BlogSortOptions } from './dto/blog-query-dto';
 import { Prisma } from '../generated/prisma/client';
 import { Blog, GetAllBlogsResponse, GetBlogBySlugResponse } from '@repo/types';
 import { CreateBlogDto } from './dto/create-blog-dto';
-import { APP_NAME } from '@repo/constants';
-import { v4 as uuidv4 } from 'uuid';
-import slugify from 'slugify';
 import { S3ServiceService } from '../s3-service/s3-service.service';
+import { UpdateBlogDto } from './dto/update-blog-dto';
+import { generateImageKey, generateSlug } from '../../lib/utils';
 
 @Injectable()
 export class BlogsService {
@@ -158,18 +157,22 @@ export class BlogsService {
   }
 
   async createBlog(
-    coverImage: Express.Multer.File,
+    coverImage: Express.Multer.File | undefined,
     newBlogData: CreateBlogDto,
     userId: string,
   ): Promise<{ success: boolean; data: Blog }> {
     const { title, content, tags, isPublished } = newBlogData;
 
     // Save the cover image to AWS S3 bucket and save the key in the database so that it can be retrieved later with presigned URL. The key will be in the format of `APP_NAME-userId-uuid-originalFileName` to ensure uniqueness and traceability.
-    const imageKey = `${APP_NAME}-${userId}-${uuidv4()}-${coverImage.originalname}`;
+    const imageKey = coverImage
+      ? generateImageKey({ userId, fileName: coverImage.originalname })
+      : null;
 
-    const slug = `${slugify(title, { lower: true })}-${uuidv4().slice(0, 8)}`;
+    const slug = generateSlug(title);
 
-    await this.s3Service.uploadFile(coverImage, imageKey);
+    if (coverImage && imageKey) {
+      await this.s3Service.uploadFile(coverImage, imageKey);
+    }
 
     const newBlog = await this.prisma.blog.create({
       data: {
@@ -194,5 +197,57 @@ export class BlogsService {
     );
 
     return { success: true, data: newBlog };
+  }
+
+  async updateBlog(
+    slug: string,
+    coverImage: Express.Multer.File | undefined,
+    updateBlogData: UpdateBlogDto,
+    userId: string,
+  ): Promise<{ success: boolean; data: Blog }> {
+    let imageKey: string | null = null;
+    let updatedSlug: string | null = null;
+
+    const existingBlog = await this.prisma.blog.findUnique({
+      where: { slug, authorId: userId },
+      select: {
+        title: true,
+        slug: true,
+        coverImage: true,
+      },
+    });
+
+    if (!existingBlog) {
+      throw new NotFoundException(`Blog with slug ${slug} not found`);
+    }
+
+    if (updateBlogData.title && existingBlog.title !== updateBlogData.title) {
+      updatedSlug = generateSlug(updateBlogData.title);
+    }
+    if (coverImage) {
+      imageKey = generateImageKey({
+        userId,
+        fileName: coverImage.originalname,
+      });
+      await this.s3Service.uploadFile(coverImage, imageKey);
+    }
+
+    const updatedBlog = await this.prisma.blog.update({
+      where: { slug: existingBlog.slug, authorId: userId },
+      data: {
+        ...updateBlogData,
+        coverImage: imageKey ?? existingBlog.coverImage,
+        slug: updatedSlug ?? slug,
+      },
+    });
+
+    if (coverImage && existingBlog.coverImage) {
+      await this.s3Service.deleteFile(existingBlog.coverImage);
+    }
+
+    return {
+      success: true,
+      data: updatedBlog,
+    };
   }
 }

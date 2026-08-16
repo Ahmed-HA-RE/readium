@@ -7,6 +7,7 @@ import {
   Param,
   ParseFilePipe,
   Post,
+  Put,
   Query,
   UploadedFile,
   UseInterceptors,
@@ -22,6 +23,7 @@ import type { Express } from 'express';
 import 'multer';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateBlogDto } from './dto/create-blog-dto';
+import { UpdateBlogDto } from './dto/update-blog-dto';
 
 @Controller('api/blogs')
 export class BlogsController {
@@ -54,6 +56,7 @@ export class BlogsController {
   createBlog(
     @UploadedFile(
       new ParseFilePipe({
+        fileIsRequired: false,
         validators: [
           new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
           new FileTypeValidator({
@@ -68,5 +71,35 @@ export class BlogsController {
   ) {
     const userId = session.user.id;
     return this.blogsService.createBlog(coverImage, newBlogData, userId);
+  }
+
+  // Method           PUT /api/blogs/:slug
+  // Description      Update an existing blog
+  @Put(':slug')
+  @UseInterceptors(FileInterceptor('coverImage'))
+  updateBlog(
+    @Param('slug') slug: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
+          new FileTypeValidator({
+            fileType: '^image/(jpeg|jpg|png|webp)$',
+          }),
+        ],
+      }),
+    )
+    coverImage: Express.Multer.File,
+    @Body() updateBlogData: UpdateBlogDto,
+    @Session() session: UserSession,
+  ) {
+    const userId = session.user.id;
+    return this.blogsService.updateBlog(
+      slug,
+      coverImage,
+      updateBlogData,
+      userId,
+    );
   }
 }
