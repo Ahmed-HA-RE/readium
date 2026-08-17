@@ -65,6 +65,15 @@ export class BlogsService {
       orderBy: querySort,
       take: limitValue,
       skip: (pageValue - 1) * limitValue,
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
     });
 
     const totalBlogs = await this.prisma.blog.count({
@@ -110,6 +119,7 @@ export class BlogsService {
         },
         author: {
           select: {
+            id: true,
             name: true,
             image: true,
           },
@@ -190,7 +200,6 @@ export class BlogsService {
       `Created new blog with slug: ${slug} for userId: ${userId}`,
       {
         title,
-        content,
         tags,
         isPublished: isPublished ?? false,
       },
@@ -249,5 +258,33 @@ export class BlogsService {
       success: true,
       data: updatedBlog,
     };
+  }
+
+  async deleteBlog(slug: string, userId: string): Promise<void> {
+    this.logger.verbose(
+      `Deleting blog with slug: ${slug} for userId: ${userId}`,
+    );
+
+    // Check if there's a blog for the given slug and userId
+    const existingBlog = await this.prisma.blog.findUnique({
+      where: { slug, authorId: userId },
+      select: {
+        coverImage: true,
+      },
+    });
+
+    if (!existingBlog) {
+      throw new NotFoundException(`Blog with slug ${slug} not found`);
+    }
+
+    // Delete the blog from the database
+    await this.prisma.blog.delete({
+      where: { slug, authorId: userId },
+    });
+
+    // Delete the cover image from S3 if it exists
+    if (existingBlog.coverImage) {
+      await this.s3Service.deleteFile(existingBlog.coverImage);
+    }
   }
 }

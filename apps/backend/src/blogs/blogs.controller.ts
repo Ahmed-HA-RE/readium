@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   FileTypeValidator,
   Get,
   MaxFileSizeValidator,
@@ -101,5 +102,13 @@ export class BlogsController {
       updateBlogData,
       userId,
     );
+  }
+
+  // Method           DELETE /api/blogs/:slug
+  // Description      Delete a blog by slug
+  @Delete(':slug')
+  deleteBlog(@Param('slug') slug: string, @Session() session: UserSession) {
+    const userId = session.user.id;
+    return this.blogsService.deleteBlog(slug, userId);
   }
 }

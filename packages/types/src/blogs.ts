@@ -29,12 +29,15 @@ export interface BlogLikes {
 }
 
 export interface BlogAuthor {
+  id: string;
   name: string;
   image: string | null;
 }
 
 export interface GetAllBlogsResponse {
-  blogs: Blog[];
+  blogs: (Blog & {
+    author: BlogAuthor;
+  })[];
   totalPages: number;
 }
 
