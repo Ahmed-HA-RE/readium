@@ -6,6 +6,7 @@ import { auth } from '../lib/auth';
 import { AppController } from './app.controller';
 import { BlogsModule } from './blogs/blogs.module';
 import { S3ServiceModule } from './s3-service/s3-service.module';
+import { CommentsModule } from './comments/comments.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { S3ServiceModule } from './s3-service/s3-service.module';
     AuthModule.forRoot({ auth }),
     BlogsModule,
     S3ServiceModule,
+    CommentsModule,
   ],
   controllers: [AppController],
 })
