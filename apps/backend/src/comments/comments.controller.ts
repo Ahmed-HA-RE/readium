@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import {
   AllowAnonymous,
@@ -37,5 +47,35 @@ export class CommentsController {
       blogSlug,
       authorId,
     );
+  }
+
+  // Method      PUT /api/blogs/:blogSlug/comments/:commentId
+  // Description Update an existing comment for a blog post
+  @Put('/:commentId')
+  updateComment(
+    @Body() updateCommentDto: CreateCommentDto, // We can use CreateCommentDto here since the fields are the same for updating a comment (content is required)
+    @Param('blogSlug') blogSlug: string,
+    @Param('commentId', ParseUUIDPipe) commentId: string,
+    @Session() session: UserSession,
+  ) {
+    const authorId = session.user.id;
+    return this.commentsService.updateComment(
+      updateCommentDto,
+      blogSlug,
+      commentId,
+      authorId,
+    );
+  }
+
+  // Method      DELETE /api/blogs/:blogSlug/comments/:commentId
+  // Description Delete an existing comment for a blog post
+  @Delete('/:commentId')
+  deleteComment(
+    @Param('blogSlug') blogSlug: string,
+    @Param('commentId', ParseUUIDPipe) commentId: string,
+    @Session() session: UserSession,
+  ) {
+    const authorId = session.user.id;
+    return this.commentsService.deleteComment(blogSlug, commentId, authorId);
   }
 }

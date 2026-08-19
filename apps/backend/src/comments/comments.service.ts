@@ -8,6 +8,35 @@ import { CreateCommentDto } from './dto/create-comment-dto';
 export class CommentsService {
   constructor(private readonly prisma: DatabaseService) {}
 
+  private async findBlogBySlug(blogSlug: string) {
+    const blog = await this.prisma.blog.findUnique({
+      where: { slug: blogSlug },
+      select: { id: true },
+    });
+
+    if (!blog) {
+      throw new NotFoundException(`Blog with slug ${blogSlug} not found`);
+    }
+
+    return blog;
+  }
+
+  private async findCommentById(
+    commentId: string,
+    authorId: string,
+    blogId: string,
+  ) {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId, authorId, blogId },
+    });
+
+    if (!comment) {
+      throw new NotFoundException(`Comment with ID ${commentId} not found`);
+    }
+
+    return comment;
+  }
+
   async getCommentsForBlog(
     query: CommentQueryDto,
     blogSlug: string,
@@ -54,14 +83,7 @@ export class CommentsService {
   ): Promise<Comment> {
     const { content } = createCommentDto;
 
-    const blog = await this.prisma.blog.findUnique({
-      where: { slug: blogSlug },
-      select: { id: true },
-    });
-
-    if (!blog) {
-      throw new NotFoundException(`Blog with slug ${blogSlug} not found`);
-    }
+    const blog = await this.findBlogBySlug(blogSlug);
 
     const newComment = await this.prisma.comment.create({
       data: {
@@ -81,5 +103,52 @@ export class CommentsService {
     });
 
     return newComment;
+  }
+
+  async updateComment(
+    updateCommentDto: CreateCommentDto,
+    blogSlug: string,
+    commentId: string,
+    authorId: string,
+  ): Promise<Comment> {
+    const { content } = updateCommentDto; // We can use CreateCommentDto here since the fields are the same for updating a comment (content is required)
+
+    const blog = await this.findBlogBySlug(blogSlug);
+
+    const comment = await this.findCommentById(commentId, authorId, blog.id);
+
+    const updatedComment = await this.prisma.comment.update({
+      where: {
+        id: comment.id,
+      },
+      data: { content },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    return updatedComment;
+  }
+
+  async deleteComment(
+    blogSlug: string,
+    commentId: string,
+    authorId: string,
+  ): Promise<void> {
+    const blog = await this.findBlogBySlug(blogSlug);
+
+    const comment = await this.findCommentById(commentId, authorId, blog.id);
+
+    await this.prisma.comment.delete({
+      where: {
+        id: comment.id,
+      },
+    });
   }
 }
