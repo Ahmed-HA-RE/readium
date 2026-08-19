@@ -11,15 +11,6 @@ export interface Blog {
   updatedAt: Date;
 }
 
-export interface BlogComments {
-  content: string;
-  createdAt: Date;
-  author: {
-    name: string;
-    image: string | null;
-  };
-}
-
 export interface BlogLikes {
   id: string;
   createdAt: Date;
@@ -43,7 +34,6 @@ export interface GetAllBlogsResponse {
 
 export interface GetBlogBySlugResponse {
   blog: Blog & {
-    comments: BlogComments[];
     author: BlogAuthor;
     likes: BlogLikes[];
     _count: {
