@@ -124,21 +124,7 @@ export class BlogsService {
             image: true,
           },
         },
-        comments: {
-          select: {
-            content: true,
-            createdAt: true,
-            author: {
-              select: {
-                name: true,
-                image: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
+
         likes: {
           where: {
             userId,
