@@ -8,11 +8,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum UserRole {
-  USER
-  ADMIN
-}
-
 enum ReportReason {
   SPAM
   RULES_VIOLATION
@@ -25,7 +20,6 @@ model User {
   name          String     @unique
   email         String     @unique
   emailVerified Boolean    @default(false)
-  role          UserRole   @default(USER)
   image         String?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -36,6 +30,11 @@ model User {
   likes         Like[]
   bookmarks     Bookmark[]
   reports       Report[]
+
+  role       String?
+  banned     Boolean?  @default(false)
+  banReason  String?
+  banExpires DateTime?
 
   @@map("user")
 }
@@ -50,6 +49,8 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  impersonatedBy String?
 
   @@unique([token])
   @@index([userId])
@@ -72,6 +73,9 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
+  issuer String
+
+  @@unique([issuer, accountId], map: "account_issuer_accountId_uidx")
   @@index([userId])
   @@map("account")
 }

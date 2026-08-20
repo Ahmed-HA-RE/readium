@@ -71,11 +71,12 @@ export class CommentsController {
   // Description Delete an existing comment for a blog post
   @Delete('/:commentId')
   deleteComment(
-    @Param('blogSlug') blogSlug: string,
+    @Param('blogSlug')
+    blogSlug: string,
     @Param('commentId', ParseUUIDPipe) commentId: string,
     @Session() session: UserSession,
   ) {
-    const authorId = session.user.id;
-    return this.commentsService.deleteComment(blogSlug, commentId, authorId);
+    const user = session.user;
+    return this.commentsService.deleteComment(blogSlug, commentId, user);
   }
 }

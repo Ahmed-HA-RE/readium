@@ -2,7 +2,7 @@ import { APIError, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { adapter } from './adapter';
-import { openAPI } from 'better-auth/plugins';
+import { admin, openAPI } from 'better-auth/plugins';
 import sendEmailVerification from '../mails/send-email-verification';
 import sendRequestPasswordReset from '../mails/send-request-password-reset';
 
@@ -55,5 +55,5 @@ export const auth = betterAuth({
     },
   },
 
-  plugins: [openAPI()],
+  plugins: [openAPI(), admin()],
 });

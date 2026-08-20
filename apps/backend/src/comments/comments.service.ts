@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CommentQueryDto } from './dto/comment-query-dto';
 import { DatabaseService } from '../database/database.service';
 import { Comment } from '@repo/types';
 import { CreateCommentDto } from './dto/create-comment-dto';
+import { UserSession } from '@thallesp/nestjs-better-auth';
 
 @Injectable()
 export class CommentsService {
@@ -139,11 +144,24 @@ export class CommentsService {
   async deleteComment(
     blogSlug: string,
     commentId: string,
-    authorId: string,
+    user: Pick<UserSession['user'], 'id' | 'role'>,
   ): Promise<void> {
     const blog = await this.findBlogBySlug(blogSlug);
 
-    const comment = await this.findCommentById(commentId, authorId, blog.id);
+    // Check if the user is the author of the comment or an admin
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId, blogId: blog.id },
+    });
+
+    if (!comment) {
+      throw new NotFoundException(`Comment with ID ${commentId} not found`);
+    }
+
+    if (comment.authorId !== user.id && user.role !== 'admin') {
+      throw new ForbiddenException(
+        `You do not have permission to delete this comment`,
+      );
+    }
 
     await this.prisma.comment.delete({
       where: {
