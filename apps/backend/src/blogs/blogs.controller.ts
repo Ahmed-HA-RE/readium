@@ -34,8 +34,12 @@ export class BlogsController {
   // Description      Get all blogs with filtering, sorting , and pagination
   @Get()
   @AllowAnonymous()
-  getAllBlogs(@Query() query: BlogQueryDto) {
-    return this.blogsService.getAllBlogs(query);
+  getAllBlogs(
+    @Query() query: BlogQueryDto,
+    @Session() session: UserSession | undefined,
+  ) {
+    const userId = session?.user?.id;
+    return this.blogsService.getAllBlogs(query, userId);
   }
 
   // Method           GET /api/blogs/:slug

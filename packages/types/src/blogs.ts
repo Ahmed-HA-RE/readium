@@ -6,6 +6,11 @@ export interface Blog {
   tags: string[];
   coverImage: string | null;
   isPublished: boolean;
+  _count: {
+    comments: number;
+    likes: number;
+    bookmarks: number;
+  };
   authorId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +33,7 @@ export interface BlogAuthor {
 export interface GetAllBlogsResponse {
   blogs: (Blog & {
     author: BlogAuthor;
+    isLikedByLoggedInUser: boolean;
   })[];
   totalPages: number;
 }
@@ -35,12 +41,6 @@ export interface GetAllBlogsResponse {
 export interface GetBlogBySlugResponse {
   blog: Blog & {
     author: BlogAuthor;
-    likes: BlogLikes[];
-    _count: {
-      comments: number;
-      likes: number;
-      bookmarks: number;
-    };
   };
   isLikedByLoggedInUser: boolean;
 }

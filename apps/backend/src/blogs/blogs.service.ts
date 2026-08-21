@@ -17,7 +17,10 @@ export class BlogsService {
 
   private logger = new Logger(BlogsService.name);
 
-  async getAllBlogs(query: BlogQueryDto): Promise<GetAllBlogsResponse> {
+  async getAllBlogs(
+    query: BlogQueryDto,
+    userId?: string,
+  ): Promise<GetAllBlogsResponse> {
     const { search, sort, page, limit } = query;
 
     this.logger.verbose('Fetching all blogs with query parameters', {
@@ -73,6 +76,25 @@ export class BlogsService {
             image: true,
           },
         },
+        ...(userId
+          ? {
+              likes: {
+                where: {
+                  userId,
+                },
+                select: {
+                  userId: true,
+                },
+              },
+            }
+          : {}),
+        _count: {
+          select: {
+            bookmarks: true,
+            likes: true,
+            comments: true,
+          },
+        },
       },
     });
 
@@ -87,8 +109,14 @@ export class BlogsService {
         ? await this.s3Service.getSignedUrl(blog.coverImage)
         : null;
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { likes, ...blogData } = blog; // Purpose of this line is to remove the likes property from the blog object so that it doesn't get sent to the client. The likes property is only used to determine if the logged in user has liked the blog or not.
+
+      const isLikedByLoggedInUser = blog.likes?.length > 0 ? true : false;
+
       return {
-        ...blog,
+        ...blogData,
+        isLikedByLoggedInUser,
         coverImage: presignedUrl,
       };
     });
@@ -143,9 +171,12 @@ export class BlogsService {
       ? await this.s3Service.getSignedUrl(blog.coverImage)
       : null;
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { likes, ...blogData } = blog; // Purpose of this line is to remove the likes property from the blog object so that it doesn't get sent to the client. The likes property is only used to determine if the logged in user has liked the blog or not.
+
     return {
       blog: {
-        ...blog,
+        ...blogData,
         coverImage: presignedUrl,
       },
       isLikedByLoggedInUser,
@@ -156,7 +187,7 @@ export class BlogsService {
     coverImage: Express.Multer.File | undefined,
     newBlogData: CreateBlogDto,
     userId: string,
-  ): Promise<{ success: boolean; data: Blog }> {
+  ): Promise<{ success: boolean; data: Omit<Blog, '_count'> }> {
     const { title, content, tags, isPublished } = newBlogData;
 
     // Save the cover image to AWS S3 bucket and save the key in the database so that it can be retrieved later with presigned URL. The key will be in the format of `APP_NAME-userId-uuid-originalFileName` to ensure uniqueness and traceability.
@@ -199,7 +230,7 @@ export class BlogsService {
     coverImage: Express.Multer.File | undefined,
     updateBlogData: UpdateBlogDto,
     userId: string,
-  ): Promise<{ success: boolean; data: Blog }> {
+  ): Promise<{ success: boolean; data: Omit<Blog, '_count'> }> {
     let imageKey: string | null = null;
     let updatedSlug: string | null = null;
 
