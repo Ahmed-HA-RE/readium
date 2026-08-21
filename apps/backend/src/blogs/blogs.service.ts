@@ -86,6 +86,14 @@ export class BlogsService {
                   userId: true,
                 },
               },
+              bookmarks: {
+                where: {
+                  userId,
+                },
+                select: {
+                  userId: true,
+                },
+              },
             }
           : {}),
         _count: {
@@ -110,13 +118,17 @@ export class BlogsService {
         : null;
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { likes, ...blogData } = blog; // Purpose of this line is to remove the likes property from the blog object so that it doesn't get sent to the client. The likes property is only used to determine if the logged in user has liked the blog or not.
+      const { likes, bookmarks, ...blogData } = blog; // Purpose of this line is to remove the likes and bookmarks properties from the blog object so that they don't get sent to the client. These properties are only used to determine if the logged in user has liked or bookmarked the blog.
 
       const isLikedByLoggedInUser = blog.likes?.length > 0 ? true : false;
+      const isBookmarkedByLoggedInUser = userId
+        ? blog.bookmarks.length > 0
+        : false;
 
       return {
         ...blogData,
         isLikedByLoggedInUser,
+        isBookmarkedByLoggedInUser,
         coverImage: presignedUrl,
       };
     });
@@ -153,11 +165,26 @@ export class BlogsService {
           },
         },
 
-        likes: {
-          where: {
-            userId,
-          },
-        },
+        ...(userId
+          ? {
+              likes: {
+                where: {
+                  userId,
+                },
+                select: {
+                  userId: true,
+                },
+              },
+              bookmarks: {
+                where: {
+                  userId,
+                },
+                select: {
+                  userId: true,
+                },
+              },
+            }
+          : {}),
       },
     });
 
@@ -166,13 +193,16 @@ export class BlogsService {
     }
 
     const isLikedByLoggedInUser = userId ? blog.likes.length > 0 : false;
+    const isBookmarkedByLoggedInUser = userId
+      ? blog.bookmarks.length > 0
+      : false;
 
     const presignedUrl = blog.coverImage
       ? await this.s3Service.getSignedUrl(blog.coverImage)
       : null;
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { likes, ...blogData } = blog; // Purpose of this line is to remove the likes property from the blog object so that it doesn't get sent to the client. The likes property is only used to determine if the logged in user has liked the blog or not.
+    const { likes, bookmarks, ...blogData } = blog; // Purpose of this line is to remove the likes and bookmarks properties from the blog object so that they don't get sent to the client. These properties are only used to determine if the logged in user has liked or bookmarked the blog.
 
     return {
       blog: {
@@ -180,6 +210,7 @@ export class BlogsService {
         coverImage: presignedUrl,
       },
       isLikedByLoggedInUser,
+      isBookmarkedByLoggedInUser,
     };
   }
 

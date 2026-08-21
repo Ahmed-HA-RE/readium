@@ -16,7 +16,7 @@ export interface Blog {
   updatedAt: Date;
 }
 
-export interface BlogLikes {
+export interface BlogLike {
   id: string;
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +34,7 @@ export interface GetAllBlogsResponse {
   blogs: (Blog & {
     author: BlogAuthor;
     isLikedByLoggedInUser: boolean;
+    isBookmarkedByLoggedInUser: boolean;
   })[];
   totalPages: number;
 }
@@ -43,4 +44,5 @@ export interface GetBlogBySlugResponse {
     author: BlogAuthor;
   };
   isLikedByLoggedInUser: boolean;
+  isBookmarkedByLoggedInUser: boolean;
 }
