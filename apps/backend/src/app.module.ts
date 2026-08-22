@@ -9,6 +9,7 @@ import { S3ServiceModule } from './s3-service/s3-service.module';
 import { CommentsModule } from './comments/comments.module';
 import { LikesModule } from './likes/likes.module';
 import { BookmarksModule } from './bookmarks/bookmarks.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { BookmarksModule } from './bookmarks/bookmarks.module';
     CommentsModule,
     LikesModule,
     BookmarksModule,
+    ReportsModule,
   ],
   controllers: [AppController],
 })

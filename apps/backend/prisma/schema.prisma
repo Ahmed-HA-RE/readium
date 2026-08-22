@@ -15,6 +15,13 @@ enum ReportReason {
   AI_GENERATED
 }
 
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  REJECTED
+}
+
 model User {
   id            String     @id
   name          String     @unique
@@ -165,6 +172,7 @@ model Bookmark {
 model Report {
   id        String       @id @default(uuid())
   reason    ReportReason
+  status    ReportStatus @default(PENDING)
   userId    String
   blogId    String
   createdAt DateTime     @default(now())
