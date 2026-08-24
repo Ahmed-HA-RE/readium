@@ -36,7 +36,11 @@ export class CreateBlogDto {
 
     try {
       const parsed: unknown = JSON.parse(value);
-      return parsed;
+      if (!Array.isArray(parsed)) {
+        throw new Error('Parsed value is not an array');
+      }
+
+      return parsed.map((tag: string) => tag.trim());
     } catch {
       return value;
     }
@@ -45,6 +49,15 @@ export class CreateBlogDto {
   @IsArray({ message: 'Blog tags must be an array of strings' })
   @IsString({ each: true, message: 'Each tag must be a string' })
   @ArrayMinSize(1, { message: 'Blog must have at least one tag' })
+  @IsNotEmpty({ each: true, message: 'Blog tags must not be empty' })
+  @MinLength(2, {
+    each: true,
+    message: 'Each tag must be at least 2 character long',
+  })
+  @MaxLength(50, {
+    each: true,
+    message: 'Each tag must not exceed 50 characters long',
+  })
   @ArrayUnique({ message: 'Blog tags must be unique' })
   tags: string[];
 

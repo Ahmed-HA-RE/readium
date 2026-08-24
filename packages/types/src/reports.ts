@@ -41,3 +41,7 @@ export interface GetAllReportsWithFilters {
   })[];
   totalPages: number;
 }
+
+export interface CreateReport {
+  report: Report;
+}

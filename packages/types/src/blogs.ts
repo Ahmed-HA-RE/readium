@@ -45,4 +45,5 @@ export interface GetBlogBySlugResponse {
   };
   isLikedByLoggedInUser: boolean;
   isBookmarkedByLoggedInUser: boolean;
+  isReportedByLoggedInUser: boolean;
 }
