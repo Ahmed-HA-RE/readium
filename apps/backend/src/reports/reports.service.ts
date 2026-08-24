@@ -11,6 +11,7 @@ import { GetAllReportsWithFilters } from '@repo/types';
 import type { Report, ReportReason, ReportStatus } from '@repo/types';
 import { CreateReportDto } from './dto/create-report-dto';
 import sendReportConfirmation from '../../mails/send-report-confirmation';
+import { UpdateReportStatusDto } from './dto/update-report-dto';
 
 @Injectable()
 export class ReportsService {
@@ -200,5 +201,28 @@ export class ReportsService {
     };
 
     return response;
+  }
+
+  async updateReport(
+    reportId: string,
+    updateReportDto: UpdateReportStatusDto,
+  ): Promise<Report> {
+    const existingReport = await this.prisma.report.findUnique({
+      where: { id: reportId },
+    });
+    if (!existingReport) {
+      throw new NotFoundException(`Report with ID ${reportId} not found`);
+    }
+
+    const updatedReport = await this.prisma.report.update({
+      where: { id: reportId },
+      data: updateReportDto,
+    });
+
+    return {
+      ...updatedReport,
+      status: updatedReport.status as ReportStatus,
+      reason: updatedReport.reason as ReportReason,
+    };
   }
 }
