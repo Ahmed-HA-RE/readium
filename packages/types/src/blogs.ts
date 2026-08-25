@@ -47,3 +47,13 @@ export interface GetBlogBySlugResponse {
   isBookmarkedByLoggedInUser: boolean;
   isReportedByLoggedInUser: boolean;
 }
+
+export interface GetAllBlogsForAdmin {
+  blogs: (Pick<
+    Blog,
+    'id' | 'title' | 'slug' | 'isPublished' | 'createdAt' | '_count'
+  > & {
+    author: Pick<BlogAuthor, 'id' | 'name'>;
+  })[];
+  totalPages: number;
+}
