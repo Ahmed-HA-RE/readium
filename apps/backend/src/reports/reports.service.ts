@@ -4,14 +4,10 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ReportQueryDto } from './dto/report-query-dto';
 import { DatabaseService } from '../database/database.service';
-import { Prisma } from '../generated/prisma/client';
-import { GetAllReportsWithFilters } from '@repo/types';
 import type { Report, ReportReason, ReportStatus } from '@repo/types';
 import { CreateReportDto } from './dto/create-report-dto';
 import sendReportConfirmation from '../../mails/send-report-confirmation';
-import { UpdateReportStatusDto } from './dto/update-report-dto';
 
 @Injectable()
 export class ReportsService {
@@ -19,10 +15,11 @@ export class ReportsService {
 
   private logger = new Logger(ReportsService.name);
 
-  private async findBlogBySlug(
+  async createReport(
+    createReportDto: CreateReportDto,
     blogSlug: string,
     userId: string,
-  ): Promise<{ id: string }> {
+  ): Promise<Report> {
     const blog = await this.prisma.blog.findUnique({
       where: {
         slug: blogSlug,
@@ -39,16 +36,11 @@ export class ReportsService {
     if (blog.authorId === userId) {
       throw new BadRequestException(`You cannot report your own blog.`);
     }
-    return blog;
-  }
 
-  private async userAlreadyReportedBlog(
-    blogId: string,
-    userId: string,
-  ): Promise<void> {
+    // Check if the user has already reported this blog
     const existingReport = await this.prisma.report.findFirst({
       where: {
-        blogId,
+        blogId: blog.id,
         userId,
       },
     });
@@ -58,101 +50,6 @@ export class ReportsService {
         `You have already reported this blog. You cannot report the same blog multiple times.`,
       );
     }
-  }
-
-  async getAllReports(
-    query: ReportQueryDto,
-  ): Promise<GetAllReportsWithFilters> {
-    const { reporterName, reason, status, page, limit } = query;
-
-    // Build the filter system based on the provided query parameters
-    const reporterNameFilter: Prisma.ReportWhereInput = reporterName
-      ? {
-          user: {
-            name: {
-              contains: reporterName,
-              mode: 'insensitive',
-            },
-          },
-        }
-      : {};
-
-    const reasonFilter: Prisma.ReportWhereInput = reason
-      ? {
-          reason,
-        }
-      : {};
-
-    const statusFilter: Prisma.ReportWhereInput = status
-      ? {
-          status,
-        }
-      : {};
-
-    const filter: Prisma.ReportWhereInput = {
-      ...reporterNameFilter,
-      ...reasonFilter,
-      ...statusFilter,
-    };
-
-    const limitValue = limit ? limit : 10;
-    const pageValue = page ? page : 1;
-    const skip = (pageValue - 1) * limitValue;
-
-    const reports = await this.prisma.report.findMany({
-      where: filter,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        },
-        blog: {
-          select: {
-            id: true,
-            title: true,
-            author: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      skip,
-      take: limitValue,
-    });
-
-    this.logger.log(`Retrieved ${reports.length} reports`);
-
-    const totalReports = await this.prisma.report.count({ where: filter });
-    const totalPages = Math.ceil(totalReports / limitValue);
-    return {
-      reports: reports.map((report) => ({
-        ...report,
-        reason: report.reason as ReportReason,
-        status: report.status as ReportStatus,
-      })),
-      totalPages,
-    };
-  }
-
-  async createReport(
-    createReportDto: CreateReportDto,
-    blogSlug: string,
-    userId: string,
-  ): Promise<Report> {
-    const blog = await this.findBlogBySlug(blogSlug, userId);
-
-    // Check if the user has already reported this blog
-    await this.userAlreadyReportedBlog(blog.id, userId);
 
     const { reason } = createReportDto;
 
@@ -201,28 +98,5 @@ export class ReportsService {
     };
 
     return response;
-  }
-
-  async updateReport(
-    reportId: string,
-    updateReportDto: UpdateReportStatusDto,
-  ): Promise<Report> {
-    const existingReport = await this.prisma.report.findUnique({
-      where: { id: reportId },
-    });
-    if (!existingReport) {
-      throw new NotFoundException(`Report with ID ${reportId} not found`);
-    }
-
-    const updatedReport = await this.prisma.report.update({
-      where: { id: reportId },
-      data: updateReportDto,
-    });
-
-    return {
-      ...updatedReport,
-      status: updatedReport.status as ReportStatus,
-      reason: updatedReport.reason as ReportReason,
-    };
   }
 }

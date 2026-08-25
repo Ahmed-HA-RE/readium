@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional } from 'class-validator';
-import { ReportStatus } from '../../generated/prisma/enums';
+import { ReportStatus } from '../../../generated/prisma/enums';
 
 export class UpdateReportStatusDto {
   @IsOptional()

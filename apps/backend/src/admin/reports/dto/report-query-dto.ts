@@ -5,7 +5,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { ReportReason, ReportStatus } from '../../generated/prisma/enums';
+import { ReportReason, ReportStatus } from '../../../generated/prisma/enums';
 import { Transform } from 'class-transformer';
 
 export class ReportQueryDto {
