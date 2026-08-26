@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { AdminBlogQueryDto } from './dto/admin-blog-query-dto';
 import { AdminBlogsService } from './admin-blogs.service';
 import { Roles } from '@thallesp/nestjs-better-auth';
@@ -30,5 +38,14 @@ export class AdminBlogsController {
       blogSlug,
       updateBlogStatusDto,
     );
+  }
+
+  // Method         DELETE /api/admin/blogs/:blogSlug
+  // Description    Delete a blog by its slug
+  // Access         Private (Admin only)
+  @Delete(':blogSlug')
+  @Roles(['admin'])
+  deleteBlog(@Param('blogSlug') blogSlug: string) {
+    return this.adminBlogsService.deleteBlogAsAdmin(blogSlug);
   }
 }

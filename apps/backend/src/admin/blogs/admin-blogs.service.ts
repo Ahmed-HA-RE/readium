@@ -4,10 +4,14 @@ import { AdminBlogQueryDto, AdminBlogStatus } from './dto/admin-blog-query-dto';
 import { Prisma } from '../../generated/prisma/client';
 import { GetAllBlogsForAdmin } from '@repo/types';
 import { UpdateBlogStatusDto } from './dto/update-blog-status-dto';
+import { S3ServiceService } from '../../s3-service/s3-service.service';
 
 @Injectable()
 export class AdminBlogsService {
-  constructor(private readonly prisma: DatabaseService) {}
+  constructor(
+    private readonly prisma: DatabaseService,
+    private readonly s3Service: S3ServiceService,
+  ) {}
 
   private logger = new Logger(AdminBlogsService.name);
 
@@ -116,5 +120,32 @@ export class AdminBlogsService {
       },
     });
     return updatedBlogStatus;
+  }
+  async deleteBlogAsAdmin(slug: string): Promise<void> {
+    this.logger.verbose(`Deleting blog with slug: ${slug}`);
+
+    // Check if there's a blog for the given slug
+    const existingBlog = await this.prisma.blog.findUnique({
+      where: { slug },
+      select: {
+        coverImage: true,
+      },
+    });
+
+    if (!existingBlog) {
+      throw new NotFoundException(`Blog with slug ${slug} not found`);
+    }
+
+    // Delete the blog from the database
+    await this.prisma.blog.delete({
+      where: { slug },
+    });
+
+    this.logger.verbose(`Blog with slug: ${slug} deleted successfully`);
+
+    // Delete the cover image from S3 if it exists
+    if (existingBlog.coverImage) {
+      await this.s3Service.deleteFile(existingBlog.coverImage);
+    }
   }
 }
