@@ -1,7 +1,8 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
 import { AdminBlogQueryDto } from './dto/admin-blog-query-dto';
 import { AdminBlogsService } from './admin-blogs.service';
 import { Roles } from '@thallesp/nestjs-better-auth';
+import { UpdateBlogStatusDto } from './dto/update-blog-status-dto';
 
 @Controller('/api/admin/blogs')
 export class AdminBlogsController {
@@ -14,5 +15,20 @@ export class AdminBlogsController {
   @Roles(['admin'])
   getAllBlogsAsAdmin(@Query() query: AdminBlogQueryDto) {
     return this.adminBlogsService.getAllBlogsAsAdmin(query);
+  }
+
+  // Method         PUT /api/admin/blogs/:blogSlug/status
+  // Description    Update the status of a blog (publish/unpublish) by its slug
+  // Access         Private (Admin only)
+  @Put(':blogSlug/status')
+  @Roles(['admin'])
+  updateBlogStatus(
+    @Param('blogSlug') blogSlug: string,
+    @Body() updateBlogStatusDto: UpdateBlogStatusDto,
+  ) {
+    return this.adminBlogsService.updateBlogStatus(
+      blogSlug,
+      updateBlogStatusDto,
+    );
   }
 }

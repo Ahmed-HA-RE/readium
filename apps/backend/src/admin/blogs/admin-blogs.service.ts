@@ -1,14 +1,26 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { AdminBlogQueryDto, AdminBlogStatus } from './dto/admin-blog-query-dto';
 import { Prisma } from '../../generated/prisma/client';
 import { GetAllBlogsForAdmin } from '@repo/types';
+import { UpdateBlogStatusDto } from './dto/update-blog-status-dto';
 
 @Injectable()
 export class AdminBlogsService {
   constructor(private readonly prisma: DatabaseService) {}
 
   private logger = new Logger(AdminBlogsService.name);
+
+  // Helper method to check if a blog exists by its slug. Throws an error if the blog does not exist.
+  private async checkIfBlogExists(blogSlug: string): Promise<void> {
+    const blog = await this.prisma.blog.findUnique({
+      where: { slug: blogSlug },
+    });
+
+    if (!blog) {
+      throw new NotFoundException(`Blog with slug ${blogSlug} does not exist.`);
+    }
+  }
 
   async getAllBlogsAsAdmin(
     query: AdminBlogQueryDto,
@@ -83,5 +95,26 @@ export class AdminBlogsService {
       blogs,
       totalPages,
     };
+  }
+
+  async updateBlogStatus(
+    blogSlug: string,
+    updateBlogStatusDto: UpdateBlogStatusDto,
+  ): Promise<{ isPublished: boolean }> {
+    await this.checkIfBlogExists(blogSlug);
+    const { isPublished } = updateBlogStatusDto;
+
+    this.logger.log(
+      `Updating blog status for slug: ${blogSlug} to isPublished: ${isPublished}`,
+    );
+
+    const updatedBlogStatus = await this.prisma.blog.update({
+      where: { slug: blogSlug },
+      data: { isPublished },
+      select: {
+        isPublished: true,
+      },
+    });
+    return updatedBlogStatus;
   }
 }
