@@ -57,3 +57,12 @@ export interface GetAllBlogsForAdmin {
   })[];
   totalPages: number;
 }
+
+export interface GetBlogBySlugForAdmin {
+  blog: Blog & {
+    author: Pick<BlogAuthor, 'name' | 'image' | 'id'> & {
+      banned: boolean | null;
+      role: string | null;
+    };
+  };
+}

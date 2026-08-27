@@ -25,6 +25,14 @@ export class AdminBlogsController {
     return this.adminBlogsService.getAllBlogsAsAdmin(query);
   }
 
+  // Method         GET /api/admin/blogs/:blogSlug
+  // Description    Get a blog by its slug
+  // Access         Private (Admin only)
+  @Get(':blogSlug')
+  @Roles(['admin'])
+  getBlogBySlug(@Param('blogSlug') blogSlug: string) {
+    return this.adminBlogsService.getBlogBySlugAsAdmin(blogSlug);
+  }
   // Method         PUT /api/admin/blogs/:blogSlug/status
   // Description    Update the status of a blog (publish/unpublish) by its slug
   // Access         Private (Admin only)

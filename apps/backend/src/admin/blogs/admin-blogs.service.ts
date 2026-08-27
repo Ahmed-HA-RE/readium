@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { AdminBlogQueryDto, AdminBlogStatus } from './dto/admin-blog-query-dto';
 import { Prisma } from '../../generated/prisma/client';
-import { GetAllBlogsForAdmin } from '@repo/types';
+import { GetAllBlogsForAdmin, GetBlogBySlugForAdmin } from '@repo/types';
 import { UpdateBlogStatusDto } from './dto/update-blog-status-dto';
 import { S3ServiceService } from '../../s3-service/s3-service.service';
 
@@ -14,17 +14,6 @@ export class AdminBlogsService {
   ) {}
 
   private logger = new Logger(AdminBlogsService.name);
-
-  // Helper method to check if a blog exists by its slug. Throws an error if the blog does not exist.
-  private async checkIfBlogExists(blogSlug: string): Promise<void> {
-    const blog = await this.prisma.blog.findUnique({
-      where: { slug: blogSlug },
-    });
-
-    if (!blog) {
-      throw new NotFoundException(`Blog with slug ${blogSlug} does not exist.`);
-    }
-  }
 
   async getAllBlogsAsAdmin(
     query: AdminBlogQueryDto,
@@ -101,11 +90,49 @@ export class AdminBlogsService {
     };
   }
 
+  async getBlogBySlugAsAdmin(blogSlug: string): Promise<GetBlogBySlugForAdmin> {
+    const blog = await this.prisma.blog.findUnique({
+      where: { slug: blogSlug },
+      include: {
+        _count: {
+          select: {
+            bookmarks: true,
+            likes: true,
+            comments: true,
+          },
+        },
+        author: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            banned: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!blog) {
+      throw new NotFoundException(`Blog with slug ${blogSlug} does not exist.`);
+    }
+
+    return {
+      blog,
+    };
+  }
+
   async updateBlogStatus(
     blogSlug: string,
     updateBlogStatusDto: UpdateBlogStatusDto,
   ): Promise<{ isPublished: boolean }> {
-    await this.checkIfBlogExists(blogSlug);
+    const existingBlog = await this.prisma.blog.findUnique({
+      where: { slug: blogSlug },
+    });
+
+    if (!existingBlog) {
+      throw new NotFoundException(`Blog with slug ${blogSlug} does not exist.`);
+    }
     const { isPublished } = updateBlogStatusDto;
 
     this.logger.log(
@@ -121,6 +148,7 @@ export class AdminBlogsService {
     });
     return updatedBlogStatus;
   }
+
   async deleteBlogAsAdmin(slug: string): Promise<void> {
     this.logger.verbose(`Deleting blog with slug: ${slug}`);
 
