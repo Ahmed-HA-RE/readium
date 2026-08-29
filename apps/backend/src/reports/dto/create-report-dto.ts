@@ -1,14 +1,8 @@
 import { IsEnum, IsNotEmpty } from 'class-validator';
-
-enum CreateReportReason {
-  SPAM = 'SPAM',
-  RULES_VIOLATION = 'RULES_VIOLATION',
-  HARASSMENT = 'HARASSMENT',
-  AI_GENERATED = 'AI_GENERATED',
-}
+import { ReportReason } from '../../generated/prisma/enums';
 
 export class CreateReportDto {
   @IsNotEmpty()
-  @IsEnum(CreateReportReason)
-  reason: CreateReportReason;
+  @IsEnum(ReportReason)
+  reason: ReportReason;
 }

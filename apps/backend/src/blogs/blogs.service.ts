@@ -64,7 +64,10 @@ export class BlogsService {
         };
 
     const blogs = await this.prisma.blog.findMany({
-      where: queryFilter,
+      where: {
+        ...queryFilter,
+        isPublished: true,
+      },
       orderBy: querySort,
       take: limitValue,
       skip: (pageValue - 1) * limitValue,
@@ -158,7 +161,7 @@ export class BlogsService {
     );
 
     const blog = await this.prisma.blog.findUnique({
-      where: { slug },
+      where: { slug, isPublished: true },
       include: {
         _count: {
           select: {
