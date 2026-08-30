@@ -17,7 +17,7 @@ import { UpdateReportStatusDto } from './dto/update-report-dto';
 export class AdminReportsController {
   constructor(private readonly reportsService: AdminReportsService) {}
 
-  // Method       GET /api/reports
+  // Method       GET /api/admin/reports
   // Description  Get all reports
   @Get()
   @Roles(['admin'])
@@ -25,7 +25,7 @@ export class AdminReportsController {
     return this.reportsService.getAllReportsAsAdmin(query);
   }
 
-  // Method       PUT /api/reports/:reportId/status
+  // Method       PUT /api/admin/reports/:reportId/status
   // Description  Update an existing report
   @Put(':reportId/status')
   @Roles(['admin'])

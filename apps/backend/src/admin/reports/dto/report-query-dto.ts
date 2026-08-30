@@ -29,7 +29,6 @@ export class ReportQueryDto {
 
   @Transform(({ value }) => {
     if (value === undefined || value === null) {
-      console.log(value);
       return undefined;
     }
 
