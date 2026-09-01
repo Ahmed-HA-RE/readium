@@ -22,25 +22,28 @@ enum ReportStatus {
 }
 
 model User {
-  id            String     @id
-  name          String     @unique
-  email         String     @unique
-  emailVerified Boolean    @default(false)
+  id            String    @id
+  name          String    @unique
+  email         String    @unique
+  emailVerified Boolean   @default(false)
   image         String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  blogs         Blog[]
-  comments      Comment[]
-  likes         Like[]
-  bookmarks     Bookmark[]
-  reports       Report[]
+  bio           String?
+  website       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          String?
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
 
-  role       String?
-  banned     Boolean?  @default(false)
-  banReason  String?
-  banExpires DateTime?
+  // Relations
+  sessions  Session[]
+  accounts  Account[]
+  blogs     Blog[]
+  comments  Comment[]
+  likes     Like[]
+  bookmarks Bookmark[]
+  reports   Report[]
 
   @@map("user")
 }

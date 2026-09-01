@@ -17,3 +17,11 @@ export interface GetAllUsersAsAdmin {
   users: User[];
   totalPages: number;
 }
+
+export interface UpdateUserAsAdmin extends Pick<
+  User,
+  'id' | 'name' | 'email' | 'image' | 'createdAt' | 'role' | 'banned'
+> {
+  website?: string | null;
+  bio?: string | null;
+}
