@@ -1,12 +1,25 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { UserQueryDto } from './dto/user-query-dto';
 import { Prisma } from '../../generated/prisma/client';
-import { GetAllUsersAsAdmin } from '@repo/types';
+import { GetAllUsersAsAdmin, UpdateUserAsAdmin } from '@repo/types';
+import { UpdateUserDto } from './dto/update-user-dto';
+import { UserSession } from '@thallesp/nestjs-better-auth';
+import { S3ServiceService } from '../../s3-service/s3-service.service';
+import { generateImageKey } from '../../../lib/utils';
 
 @Injectable()
 export class AdminUsersService {
-  constructor(private readonly prisma: DatabaseService) {}
+  constructor(
+    private readonly prisma: DatabaseService,
+    private readonly s3Service: S3ServiceService,
+  ) {}
 
   private logger = new Logger(AdminUsersService.name);
 
@@ -77,6 +90,95 @@ export class AdminUsersService {
       `Retrieved ${users.length} ${users.length > 1 ? 'users' : 'user'} out of ${totalUsers} total users`,
     );
 
+    // Return the users with signed URLs for their profile images and total pages
+    for (const user of users) {
+      if (user.image) {
+        user.image = await this.s3Service.getSignedUrl(user.image);
+      }
+    }
+
     return { users, totalPages };
+  }
+
+  async updateUser(
+    username: string,
+    updateUserDto: UpdateUserDto,
+    user: UserSession['user'],
+    profileImage?: Express.Multer.File,
+  ): Promise<UpdateUserAsAdmin> {
+    const { name, website, bio } = updateUserDto;
+    let imageKey: string | undefined;
+
+    // Check if the user exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { name: username },
+      select: {
+        id: true,
+        image: true,
+      },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException(
+        `User with username ${username} does not exist`,
+      );
+    }
+
+    // Check if the user is trying to update their own account
+    if (user.id === existingUser.id) {
+      throw new ForbiddenException('You cannot update your own account');
+    }
+
+    // Check if the new name is already taken by another user
+    if (name) {
+      const nameTaken = await this.prisma.user.findUnique({
+        where: { name },
+        select: { id: true },
+      });
+      if (nameTaken && nameTaken.id !== existingUser.id) {
+        throw new BadRequestException(
+          'The username is already taken by another user',
+        );
+      }
+    }
+
+    // Update the user in the database
+    const updatedUser = await this.prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        name,
+        website,
+        bio,
+        image: imageKey ?? existingUser.image,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        website: true,
+        bio: true,
+        createdAt: true,
+        role: true,
+        banned: true,
+      },
+    });
+
+    // If a new profile image is provided, upload it to S3 and update the user's image key in the database, otherwise keep the existing image key
+    if (profileImage) {
+      imageKey = existingUser.image
+        ? existingUser.image
+        : generateImageKey({
+            fileName: profileImage.originalname,
+            userId: existingUser.id,
+          });
+      await this.s3Service.uploadFile(profileImage, imageKey);
+    }
+
+    this.logger.log(
+      `User with username ${username} has been updated by admin ${user.name}`,
+    );
+
+    return updatedUser;
   }
 }
