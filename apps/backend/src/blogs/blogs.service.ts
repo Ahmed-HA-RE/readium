@@ -1,12 +1,12 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { BlogQueryDto, BlogSortOptions } from './dto/blog-query-dto';
-import { Prisma } from '../generated/prisma/client';
+import { BlogQueryDto } from './dto/blog-query-dto';
 import { Blog, GetAllBlogsResponse, GetBlogBySlugResponse } from '@repo/types';
 import { CreateBlogDto } from './dto/create-blog-dto';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { UpdateBlogDto } from './dto/update-blog-dto';
 import { generateImageKey, generateSlug } from '../../lib/utils';
+import { buildBlogQuery } from './utils/blog-query';
 
 @Injectable()
 export class BlogsService {
@@ -30,38 +30,12 @@ export class BlogsService {
       limit,
     });
 
-    const limitValue = limit ? Number(limit) : 10;
-    const pageValue = page ? Number(page) : 1;
-
-    // If search query is provided, filter blogs by title or content or author's name
-    const queryFilter: Prisma.BlogWhereInput = search
-      ? {
-          OR: [
-            { title: { contains: search, mode: 'insensitive' } },
-            { content: { contains: search, mode: 'insensitive' } },
-            { author: { name: { contains: search, mode: 'insensitive' } } },
-          ],
-        }
-      : {};
-
-    // If sort query is provided, sort blogs by the specified option
-    const querySort: Prisma.BlogOrderByWithRelationInput = sort
-      ? sort === BlogSortOptions.NEWEST
-        ? {
-            createdAt: 'desc',
-          }
-        : sort === BlogSortOptions.OLDEST
-          ? {
-              createdAt: 'asc',
-            }
-          : {
-              likes: {
-                _count: 'desc',
-              },
-            }
-      : {
-          createdAt: 'desc',
-        };
+    const { queryFilter, querySort, limitValue, pageValue } = buildBlogQuery(
+      search,
+      sort,
+      page,
+      limit,
+    );
 
     const blogs = await this.prisma.blog.findMany({
       where: {
@@ -118,7 +92,10 @@ export class BlogsService {
     });
 
     const totalBlogs = await this.prisma.blog.count({
-      where: queryFilter,
+      where: {
+        ...queryFilter,
+        isPublished: true,
+      },
     });
 
     const totalPages = Math.ceil(totalBlogs / limitValue);

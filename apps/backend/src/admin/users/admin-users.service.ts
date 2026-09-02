@@ -8,11 +8,20 @@ import {
 import { DatabaseService } from '../../database/database.service';
 import { UserQueryDto } from './dto/user-query-dto';
 import { Prisma } from '../../generated/prisma/client';
-import { GetAllUsersAsAdmin, UpdateUserAsAdmin } from '@repo/types';
+import {
+  GetAllUsersAsAdmin,
+  GetUserByUsernameAsAdmin,
+  GetUserWithBlogsByUsernameAsAdmin,
+  GetUserWithCommentsByUsernameAsAdmin,
+  UpdateUserAsAdmin,
+} from '@repo/types';
 import { UpdateUserDto } from './dto/update-user-dto';
 import { UserSession } from '@thallesp/nestjs-better-auth';
 import { S3ServiceService } from '../../s3-service/s3-service.service';
 import { generateImageKey } from '../../../lib/utils';
+import { BlogQueryDto } from '../../blogs/dto/blog-query-dto';
+import { buildBlogQuery } from '../../blogs/utils/blog-query';
+import { CommentQueryDto } from '../../comments/dto/comment-query-dto';
 
 @Injectable()
 export class AdminUsersService {
@@ -100,13 +109,83 @@ export class AdminUsersService {
     return { users, totalPages };
   }
 
+  async getUserByUsername(username: string): Promise<GetUserByUsernameAsAdmin> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { name: username },
+      select: {
+        _count: {
+          select: {
+            blogs: true,
+            comments: true,
+            bookmarks: true,
+            likes: true,
+          },
+        },
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        website: true,
+        bio: true,
+        createdAt: true,
+        banned: true,
+        banReason: true,
+        blogs: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            isPublished: true,
+            createdAt: true,
+            coverImage: true,
+          },
+          take: 10, // Fetch the latest 10 blogs for the user and add view all blogs endpoint for admin to view all blogs of a user
+        },
+        comments: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            blog: {
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+              },
+            },
+          },
+          take: 10, // Fetch the latest 10 comments for the user and add view all comments endpoint for admin to view all comments of a user
+        },
+      },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException(
+        `User with username ${username} does not exist`,
+      );
+    }
+
+    if (existingUser.image) {
+      existingUser.image = await this.s3Service.getSignedUrl(
+        existingUser.image,
+      );
+    }
+    return existingUser;
+  }
+
   async updateUser(
     username: string,
     updateUserDto: UpdateUserDto,
     user: UserSession['user'],
     profileImage?: Express.Multer.File,
   ): Promise<UpdateUserAsAdmin> {
-    const { name, website, bio } = updateUserDto;
+    const { name, website, bio, role } = updateUserDto;
     let imageKey: string | undefined;
 
     // Check if the user exists
@@ -115,12 +194,20 @@ export class AdminUsersService {
       select: {
         id: true,
         image: true,
+        role: true,
       },
     });
 
     if (!existingUser) {
       throw new NotFoundException(
         `User with username ${username} does not exist`,
+      );
+    }
+
+    // Not allow admin to update other admin accounts
+    if (existingUser.role === 'admin') {
+      throw new ForbiddenException(
+        'You do not have permission to update another admin account',
       );
     }
 
@@ -150,6 +237,7 @@ export class AdminUsersService {
         website,
         bio,
         image: imageKey ?? existingUser.image,
+        role,
       },
       select: {
         id: true,
@@ -180,5 +268,125 @@ export class AdminUsersService {
     );
 
     return updatedUser;
+  }
+
+  async getUserBlogsByUsernameAsAdmin(
+    username: string,
+    query: BlogQueryDto,
+  ): Promise<GetUserWithBlogsByUsernameAsAdmin> {
+    const { search, sort, page, limit } = query;
+
+    const { queryFilter, querySort, limitValue, pageValue } = buildBlogQuery(
+      search,
+      sort,
+      page,
+      limit,
+    );
+
+    const [userWithBlogs, totalBlogs] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { name: username },
+        select: {
+          blogs: {
+            where: {
+              ...queryFilter,
+            },
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              content: true,
+              tags: true,
+              isPublished: true,
+              createdAt: true,
+              coverImage: true,
+              author: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+            orderBy: querySort,
+            skip: (pageValue - 1) * limitValue,
+            take: limitValue,
+          },
+        },
+      }),
+      this.prisma.blog.count({
+        where: {
+          ...queryFilter,
+          author: {
+            name: username,
+          },
+        },
+      }),
+    ]);
+
+    if (!userWithBlogs) {
+      throw new NotFoundException(
+        `User with username ${username} does not exist`,
+      );
+    }
+
+    const totalPages = Math.ceil(totalBlogs / limitValue);
+
+    // Generate signed URLs for the cover images of the blogs
+    for (const blog of userWithBlogs.blogs) {
+      if (blog.coverImage) {
+        blog.coverImage = await this.s3Service.getSignedUrl(blog.coverImage);
+      }
+    }
+    return {
+      blogs: userWithBlogs.blogs,
+      totalPages,
+    };
+  }
+
+  async getUserCommentsByUsernameAsAdmin(
+    username: string,
+    query: CommentQueryDto,
+  ): Promise<GetUserWithCommentsByUsernameAsAdmin> {
+    const { limit, cursor } = query;
+    const take = limit ? parseInt(limit) : 10;
+
+    const user = await this.prisma.user.findUnique({
+      where: { name: username },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(
+        `User with username ${username} does not exist`,
+      );
+    }
+
+    const comments = await this.prisma.comment.findMany({
+      where: { authorId: user.id },
+      take,
+      ...(cursor
+        ? {
+            skip: 1,
+            cursor: { id: cursor },
+          }
+        : {}),
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        blog: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    return {
+      data: comments,
+      nextCursor: comments.length > 0 ? comments[comments.length - 1].id : null,
+    };
   }
 }
