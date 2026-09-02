@@ -1,4 +1,5 @@
 import {
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -6,6 +7,11 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+
+enum UserRole {
+  USER = 'user',
+  ADMIN = 'admin',
+}
 
 export class UpdateUserDto {
   @IsOptional()
@@ -22,6 +28,11 @@ export class UpdateUserDto {
   )
   @IsNotEmpty()
   website?: string;
+
+  @IsOptional()
+  @IsEnum(UserRole, { message: 'Role must be either user or admin' })
+  @IsNotEmpty()
+  role?: UserRole;
 
   @IsOptional()
   @IsString()
