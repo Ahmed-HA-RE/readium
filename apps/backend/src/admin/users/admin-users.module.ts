@@ -7,5 +7,6 @@ import { S3ServiceModule } from '../../s3-service/s3-service.module';
   controllers: [AdminUsersController],
   providers: [AdminUsersService],
   imports: [S3ServiceModule],
+  exports: [AdminUsersService],
 })
 export class AdminUsersModule {}

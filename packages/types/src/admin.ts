@@ -56,3 +56,8 @@ export interface GetUserWithCommentsByUsernameAsAdmin {
   })[];
   nextCursor: string | null;
 }
+
+export interface UpdateAdminSettings extends Omit<
+  UpdateUserAsAdmin,
+  'role' | 'banned'
+> {}
