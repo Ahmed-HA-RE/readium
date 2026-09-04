@@ -52,7 +52,10 @@ export class AdminUsersController {
       new ParseFilePipe({
         fileIsRequired: false,
         validators: [
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
+          new MaxFileSizeValidator({
+            maxSize: 5 * 1024 * 1024,
+            errorMessage: 'Max file size is 5MB',
+          }), // 5MB
           new FileTypeValidator({
             fileType: 'image/(jpg|jpeg|png)',
             errorMessage: 'Only JPG, JPEG, and PNG images are allowed',

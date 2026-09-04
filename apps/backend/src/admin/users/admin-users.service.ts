@@ -186,7 +186,7 @@ export class AdminUsersService {
     profileImage?: Express.Multer.File,
   ): Promise<UpdateUserAsAdmin> {
     const { name, website, bio, role } = updateUserDto;
-    let imageKey: string | undefined;
+    let imageKey: string | null = null;
 
     // Check if the user exists
     const existingUser = await this.prisma.user.findUnique({
@@ -229,6 +229,15 @@ export class AdminUsersService {
       }
     }
 
+    // If a new profile image is provided, upload it to S3 and update the user's image key in the database, otherwise keep the existing image key
+    if (profileImage) {
+      imageKey = generateImageKey({
+        fileName: profileImage.originalname,
+        userId: existingUser.id,
+      });
+      await this.s3Service.uploadFile(profileImage, imageKey);
+    }
+
     // Update the user in the database
     const updatedUser = await this.prisma.user.update({
       where: { id: existingUser.id },
@@ -252,15 +261,8 @@ export class AdminUsersService {
       },
     });
 
-    // If a new profile image is provided, upload it to S3 and update the user's image key in the database, otherwise keep the existing image key
-    if (profileImage) {
-      imageKey = existingUser.image
-        ? existingUser.image
-        : generateImageKey({
-            fileName: profileImage.originalname,
-            userId: existingUser.id,
-          });
-      await this.s3Service.uploadFile(profileImage, imageKey);
+    if (existingUser.image && profileImage) {
+      await this.s3Service.deleteFile(existingUser.image);
     }
 
     this.logger.log(
@@ -388,5 +390,16 @@ export class AdminUsersService {
       data: comments,
       nextCursor: comments.length > 0 ? comments[comments.length - 1].id : null,
     };
+  }
+
+  // This service is for checking whether the username is already taken by another user
+  async isUsernameTaken(username: string): Promise<boolean> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        name: { equals: username, mode: 'insensitive' },
+      },
+      select: { id: true },
+    });
+    return !!user;
   }
 }
