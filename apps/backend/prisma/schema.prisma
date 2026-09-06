@@ -36,6 +36,10 @@ model User {
   banReason     String?
   banExpires    DateTime?
 
+  // Last time the user made an authenticated request. Refreshed at most once
+  // every 15 minutes by LastActivityInterceptor, and used to count active users.
+  lastActivityAt DateTime?
+
   // Relations
   sessions  Session[]
   accounts  Account[]
@@ -45,6 +49,7 @@ model User {
   bookmarks Bookmark[]
   reports   Report[]
 
+  @@index([lastActivityAt])
   @@map("user")
 }
 

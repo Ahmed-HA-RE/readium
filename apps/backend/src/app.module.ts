@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
@@ -11,6 +12,7 @@ import { LikesModule } from './likes/likes.module';
 import { BookmarksModule } from './bookmarks/bookmarks.module';
 import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
+import { LastActivityInterceptor } from './common/interceptors/last-activity.interceptor';
 
 @Module({
   imports: [
@@ -26,5 +28,13 @@ import { AdminModule } from './admin/admin.module';
     AdminModule,
   ],
   controllers: [AppController],
+  providers: [
+    // Keeps User.lastActivityAt fresh on every authenticated request so the
+    // admin dashboard can report active users.
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LastActivityInterceptor,
+    },
+  ],
 })
 export class AppModule {}
