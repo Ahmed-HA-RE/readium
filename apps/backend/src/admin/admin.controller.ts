@@ -6,13 +6,16 @@ import {
   MaxFileSizeValidator,
   ParseFilePipe,
   Put,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
-import { UpdateAdminDto } from './update-admin-dto';
+import { UpdateAdminDto } from './dto/update-admin-dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { BlogQueryDto } from '../blogs/dto/blog-query-dto';
+import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 
 @Controller('api/admin')
 export class AdminController {
@@ -24,6 +27,36 @@ export class AdminController {
   @Roles(['admin'])
   getDashboardAnalytics() {
     return this.adminService.getDashboardAnalytics();
+  }
+
+  // Method           GET /api/admin/me
+  // Description     Get the signed-in admin's own profile with their counts
+  @Get('me')
+  @Roles(['admin'])
+  getMyDataAsAdmin(@Session() session: UserSession) {
+    return this.adminService.getMyDataAsAdmin(session.user);
+  }
+
+  // Method           GET /api/admin/me/blogs
+  // Description     Get the signed-in admin's blogs with filtering and pagination
+  @Get('me/blogs')
+  @Roles(['admin'])
+  getMyBlogsAsAdmin(
+    @Session() session: UserSession,
+    @Query() query: BlogQueryDto,
+  ) {
+    return this.adminService.getMyBlogsAsAdmin(session.user, query);
+  }
+
+  // Method           GET /api/admin/me/comments
+  // Description     Get the signed-in admin's comments with cursor-based pagination
+  @Get('me/comments')
+  @Roles(['admin'])
+  getMyCommentsAsAdmin(
+    @Session() session: UserSession,
+    @Query() query: CommentQueryDto,
+  ) {
+    return this.adminService.getMyCommentsAsAdmin(session.user, query);
   }
 
   // Method           PUT /api/admin/settings
