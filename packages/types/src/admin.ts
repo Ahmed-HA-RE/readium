@@ -29,19 +29,29 @@ export interface UpdateUserAsAdmin extends Pick<
   bio?: string | null;
 }
 
+// Counts only: the blog and comment lists are served by the paginated
+// /blogs and /comments endpoints. `_count` drives the "view more" affordance.
 export interface GetUserByUsernameAsAdmin extends Pick<
   User,
-  'id' | 'name' | 'email' | 'image' | 'createdAt' | 'banned' | '_count'
+  'id' | 'name' | 'email' | 'image' | 'createdAt' | 'banned'
 > {
   website?: string | null;
   bio?: string | null;
   banReason?: string | null;
-  blogs: Pick<
-    Blog,
-    'id' | 'title' | 'slug' | 'isPublished' | 'createdAt' | 'coverImage'
-  >[];
-  comments: Pick<Comment, 'id' | 'content' | 'createdAt'>[];
+  _count: {
+    blogs: number;
+    comments: number;
+    bookmarks: number;
+    likes: number;
+  };
 }
+
+// An admin viewing their own profile has no ban state to moderate, so those
+// fields are absent from the /api/admin/me payload.
+export interface GetMyDataAsAdmin extends Omit<
+  GetUserByUsernameAsAdmin,
+  'banned' | 'banReason'
+> {}
 
 export interface GetUserWithBlogsByUsernameAsAdmin {
   blogs: (Omit<Blog, '_count' | 'updatedAt' | 'authorId'> & {

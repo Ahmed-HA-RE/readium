@@ -4,6 +4,7 @@ import { AdminService } from './admin.service';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { AdminUsersService } from './users/admin-users.service';
+import { UserSession } from '@thallesp/nestjs-better-auth';
 
 // Frozen so the 30 day cutoff is deterministic across runs.
 const NOW = new Date('2026-09-06T12:00:00.000Z');
@@ -15,9 +16,23 @@ type CountMocks = {
   like: { count: jest.Mock };
 };
 
+// The signed-in admin, as better-auth hands it to the controller.
+const SESSION_USER = {
+  id: 'admin-1',
+  name: 'Ahmed',
+  email: 'ahmed@example.com',
+} as UserSession['user'];
+
+type AdminUsersMocks = {
+  getUserByUsername: jest.Mock;
+  getUserBlogsByUsernameAsAdmin: jest.Mock;
+  getUserCommentsByUsernameAsAdmin: jest.Mock;
+};
+
 describe('AdminService', () => {
   let service: AdminService;
   let prisma: CountMocks;
+  let adminUsers: AdminUsersMocks;
 
   beforeEach(async () => {
     jest.useFakeTimers().setSystemTime(NOW);
@@ -29,12 +44,22 @@ describe('AdminService', () => {
       like: { count: jest.fn() },
     };
 
+    adminUsers = {
+      getUserByUsername: jest.fn().mockResolvedValue({ id: 'admin-1' }),
+      getUserBlogsByUsernameAsAdmin: jest
+        .fn()
+        .mockResolvedValue({ blogs: [], totalPages: 0 }),
+      getUserCommentsByUsernameAsAdmin: jest
+        .fn()
+        .mockResolvedValue({ data: [], nextCursor: null }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminService,
         { provide: DatabaseService, useValue: prisma },
         { provide: S3ServiceService, useValue: {} },
-        { provide: AdminUsersService, useValue: {} },
+        { provide: AdminUsersService, useValue: adminUsers },
       ],
     }).compile();
 
@@ -44,6 +69,51 @@ describe('AdminService', () => {
   afterEach(() => {
     jest.useRealTimers();
     jest.clearAllMocks();
+  });
+
+  // The /api/admin/me family delegates to AdminUsersService with the username
+  // off the session, so the subject can never be steered by a path param.
+  describe('the /api/admin/me endpoints', () => {
+    it('reads the profile without the moderation columns', async () => {
+      await service.getMyDataAsAdmin(SESSION_USER);
+
+      expect(adminUsers.getUserByUsername).toHaveBeenCalledWith('Ahmed', false);
+    });
+
+    it('passes the blog query through for the signed-in admin', async () => {
+      const query = { search: 'nest', page: '2', limit: '5' };
+
+      const page = await service.getMyBlogsAsAdmin(SESSION_USER, query);
+
+      expect(adminUsers.getUserBlogsByUsernameAsAdmin).toHaveBeenCalledWith(
+        'Ahmed',
+        query,
+      );
+      expect(page).toEqual({ blogs: [], totalPages: 0 });
+    });
+
+    it('passes the comment cursor through for the signed-in admin', async () => {
+      const query = { limit: '10', cursor: 'comment-9' };
+
+      const page = await service.getMyCommentsAsAdmin(SESSION_USER, query);
+
+      expect(adminUsers.getUserCommentsByUsernameAsAdmin).toHaveBeenCalledWith(
+        'Ahmed',
+        query,
+      );
+      expect(page).toEqual({ data: [], nextCursor: null });
+    });
+
+    it('never queries the database directly', async () => {
+      await service.getMyDataAsAdmin(SESSION_USER);
+      await service.getMyBlogsAsAdmin(SESSION_USER, {});
+      await service.getMyCommentsAsAdmin(SESSION_USER, {});
+
+      // Every /me read goes through AdminUsersService, so the two routes can
+      // never drift into returning different shapes for the same data.
+      expect(prisma.user.count).not.toHaveBeenCalled();
+      expect(prisma.blog.count).not.toHaveBeenCalled();
+    });
   });
 
   describe('getDashboardAnalytics', () => {

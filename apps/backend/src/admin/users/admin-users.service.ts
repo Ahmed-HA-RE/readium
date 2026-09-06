@@ -22,6 +22,7 @@ import { generateImageKey } from '../../../lib/utils';
 import { BlogQueryDto } from '../../blogs/dto/blog-query-dto';
 import { buildBlogQuery } from '../../blogs/utils/blog-query';
 import { CommentQueryDto } from '../../comments/dto/comment-query-dto';
+import { buildAdminUserSelect } from './utils/user-query';
 
 @Injectable()
 export class AdminUsersService {
@@ -109,60 +110,15 @@ export class AdminUsersService {
     return { users, totalPages };
   }
 
-  async getUserByUsername(username: string): Promise<GetUserByUsernameAsAdmin> {
+  // Shared by GET /api/admin/users/:username and GET /api/admin/me, which
+  // passes false so the moderation columns are left out of the self view.
+  async getUserByUsername(
+    username: string,
+    includeModerationData = true,
+  ): Promise<GetUserByUsernameAsAdmin> {
     const existingUser = await this.prisma.user.findUnique({
       where: { name: username },
-      select: {
-        _count: {
-          select: {
-            blogs: true,
-            comments: true,
-            bookmarks: true,
-            likes: true,
-          },
-        },
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        website: true,
-        bio: true,
-        createdAt: true,
-        banned: true,
-        banReason: true,
-        blogs: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            isPublished: true,
-            createdAt: true,
-            coverImage: true,
-          },
-          take: 10, // Fetch the latest 10 blogs for the user and add view all blogs endpoint for admin to view all blogs of a user
-        },
-        comments: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-          select: {
-            id: true,
-            content: true,
-            createdAt: true,
-            blog: {
-              select: {
-                id: true,
-                title: true,
-                slug: true,
-              },
-            },
-          },
-          take: 10, // Fetch the latest 10 comments for the user and add view all comments endpoint for admin to view all comments of a user
-        },
-      },
+      select: buildAdminUserSelect(includeModerationData),
     });
 
     if (!existingUser) {
@@ -371,7 +327,10 @@ export class AdminUsersService {
             cursor: { id: cursor },
           }
         : {}),
-      orderBy: { createdAt: 'desc' },
+      // `createdAt` alone is not a unique ordering, so a cursor on `id` would
+      // sit at an ambiguous position whenever two comments share a timestamp
+      // and rows would be skipped or repeated across pages.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: {
         id: true,
         content: true,

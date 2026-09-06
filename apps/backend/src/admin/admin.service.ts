@@ -2,11 +2,19 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { UserSession } from '@thallesp/nestjs-better-auth';
-import { UpdateAdminDto } from './update-admin-dto';
 import { AdminUsersService } from './users/admin-users.service';
 import { generateImageKey } from '../../lib/utils';
-import { AdminDashboardAnalytics, UpdateAdminSettings } from '@repo/types';
+import {
+  AdminDashboardAnalytics,
+  GetMyDataAsAdmin,
+  GetUserWithBlogsByUsernameAsAdmin,
+  GetUserWithCommentsByUsernameAsAdmin,
+  UpdateAdminSettings,
+} from '@repo/types';
 import { subDays } from 'date-fns';
+import { UpdateAdminDto } from './dto/update-admin-dto';
+import { BlogQueryDto } from '../blogs/dto/blog-query-dto';
+import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 
 // A user counts as active when their last activity falls within this window.
 const ACTIVE_USER_WINDOW_IN_DAYS = 30;
@@ -77,6 +85,34 @@ export class AdminService {
     this.logger.verbose(`Admin with username ${user.name} has been updated`);
 
     return updatedUser;
+  }
+
+  // The three /api/admin/me endpoints delegate to the services that already
+  // back /api/admin/users/:username. The session carries the admin's username,
+  // so the only difference is that the subject is fixed to the caller — and
+  // that the profile drops the moderation columns.
+  async getMyDataAsAdmin(user: UserSession['user']): Promise<GetMyDataAsAdmin> {
+    return this.AdminUsersService.getUserByUsername(user.name, false);
+  }
+
+  async getMyBlogsAsAdmin(
+    user: UserSession['user'],
+    query: BlogQueryDto,
+  ): Promise<GetUserWithBlogsByUsernameAsAdmin> {
+    return this.AdminUsersService.getUserBlogsByUsernameAsAdmin(
+      user.name,
+      query,
+    );
+  }
+
+  async getMyCommentsAsAdmin(
+    user: UserSession['user'],
+    query: CommentQueryDto,
+  ): Promise<GetUserWithCommentsByUsernameAsAdmin> {
+    return this.AdminUsersService.getUserCommentsByUsernameAsAdmin(
+      user.name,
+      query,
+    );
   }
 
   async getDashboardAnalytics(): Promise<AdminDashboardAnalytics> {
