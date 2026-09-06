@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   FileTypeValidator,
+  Get,
   MaxFileSizeValidator,
   ParseFilePipe,
   Put,
@@ -16,6 +17,14 @@ import { FileInterceptor } from '@nestjs/platform-express';
 @Controller('api/admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
+
+  // Method           GET /api/admin/analytics
+  // Description     Get the admin dashboard analytics
+  @Get('analytics')
+  @Roles(['admin'])
+  getDashboardAnalytics() {
+    return this.adminService.getDashboardAnalytics();
+  }
 
   // Method           PUT /api/admin/settings
   // Description     Update admin settings

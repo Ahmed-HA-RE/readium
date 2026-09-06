@@ -5,7 +5,15 @@ import { UserSession } from '@thallesp/nestjs-better-auth';
 import { UpdateAdminDto } from './update-admin-dto';
 import { AdminUsersService } from './users/admin-users.service';
 import { generateImageKey } from '../../lib/utils';
-import { UpdateAdminSettings } from '@repo/types';
+import { AdminDashboardAnalytics, UpdateAdminSettings } from '@repo/types';
+import { subDays } from 'date-fns';
+
+// A user counts as active when their last activity falls within this window.
+const ACTIVE_USER_WINDOW_IN_DAYS = 30;
+
+// The subscription feature is not implemented yet, so there is no table to count.
+// Replace this placeholder with the real subscription count once Stripe lands.
+const PLACEHOLDER_TOTAL_SUBSCRIBERS = 10;
 
 @Injectable()
 export class AdminService {
@@ -69,5 +77,37 @@ export class AdminService {
     this.logger.verbose(`Admin with username ${user.name} has been updated`);
 
     return updatedUser;
+  }
+
+  async getDashboardAnalytics(): Promise<AdminDashboardAnalytics> {
+    const activeSince = subDays(new Date(), ACTIVE_USER_WINDOW_IN_DAYS);
+
+    // Run every count concurrently so the queries do not stack up sequentially.
+    const [
+      totalUsers,
+      totalBlogs,
+      totalReports,
+      totalActiveUsers,
+      totalBlogLikes,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.blog.count(),
+      this.prisma.report.count(),
+      this.prisma.user.count({
+        where: { lastActivityAt: { gte: activeSince } },
+      }),
+      this.prisma.like.count(),
+    ]);
+
+    this.logger.verbose('Retrieved admin dashboard analytics');
+
+    return {
+      totalUsers,
+      totalBlogs,
+      totalReports,
+      totalSubscribers: PLACEHOLDER_TOTAL_SUBSCRIBERS,
+      totalActiveUsers,
+      totalBlogLikes,
+    };
   }
 }

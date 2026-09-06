@@ -62,13 +62,9 @@
 
 - If the feature uses read operations:
 
-  - If read is done in an **SSR component** → verify the data is fetched server side and passed correctly to the component. No client side interaction testing needed.
+Read operations are always served by a **NestJS endpoint** (controller → service → Prisma). Test the endpoint itself first: the route is registered, the `@Roles`/guards reject unauthorized callers, the returned shape matches the interface declared in `packages/types`, and the Prisma query (filters, pagination, concurrency) is correct.
 
-  - If read is done in a **server action** → test both the server action and the TanStack Query client component to make sure data is fetched and displayed correctly
-
-  - If there are any issues, mention them and suggest improvements
-
-  **Note**: Run the test with the installed testing framework (Vitest or Jest) and make sure to write unit tests for the feature if not already written.
+  **Note**: Run the test with **Jest** (the backend test runner, configured in `apps/backend/package.json`) via `pnpm test`, and make sure to write unit tests for the feature if not already written.
 
 ## If `complete` hint is provided, then make sure to follow the steps below:
 

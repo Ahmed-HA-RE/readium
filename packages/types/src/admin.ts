@@ -61,3 +61,13 @@ export interface UpdateAdminSettings extends Omit<
   UpdateUserAsAdmin,
   'role' | 'banned'
 > {}
+
+export interface AdminDashboardAnalytics {
+  totalUsers: number;
+  totalBlogs: number;
+  totalReports: number;
+  totalSubscribers: number;
+  /** Users whose last activity falls within the past 30 days. */
+  totalActiveUsers: number;
+  totalBlogLikes: number;
+}
