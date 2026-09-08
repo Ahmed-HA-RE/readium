@@ -13,6 +13,7 @@ import { BookmarksModule } from './bookmarks/bookmarks.module';
 import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
 import { LastActivityInterceptor } from './common/interceptors/last-activity.interceptor';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { LastActivityInterceptor } from './common/interceptors/last-activity.int
     BookmarksModule,
     ReportsModule,
     AdminModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [
