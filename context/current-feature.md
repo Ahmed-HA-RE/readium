@@ -10,8 +10,6 @@
 
 ## Status
 
-Completed
-
 <!-- History -->
 
 ## History
@@ -182,3 +180,73 @@ sorted, paginated page of their **published** blogs.
 
 **Not included:** every other phase of `context/plans/user-management-plan.md` — the `/me` dashboard
 reads, profile settings, the security tab, 2FA, and all frontend work.
+
+### 4. User Management Phase 2 — Dashboard Reads — completed 2026-09-08
+
+The signed-in user's own dashboard surface, modelled on Medium's. Two private endpoints on the
+existing `UsersController`, both `@Roles(['user'])` with identity taken from `@Session()`. No
+`@AllowAnonymous()`, and neither accepts a user identifier from the client.
+
+**Implemented**
+
+- `GET /api/users/me` — `UsersService.getCurrentLoggedInUser()`. Returns the `session` and `user`
+  objects as better-auth built them, plus `isPro` and a presigned avatar URL.
+- `GET /api/users/me/blogs` — `UsersService.getMyBlogs()`. The caller's own blogs, drafts included,
+  offset-paginated, filterable and sortable.
+- `GetCurrentLoggedInUser`, `CurrentUser`, `CurrentSession` and `GetMyBlogs` in
+  `packages/types/src/users.ts`.
+- 20 Jest tests added to `users.service.spec.ts`. Suite is 63 passing.
+
+**Decisions worth remembering**
+
+- **The `me` routes must be declared above `:username`.** Nest matches in declaration order, so a
+  `:username` declared first swallows `/api/users/me` and answers 404 for the very common case of no
+  account being named "me". A comment in the controller says so; do not reorder the handlers.
+- **`getCurrentLoggedInUser` does no database read.** The global `AuthGuard` has already resolved
+  the session, so re-querying it would be a second read of data already in hand. A test asserts
+  `prisma.user.findUnique` is never called.
+- **Its return type is derived from `UserSession`, not from `@repo/types`.** `Promise<UserSession &
+  { user: { isPro: boolean } }>` is the type the guard actually hands over, so the response cannot
+  drift from it — the compiler enforces "return the session objects intact" rather than a comment
+  doing it. `GetCurrentLoggedInUser` in `packages/types` mirrors the same shape by hand for the
+  Next.js app. **Keep the two in step manually.**
+- **`packages/types` stays dependency-free.** Importing better-auth's own `Session` and `User` was
+  tried and rejected: it would mean adding `better-auth` to a package that has no dependencies, and
+  `apps/web` does not even depend on `@repo/types` yet. The hand-written mirror is the deliberate
+  trade.
+- **Drafts are included in `/me/blogs`, and `isPublished` is returned.** The spec constrains
+  ownership, not publish state, and these are the caller's own blogs — matching the plan's Phase 2
+  note. This is the one difference from the public profile's `select`, which forces `isPublished:
+  true`.
+- **The `where` clause is scoped by `authorId: user.id`**, not by `author: { name }`. The public
+  endpoint scopes by name because it resolves a username from the URL; here the session carries the
+  id directly. Both `findMany` and `count` share one `blogsWhere` object, and a test asserts they
+  match so a filter can never be applied to one and not the other.
+- **`buildBlogQuery`'s `queryFilter` is unused, again.** Only `querySort`, `pageValue` and
+  `limitValue` are destructured; `buildUserBlogsFilter()` (added in history #3 for exactly this)
+  builds the title/content filter. Its `author.name` clause would return every one of the caller's
+  blogs whenever the search term matched their own username.
+- **`/api/users/me` returns `session.token`.** Deliberate and reviewed: the spec asks for the
+  complete session object, and this is the caller's own token, which they already hold as a cookie —
+  better-auth's `/api/auth/get-session` returns it too. **This does not license the same in Phase 4:**
+  `GET /api/users/me/security/sessions` lists *other* sessions, and the plan's "Never `token`"
+  rule (`user-management-plan.md:139`, acceptance check at `:301`) still stands there.
+- **`isPro` is hardcoded `true`.** No subscription model exists. Replace `PLACEHOLDER_IS_PRO` in
+  `users.service.ts` when subscriptions land — the same situation as
+  `PLACEHOLDER_TOTAL_SUBSCRIBERS` in `admin.service.ts`.
+- **`satisfies Prisma.BlogSelect`, never a type annotation** — same reason as history #2 and #3.
+
+**Verified**
+
+- `pnpm turbo build` green for both `backend` and `web`; `eslint src/users/**/*.ts` clean.
+- `tsc --noEmit` reports nothing for the new code. The two pre-existing `admin.service.spec.ts`
+  `BlogQueryDto` errors noted in history #3 are still there, untouched.
+- `pnpm test` — 63 passing (43 before, 20 added).
+- **Not verified:** live responses. The `@Roles(['user'])` rejection, the `me`-before-`:username`
+  ordering and an authenticated body were not exercised with `curl` — the app was not booted.
+  Behaviour rests on the unit tests plus the declared return types. The route-ordering trap in
+  particular is only covered by reading, so exercise `/api/users/me` first when the frontend lands.
+
+**Not included:** `/api/users/me/comments`, `/bookmarks` and `/likes` from the plan's Phase 2 table —
+the spec scoped this feature to the profile and blogs only. Also no `status` filter
+(`all | published | draft`) on `/me/blogs`, no dashboard UI, and every later phase.
