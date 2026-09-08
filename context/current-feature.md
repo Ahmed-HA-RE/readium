@@ -1,16 +1,60 @@
 <!-- Feature Title -->
 
+## Feature Name
+
+User Management Phase 2 — Authenticated User Dashboard Reads
+
 <!-- Feature Description -->
+
+## Feature Description
+
+Backend reads for the signed-in user's own dashboard, modelled on Medium's user dashboard. Two
+private **GET** endpoints, both requiring authentication and the `user` role:
+
+- `GET /api/users/me` — the current user's profile data for the dashboard sidebar (profile image,
+  name, email, `isPro`). Returns both the `session` and `user` objects exactly as the existing
+  auth/session implementation provides them, plus `isPro` hardcoded to `true` for now.
+- `GET /api/users/me/blogs` — only the authenticated user's blogs, with the same filtering,
+  sorting and pagination as the public user-blogs endpoint.
+
+Source spec: `context/specs/user-management-phase-2.md`.
 
 <!-- Feature Notes -->
 
+## Feature Notes
+
+- No `@AllowAnnonymus()` on either route. Use the existing `@Roles(['user'])` pattern and the
+  `@Session()` decorator for identity.
+- The client never supplies a user ID for either endpoint — identity comes only from `@Session()`.
+- `isPro` is a fixed `true` placeholder; the real implementation lands later.
+- The `/api/users/me` response shape goes in `/packages/types` so the Next.js app can reuse it when
+  fetching the current user during SSR.
+- `/api/users/me/blogs` reuses the existing `BlogQueryDto`.
+- It reuses `buildBlogQuery()` for `querySort`, `pageValue` and `limitValue` only — the returned
+  `queryValue` is deliberately **not** used, because the current user's name must not be part of the
+  blog search criteria. Filtering is built with `buildUserBlogsFilter()` (title/content) instead.
+  This matches history entry #3, which introduced `buildUserBlogsFilter()` for exactly this reuse.
+- Follow the implementation patterns already established by the public user-blog endpoint.
+- Reference docs: `context/project-overview.md` and the user management plan (on disk at
+  `context/plans/user-management-plan.md`; the spec cites it as `context/user-management-plan.md`).
+
 <!-- Feature Goals-->
+
+## Feature Goals
+
+1. Expose the signed-in user's profile data for the dashboard sidebar, session and user objects
+   returned intact, with `isPro` present.
+2. Expose the signed-in user's own blogs with filtering, sorting and pagination, scoped by the
+   session user's identifier in the `where` clause so another user's blogs can never be requested.
+3. Enforce authentication and the `user` role on both routes.
+4. Share the `/api/users/me` response type from `/packages/types` for SSR reuse.
+5. Reuse the existing query helpers rather than duplicating them, taking only the parts that apply.
 
 <!-- Feature Status -->
 
 ## Status
 
-Completed
+In Progress
 
 <!-- History -->
 
