@@ -1,62 +1,14 @@
 <!-- Feature Title -->
 
-# User Management Phase 3 — Comments, Likes & Bookmarks
-
-Spec: `context/specs/user-management-phase-3.md`
-
 <!-- Feature Description -->
-
-## Description
-
-Continues the authenticated user's profile dashboard (history #4) by adding the three remaining
-private read endpoints from the plan's Phase 2 table: the caller's own **comments**, **likes** and
-**bookmarks**.
-
-Comments are cursor-paginated with no filtering or sorting. Likes and bookmarks are **offset**-
-paginated — `page` and `limit`, defaulting to page 1 of 10 — with no filtering or sorting. All three
-endpoints are private: authenticated session required, `user` role, identity from `@Session()`, and
-no user identifier is ever accepted from the client.
 
 <!-- Feature Notes -->
 
-## Notes
-
-- Reuse the existing `CommentQueryDto` for the comments endpoint.
-- Comments return the user's `name` and profile image alongside each comment's `content` and
-  `createdAt`.
-- `createdAt` is formatted as compact relative time on the frontend with `date-fns` — Medium's style
-  (`3m`, `2w`, `5mo`, `1y`).
-- Likes and bookmarks return only the related blog data the frontend needs: title, slug, cover image,
-  tags, author name, author profile image. No like/bookmark record fields that the frontend does not
-  use.
-- Selecting a liked or bookmarked blog navigates by the blog's `slug`.
-- **Likes and bookmarks are paginated, revising the spec.** The spec as written asked for no
-  pagination at all; fetching a user's entire like and bookmark history in one response gets slower
-  without bound, so both endpoints take `page` and `limit` instead, defaulting to 10.
-  `context/specs/user-management-phase-3.md` was updated to match.
-- **An unpublished blog is dropped, not flagged.** `context/plans/user-management-plan.md` suggested
-  returning `isPublished` so the frontend could grey the card out. It is filtered out server-side
-  instead — the card is never rendered, so the field would have no consumer.
-- The `me` routes must stay declared above `:username` in `UsersController` (history #4).
-- History #2 recorded the cursor-ordering trap: order by `[{ createdAt: 'desc' }, { id: 'desc' }]`,
-  not `createdAt` alone.
-
 <!-- Feature Goals-->
-
-## Goals
-
-1. `GET /api/users/me/comments` — the caller's comments, cursor-paginated, no filter or sort.
-2. `GET /api/users/me/likes` — blogs the caller liked, offset-paginated, no filter or sort.
-3. `GET /api/users/me/bookmarks` — blogs the caller bookmarked, same shape and pagination.
-4. Shared response interfaces in `packages/types/src/users.ts`.
-5. All three guarded by `@Roles(['user'])` and scoped to the session user only.
-6. Jest unit tests covering the service methods and their `select` / `where` shapes.
 
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
