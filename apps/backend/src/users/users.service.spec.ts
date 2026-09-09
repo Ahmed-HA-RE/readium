@@ -5,6 +5,8 @@ import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { BlogQueryDto, BlogSortOptions } from '../blogs/dto/blog-query-dto';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
+import { CommentQueryDto } from '../comments/dto/comment-query-dto';
+import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
 import { Prisma } from '../generated/prisma/client';
 
 // The arguments the service hands to Prisma. The mocks below are typed with
@@ -36,12 +38,45 @@ type BlogFindManyArgs = {
   };
 };
 
+type CommentFindManyArgs = {
+  where: Prisma.CommentWhereInput;
+  take: number;
+  skip?: number;
+  cursor?: { id: string };
+  orderBy: Prisma.CommentOrderByWithRelationInput[];
+  select: Record<string, boolean>;
+};
+
+// Likes and bookmarks run the identical query against two different tables, so
+// one pair of mock types covers both.
+type LikesAndBookmarksFindManyArgs = {
+  where: { userId: string; blog: { isPublished: boolean } };
+  orderBy: Prisma.LikeOrderByWithRelationInput[];
+  skip: number;
+  take: number;
+  select: { blog: { select: Record<string, unknown> } };
+};
+
+type LikesAndBookmarksCountArgs = {
+  where: { userId: string; blog: { isPublished: boolean } };
+};
+
+type LikesAndBookmarksMocks = {
+  findMany: jest.Mock<Promise<unknown[]>, [LikesAndBookmarksFindManyArgs]>;
+  count: jest.Mock<Promise<number>, [LikesAndBookmarksCountArgs]>;
+};
+
 type PrismaMocks = {
   user: { findUnique: jest.Mock<Promise<unknown>, [UserFindUniqueArgs]> };
   blog: {
     count: jest.Mock<Promise<number>, [BlogCountArgs]>;
     findMany: jest.Mock<Promise<unknown[]>, [BlogFindManyArgs]>;
   };
+  comment: {
+    findMany: jest.Mock<Promise<unknown[]>, [CommentFindManyArgs]>;
+  };
+  like: LikesAndBookmarksMocks;
+  bookmark: LikesAndBookmarksMocks;
 };
 
 // Every property of BlogQueryDto is required, so a partial query needs one
@@ -71,6 +106,25 @@ const userRow = {
 
 // The owner's own view carries `isPublished`, because drafts are listed too.
 const myBlogRow = { ...blogRow, isPublished: false };
+
+const commentRow = {
+  id: 'comment-1',
+  content: 'Great write-up',
+  createdAt: new Date('2026-09-02T00:00:00.000Z'),
+};
+
+// A like or bookmark row as its query returns it: the join row is projected
+// away and only the blog is selected.
+const likeOrBookmarkRow = {
+  blog: {
+    id: 'blog-1',
+    title: 'A published blog',
+    slug: 'a-published-blog',
+    tags: ['nest'],
+    coverImage: 'cover-key',
+    author: { name: 'Sara', image: 'author-key' },
+  },
+};
 
 // A session as the AuthGuard hands it over. Only the fields the service reads
 // matter, so this is cast rather than reproducing better-auth's full type.
@@ -103,6 +157,15 @@ describe('UsersService', () => {
   const countArgs = () => prisma.blog.count.mock.calls[0][0];
 
   beforeEach(async () => {
+    const likesAndBookmarksMocks = (): LikesAndBookmarksMocks => ({
+      findMany: jest
+        .fn<Promise<unknown[]>, [LikesAndBookmarksFindManyArgs]>()
+        .mockResolvedValue([likeOrBookmarkRow]),
+      count: jest
+        .fn<Promise<number>, [LikesAndBookmarksCountArgs]>()
+        .mockResolvedValue(1),
+    });
+
     prisma = {
       user: { findUnique: jest.fn<Promise<unknown>, [UserFindUniqueArgs]>() },
       blog: {
@@ -111,6 +174,13 @@ describe('UsersService', () => {
           .fn<Promise<unknown[]>, [BlogFindManyArgs]>()
           .mockResolvedValue([myBlogRow]),
       },
+      comment: {
+        findMany: jest
+          .fn<Promise<unknown[]>, [CommentFindManyArgs]>()
+          .mockResolvedValue([commentRow]),
+      },
+      like: likesAndBookmarksMocks(),
+      bookmark: likesAndBookmarksMocks(),
     };
     s3 = { getSignedUrl: jest.fn().mockResolvedValue('https://signed/url') };
 
@@ -466,6 +536,265 @@ describe('UsersService', () => {
 
       expect(s3.getSignedUrl).not.toHaveBeenCalled();
       expect(result.blogs[0].coverImage).toBeNull();
+    });
+  });
+
+  describe('getMyComments', () => {
+    const findManyArgs = () => prisma.comment.findMany.mock.calls[0][0];
+
+    const myComments = (partial: Partial<CommentQueryDto> = {}) =>
+      service.getMyComments(session().user, partial as CommentQueryDto);
+
+    // The whole point of the endpoint: the author comes from the session, so
+    // no caller-supplied identifier can widen the result set.
+    it('scopes the comments to the session user id', async () => {
+      await myComments();
+
+      expect(findManyArgs().where).toEqual({ authorId: 'user-1' });
+    });
+
+    // History #2: ordering by createdAt alone leaves a cursor on `id` sitting
+    // at an ambiguous position, so tied rows skip or repeat across pages.
+    it('breaks ties on id so the cursor ordering is total', async () => {
+      await myComments();
+
+      expect(findManyArgs().orderBy).toEqual([
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ]);
+    });
+
+    it('defaults to the newest 10 comments and no cursor', async () => {
+      await myComments();
+
+      const args = findManyArgs();
+      expect(args.take).toBe(10);
+      expect(args.cursor).toBeUndefined();
+      expect(args.skip).toBeUndefined();
+    });
+
+    it('honours the limit', async () => {
+      await myComments({ limit: 25 });
+
+      expect(findManyArgs().take).toBe(25);
+    });
+
+    // skip: 1 steps over the cursor row, which the client already has as the
+    // last row of the previous page.
+    it('steps over the cursor row when a cursor is given', async () => {
+      await myComments({ cursor: 'comment-9' });
+
+      const args = findManyArgs();
+      expect(args.cursor).toEqual({ id: 'comment-9' });
+      expect(args.skip).toBe(1);
+    });
+
+    it('returns the last id as nextCursor when the page is full', async () => {
+      prisma.comment.findMany.mockResolvedValue([
+        commentRow,
+        { ...commentRow, id: 'comment-2' },
+      ]);
+
+      const result = await myComments({ limit: 2 });
+
+      expect(result.nextCursor).toBe('comment-2');
+    });
+
+    // A short page is the last page. Returning its last id would cost the
+    // client a round trip to discover the feed had already ended.
+    it('returns a null nextCursor when the page is short', async () => {
+      const result = await myComments({ limit: 2 });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('returns a null nextCursor when there are no comments at all', async () => {
+      prisma.comment.findMany.mockResolvedValue([]);
+
+      const result = await myComments();
+
+      expect(result.data).toEqual([]);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('returns only the content, createdAt and id of each comment', async () => {
+      const result = await myComments();
+
+      expect(findManyArgs().select).toEqual({
+        id: true,
+        content: true,
+        createdAt: true,
+      });
+      expect(Object.keys(result.data[0]).sort()).toEqual([
+        'author',
+        'content',
+        'createdAt',
+        'id',
+      ]);
+    });
+
+    it('attaches the session user name and signed avatar to each comment', async () => {
+      prisma.comment.findMany.mockResolvedValue([
+        commentRow,
+        { ...commentRow, id: 'comment-2' },
+      ]);
+
+      const result = await myComments();
+
+      expect(result.data[0].author).toEqual({
+        name: 'Ahmed',
+        image: 'https://signed/url',
+      });
+      expect(result.data[1].author).toEqual(result.data[0].author);
+    });
+
+    // Every row has the same author, so signing per row would be N identical
+    // round trips to S3.
+    it('signs the avatar once, not once per comment', async () => {
+      prisma.comment.findMany.mockResolvedValue([
+        commentRow,
+        { ...commentRow, id: 'comment-2' },
+        { ...commentRow, id: 'comment-3' },
+      ]);
+
+      await myComments();
+
+      expect(s3.getSignedUrl).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves a missing avatar as null', async () => {
+      const result = await service.getMyComments(
+        session({ image: null }).user,
+        {} as CommentQueryDto,
+      );
+
+      expect(s3.getSignedUrl).not.toHaveBeenCalled();
+      expect(result.data[0].author.image).toBeNull();
+    });
+
+    it('never selects the author relation, since the session already has it', async () => {
+      await myComments();
+
+      expect(findManyArgs().select.author).toBeUndefined();
+    });
+  });
+
+  // The two tabs are the same query against two different join tables, so the
+  // whole block runs twice rather than being written out twice.
+  describe.each([
+    ['getMyLikes', 'like'],
+    ['getMyBookmarks', 'bookmark'],
+  ] as const)('%s', (method, model) => {
+    const findManyArgs = () => prisma[model].findMany.mock.calls[0][0];
+
+    const countArgs = () => prisma[model].count.mock.calls[0][0];
+
+    const saved = (partial: Partial<LikesAndBookmarksQueryDto> = {}) =>
+      service[method](session().user, partial as LikesAndBookmarksQueryDto);
+
+    it('scopes the rows to the session user id', async () => {
+      await saved();
+
+      expect(findManyArgs().where.userId).toBe('user-1');
+    });
+
+    it('counts with exactly the filter it queried with', async () => {
+      await saved();
+
+      expect(countArgs().where).toEqual(findManyArgs().where);
+    });
+
+    // A blog unpublished after it was liked or bookmarked would otherwise
+    // render a card linking to a dead page.
+    it('excludes blogs that are no longer published', async () => {
+      await saved();
+
+      expect(findManyArgs().where.blog).toEqual({ isPublished: true });
+    });
+
+    // The sort key is when the user saved it, not when the blog was written.
+    it('orders by when the row was created, with an id tie-break', async () => {
+      await saved();
+
+      expect(findManyArgs().orderBy).toEqual([
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ]);
+    });
+
+    it('defaults to the first page of 10', async () => {
+      await saved();
+
+      const args = findManyArgs();
+      expect(args.take).toBe(10);
+      expect(args.skip).toBe(0);
+    });
+
+    it('applies the page and limit', async () => {
+      await saved({ page: 3, limit: 5 });
+
+      const args = findManyArgs();
+      expect(args.take).toBe(5);
+      expect(args.skip).toBe(10);
+    });
+
+    it('derives totalPages from the scoped row count', async () => {
+      prisma[model].count.mockResolvedValue(21);
+
+      const result = await saved({ limit: 5 });
+
+      expect(result.totalPages).toBe(5);
+    });
+
+    // "Do not return unnecessary like or bookmark record data": the join row
+    // is projected away entirely and only the blog is selected.
+    it('returns blog data only, never the join row', async () => {
+      const result = await saved();
+
+      expect(Object.keys(findManyArgs().select)).toEqual(['blog']);
+      expect(Object.keys(result.blogs[0]).sort()).toEqual([
+        'author',
+        'coverImage',
+        'id',
+        'slug',
+        'tags',
+        'title',
+      ]);
+    });
+
+    it('selects the slug the card navigates by', async () => {
+      const result = await saved();
+
+      expect(findManyArgs().select.blog.select).toMatchObject({ slug: true });
+      expect(result.blogs[0].slug).toBe('a-published-blog');
+    });
+
+    it('signs both the cover image and the author avatar', async () => {
+      const result = await saved();
+
+      expect(s3.getSignedUrl).toHaveBeenCalledWith('cover-key');
+      expect(s3.getSignedUrl).toHaveBeenCalledWith('author-key');
+      expect(result.blogs[0].coverImage).toBe('https://signed/url');
+      expect(result.blogs[0].author.image).toBe('https://signed/url');
+    });
+
+    it('leaves a missing cover image or avatar as null', async () => {
+      prisma[model].findMany.mockResolvedValue([
+        {
+          blog: {
+            ...likeOrBookmarkRow.blog,
+            coverImage: null,
+            author: { name: 'Sara', image: null },
+          },
+        },
+      ]);
+
+      const result = await saved();
+
+      expect(s3.getSignedUrl).not.toHaveBeenCalled();
+      expect(result.blogs[0].coverImage).toBeNull();
+      expect(result.blogs[0].author.image).toBeNull();
     });
   });
 });

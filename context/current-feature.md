@@ -1,14 +1,62 @@
 <!-- Feature Title -->
 
+# User Management Phase 3 — Comments, Likes & Bookmarks
+
+Spec: `context/specs/user-management-phase-3.md`
+
 <!-- Feature Description -->
+
+## Description
+
+Continues the authenticated user's profile dashboard (history #4) by adding the three remaining
+private read endpoints from the plan's Phase 2 table: the caller's own **comments**, **likes** and
+**bookmarks**.
+
+Comments are cursor-paginated with no filtering or sorting. Likes and bookmarks are **offset**-
+paginated — `page` and `limit`, defaulting to page 1 of 10 — with no filtering or sorting. All three
+endpoints are private: authenticated session required, `user` role, identity from `@Session()`, and
+no user identifier is ever accepted from the client.
 
 <!-- Feature Notes -->
 
+## Notes
+
+- Reuse the existing `CommentQueryDto` for the comments endpoint.
+- Comments return the user's `name` and profile image alongside each comment's `content` and
+  `createdAt`.
+- `createdAt` is formatted as compact relative time on the frontend with `date-fns` — Medium's style
+  (`3m`, `2w`, `5mo`, `1y`).
+- Likes and bookmarks return only the related blog data the frontend needs: title, slug, cover image,
+  tags, author name, author profile image. No like/bookmark record fields that the frontend does not
+  use.
+- Selecting a liked or bookmarked blog navigates by the blog's `slug`.
+- **Likes and bookmarks are paginated, revising the spec.** The spec as written asked for no
+  pagination at all; fetching a user's entire like and bookmark history in one response gets slower
+  without bound, so both endpoints take `page` and `limit` instead, defaulting to 10.
+  `context/specs/user-management-phase-3.md` was updated to match.
+- **An unpublished blog is dropped, not flagged.** `context/plans/user-management-plan.md` suggested
+  returning `isPublished` so the frontend could grey the card out. It is filtered out server-side
+  instead — the card is never rendered, so the field would have no consumer.
+- The `me` routes must stay declared above `:username` in `UsersController` (history #4).
+- History #2 recorded the cursor-ordering trap: order by `[{ createdAt: 'desc' }, { id: 'desc' }]`,
+  not `createdAt` alone.
+
 <!-- Feature Goals-->
+
+## Goals
+
+1. `GET /api/users/me/comments` — the caller's comments, cursor-paginated, no filter or sort.
+2. `GET /api/users/me/likes` — blogs the caller liked, offset-paginated, no filter or sort.
+3. `GET /api/users/me/bookmarks` — blogs the caller bookmarked, same shape and pagination.
+4. Shared response interfaces in `packages/types/src/users.ts`.
+5. All three guarded by `@Roles(['user'])` and scoped to the session user only.
+6. Jest unit tests covering the service methods and their `select` / `where` shapes.
 
 <!-- Feature Status -->
 
 ## Status
+
+Completed
 
 <!-- History -->
 
@@ -250,3 +298,92 @@ existing `UsersController`, both `@Roles(['user'])` with identity taken from `@S
 **Not included:** `/api/users/me/comments`, `/bookmarks` and `/likes` from the plan's Phase 2 table —
 the spec scoped this feature to the profile and blogs only. Also no `status` filter
 (`all | published | draft`) on `/me/blogs`, no dashboard UI, and every later phase.
+
+### 5. User Management Phase 3 — Comments, Likes & Bookmarks — completed 2026-09-09
+
+The last three dashboard reads from the plan's Phase 2 table, finishing the private `/api/users/me/*`
+surface. All `@Roles(['user'])`, identity from `@Session()`, no caller-supplied identifier in any
+`where` clause.
+
+**Implemented**
+
+- `GET /api/users/me/comments` — `UsersService.getMyComments()`. Cursor-paginated, newest first, no
+  filter or sort. Reuses `CommentQueryDto`.
+- `GET /api/users/me/likes` and `GET /api/users/me/bookmarks` —
+  `UsersService.getMyLikes/getMyBookmarks()`. Offset-paginated, newest saved first.
+- `LikesAndBookmarksQueryDto` in `apps/backend/src/users/dto/` — `page` and `limit` only, shared by
+  both tabs.
+- `likesAndBookmarksSelect`, `buildLikesAndBookmarksFilter`, `likesAndBookmarksOrder` and
+  `buildLikesAndBookmarksPage` in `users/utils/user-query.ts`.
+- `UsersService.presignBlogCards()` — one private helper signing both S3 keys (cover image and author
+  avatar) for either endpoint.
+- `GetMyComments`, `LikesAndBookmarksBlogCard` and `GetMyLikesAndBookmarks` in
+  `packages/types/src/users.ts`.
+- 35 Jest tests added to `users.service.spec.ts`. Suite is 98 passing.
+
+**Decisions worth remembering**
+
+- **Likes and bookmarks are paginated, against the spec as written.** The spec said no pagination at
+  all; an unbounded list gets slower without limit, so both take `page` and `limit` (default page 1
+  of 10) and return `totalPages`. `context/specs/user-management-phase-3.md` was updated — but
+  `context/specs` is gitignored (`.gitignore:41`), so **that edit exists only locally**, the same
+  situation as `prisma/seed.ts` in history #2.
+- **Offset, not cursor, for likes and bookmarks.** The plan specified cursor for both. Offset was
+  chosen to match `/me/blogs`, since the tabs are a numbered pager rather than infinite scroll. The
+  plan's note about cursoring on the join-row id rather than the blog id is therefore moot, but its
+  reasoning still holds for the ordering, which is by when the row was saved.
+- **An unpublished blog is filtered out, not flagged.** The plan suggested returning `isPublished` so
+  the frontend could grey the card out; the decision was to drop the row server-side instead, so
+  `isPublished` is absent from `LikesAndBookmarksBlogCard` and every row is safe to link to.
+- **The comments feed carries no blog context.** `select` is `id`, `content`, `createdAt` only, per
+  the spec's explicit field list. This was flagged twice during the feature: the Comments tab can
+  render a card but cannot link it to the blog it belongs to, and the admin feed selects
+  `blog: { id, title, slug }` for exactly that reason. **Revisit when the tab is built.**
+- **The comment author is taken from the session, not the row.** Every comment is the caller's own,
+  so `author` is built once from `session.user` and the avatar is signed once rather than per row.
+  A test asserts `getSignedUrl` is called exactly once for a three-row page.
+- **`buildBlogQuery` was not reused for the new pagination.** Its `queryFilter` and `querySort` are
+  typed against `Blog` and neither applies to a query over `Like` / `Bookmark` join rows. Only the
+  two defaults are shared, deliberately kept identical.
+- **`satisfies`, never a type annotation** — same reason as history #2, #3 and #4.
+
+**Fixed during review — three ways invalid pagination reached Prisma**
+
+The review found, and execution confirmed, that `@IsNumberString()` accepts `"0"` and `"-1"`:
+
+- `?limit=0` on `/me/comments` made `nextCursor` index `[-1]` on an empty page → `TypeError`, 500.
+- `?limit=0` on likes/bookmarks made `Math.ceil(n / 0)` → `Infinity` → `totalPages: null` in JSON.
+- `?page=0` produced `skip: -10`, which Prisma rejects.
+
+The fix is at the boundary rather than clamped in the service: `CommentQueryDto` and
+`LikesAndBookmarksQueryDto` now use `@Type(() => Number)` + `@IsInt()` + `@Min(1)` on `number`
+fields. `@IsInt` also rejects a fractional `limit` (Prisma's `take` refuses one) and the `NaN` a
+non-numeric param transforms into. The `comments.length > 0` guard stays as a second line of defence.
+
+- **This changed three pre-existing endpoints.** `CommentQueryDto` is shared, so the public comments
+  feed and both admin comment feeds now answer 400 on `?limit=0` where they previously returned an
+  empty list. Their `parseInt(limit)` call sites became `limit ?? 10`.
+- **`BlogQueryDto` was left alone and still has the same flaw.** It remains `@IsNumberString()`
+  strings, so `?page=0` on the blog feed, the public profile and `/me/blogs` still computes a
+  negative `skip`. Converting it would touch those three surfaces and was scoped out.
+- **Still no upper bound.** `?limit=999999` is accepted on all of these. A `@Max()` is a one-line
+  addition whenever that becomes a concern.
+
+**Verified**
+
+- `pnpm turbo build` green for both `backend` and `web`; `eslint` clean on `src/users` and
+  `src/comments`.
+- `tsc --noEmit` reports nothing new. The two pre-existing `admin.service.spec.ts` `BlogQueryDto`
+  errors from history #3 are still there, untouched.
+- `pnpm test` — 98 passing (63 before, 35 added).
+- The three crashes above were reproduced by executing the service, then re-probed through
+  `plainToInstance` + `validate` after the fix: `limit=0`, `limit=-1`, `page=0`, `page=-1` and
+  non-numeric values all reject; positive integers transform correctly.
+- **Not verified:** live responses and the route mapping. The app was not booted, so
+  `@Roles(['user'])` and the `me`-before-`:username` ordering still rest on reading alone — that trap
+  is now three routes wider than history #4 left it. Exercise `/api/users/me/*` first when the
+  frontend lands.
+
+**Not included:** the dashboard UI and the `date-fns` compact relative-time formatting, which are
+frontend work; Phase 3's profile settings (`PUT /api/users/me`, username availability) and every
+later phase.

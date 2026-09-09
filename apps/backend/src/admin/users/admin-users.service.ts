@@ -305,7 +305,7 @@ export class AdminUsersService {
     query: CommentQueryDto,
   ): Promise<GetUserWithCommentsByUsernameAsAdmin> {
     const { limit, cursor } = query;
-    const take = limit ? parseInt(limit) : 10;
+    const take = limit ?? 10;
 
     const user = await this.prisma.user.findUnique({
       where: { name: username },
