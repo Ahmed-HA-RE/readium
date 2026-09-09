@@ -48,7 +48,7 @@ export class CommentsService {
   ): Promise<{ data: Comment[]; nextCursor: string | null }> {
     const { limit, cursor } = query;
 
-    const take = limit ? parseInt(limit) : 10; // Default limit is 10 if not provided
+    const take = limit ?? 10; // Default limit is 10 if not provided
 
     const comments = await this.prisma.comment.findMany({
       where: { blog: { slug: blogSlug } },

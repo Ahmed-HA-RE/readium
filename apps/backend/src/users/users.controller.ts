@@ -7,6 +7,8 @@ import {
 } from '@thallesp/nestjs-better-auth';
 import { UsersService } from './users.service';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
+import { CommentQueryDto } from '../comments/dto/comment-query-dto';
+import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
 
 @Controller('api/users')
 export class UsersController {
@@ -33,6 +35,39 @@ export class UsersController {
     @Query() query: UserBlogsQueryDto,
   ) {
     return this.usersService.getMyBlogs(session.user, query);
+  }
+
+  // Method           GET /api/users/me/comments
+  // Description      Get the signed-in user's own comments, cursor-paginated
+  @Get('me/comments')
+  @Roles(['user'])
+  getMyComments(
+    @Session() session: UserSession,
+    @Query() query: CommentQueryDto,
+  ) {
+    return this.usersService.getMyComments(session.user, query);
+  }
+
+  // Method           GET /api/users/me/likes
+  // Description      Get the blogs the signed-in user has liked, paginated
+  @Get('me/likes')
+  @Roles(['user'])
+  getMyLikes(
+    @Session() session: UserSession,
+    @Query() query: LikesAndBookmarksQueryDto,
+  ) {
+    return this.usersService.getMyLikes(session.user, query);
+  }
+
+  // Method           GET /api/users/me/bookmarks
+  // Description      Get the blogs the signed-in user has bookmarked, paginated
+  @Get('me/bookmarks')
+  @Roles(['user'])
+  getMyBookmarks(
+    @Session() session: UserSession,
+    @Query() query: LikesAndBookmarksQueryDto,
+  ) {
+    return this.usersService.getMyBookmarks(session.user, query);
   }
 
   // Method           GET /api/users/:username

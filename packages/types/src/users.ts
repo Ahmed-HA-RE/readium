@@ -1,4 +1,5 @@
-import { Blog } from './blogs';
+import { Blog, BlogAuthor } from './blogs';
+import { Comment } from './comments';
 
 /**
  * The public face of a user. Deliberately excludes `email`, `role`, `banned`
@@ -108,5 +109,53 @@ export interface GetMyBlogs {
     | 'createdAt'
     | '_count'
   >[];
+  totalPages: number;
+}
+
+/**
+ * `GET /api/users/me/comments`. Cursor-paginated, newest first, with no filter
+ * or sort — the dashboard's Comments tab is a plain reverse-chronological feed.
+ *
+ * `author` is the caller themselves on every row: these are their own comments,
+ * and the card renders their avatar and name beside each one. It is repeated
+ * per row rather than hoisted so the row is self-contained for the card
+ * component.
+ *
+ * `nextCursor` is the id of the last row of a *full* page, and `null` once the
+ * final page is reached. Pass it back as `?cursor=`.
+ */
+export interface GetMyComments {
+  data: (Pick<Comment, 'id' | 'content' | 'createdAt'> & {
+    author: Pick<BlogAuthor, 'name' | 'image'>;
+  })[];
+  nextCursor: string | null;
+}
+
+/**
+ * One blog as it appears in the dashboard's Likes and Bookmarks tabs. Both
+ * tabs render the same card, so both endpoints return this.
+ *
+ * Only blog data: the `Like` / `Bookmark` join row itself carries nothing the
+ * card needs, so none of it is returned. `slug` is what the card navigates by.
+ *
+ * There is no `isPublished` — a blog that has been unpublished since it was
+ * liked or bookmarked is filtered out server-side rather than returned and
+ * hidden by the frontend, so every row here is safe to link to.
+ */
+export interface LikesAndBookmarksBlogCard
+  extends Pick<Blog, 'id' | 'title' | 'slug' | 'tags' | 'coverImage'> {
+  author: Pick<BlogAuthor, 'name' | 'image'>;
+}
+
+/**
+ * `GET /api/users/me/likes` and `GET /api/users/me/bookmarks` — one shape for
+ * both, since the two tabs are identical but for the table they read.
+ *
+ * Offset-paginated, defaulting to 10 per page. Not filtered or sorted:
+ * ordering is fixed to when the caller liked or bookmarked the blog, newest
+ * first.
+ */
+export interface GetMyLikesAndBookmarks {
+  blogs: LikesAndBookmarksBlogCard[];
   totalPages: number;
 }

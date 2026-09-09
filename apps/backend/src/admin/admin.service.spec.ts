@@ -93,7 +93,7 @@ describe('AdminService', () => {
     });
 
     it('passes the comment cursor through for the signed-in admin', async () => {
-      const query = { limit: '10', cursor: 'comment-9' };
+      const query = { limit: 10, cursor: 'comment-9' };
 
       const page = await service.getMyCommentsAsAdmin(SESSION_USER, query);
 
