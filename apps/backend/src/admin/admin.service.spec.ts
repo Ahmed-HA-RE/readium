@@ -4,6 +4,7 @@ import { AdminService } from './admin.service';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { AdminUsersService } from './users/admin-users.service';
+import { UsersService } from '../users/users.service';
 import { UserSession } from '@thallesp/nestjs-better-auth';
 
 // Frozen so the 30 day cutoff is deterministic across runs.
@@ -60,6 +61,7 @@ describe('AdminService', () => {
         { provide: DatabaseService, useValue: prisma },
         { provide: S3ServiceService, useValue: {} },
         { provide: AdminUsersService, useValue: adminUsers },
+        { provide: UsersService, useValue: { isUsernameTaken: jest.fn() } },
       ],
     }).compile();
 

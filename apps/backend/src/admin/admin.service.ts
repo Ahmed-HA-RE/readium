@@ -15,6 +15,7 @@ import { subDays } from 'date-fns';
 import { UpdateAdminDto } from './dto/update-admin-dto';
 import { BlogQueryDto } from '../blogs/dto/blog-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
+import { UsersService } from '../users/users.service';
 
 // A user counts as active when their last activity falls within this window.
 const ACTIVE_USER_WINDOW_IN_DAYS = 30;
@@ -29,6 +30,7 @@ export class AdminService {
     private readonly prisma: DatabaseService,
     private readonly s3Service: S3ServiceService,
     private readonly AdminUsersService: AdminUsersService,
+    private readonly usersService: UsersService,
   ) {}
 
   readonly logger = new Logger(AdminService.name);
@@ -44,7 +46,7 @@ export class AdminService {
 
     // Check if name is not taken by another user
     if (name && name.toLowerCase() !== user.name.toLowerCase()) {
-      const existingUser = await this.AdminUsersService.isUsernameTaken(name);
+      const existingUser = await this.usersService.isUsernameTaken(name);
 
       if (existingUser) {
         throw new BadRequestException(`${name} name is already taken`);
@@ -64,7 +66,7 @@ export class AdminService {
         name,
         bio,
         website,
-        image: imageKey,
+        image: imageKey ?? user.image,
       },
       select: {
         id: true,
