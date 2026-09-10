@@ -1,53 +1,14 @@
 <!-- Feature Title -->
 
-## Feature Name
-
-Update User Profile
-
 <!-- Feature Description -->
-
-## Feature Description
-
-Allow an authenticated user to update their own basic profile information through a single endpoint.
-Scope is strictly `name`, `image`, `bio` and `website` — no other user field may be written by this
-endpoint. Password, email and 2FA are explicitly out of scope and land later via Better Auth when the
-frontend dashboard is built.
-
-The optional avatar upload is handled with `@UseInterceptors(FileInterceptor('image'))` plus NestJS's
-built-in `ParseFilePipe`, validating with `MaxFileSizeValidator` (max **1 MB**) and a regex
-`FileTypeValidator` restricted to PNG, JPEG, JPG and AVIF. The file must remain optional, since a user
-does not have to change their picture.
 
 <!-- Feature Notes -->
 
-## Feature Notes
-
-- `UpdateUserProfileDto` extends the existing `UpdateAdminDto` — same fields, same validation rules.
-  Do not add fields `UpdateAdminDto` does not already support.
-- On a new upload: generate the key with the existing `generateImageKey` from
-  `apps/backend/lib/utils`, upload through the existing S3 service, update the user record, and only
-  then delete the previous image key from the bucket — reusing the existing S3 deletion logic rather
-  than writing new deletion code.
-- `updateAdmin()` in `apps/backend/src/admin/admin.service.ts` is the primary reference for the whole
-  upload path; follow it rather than introducing a different implementation.
-- References: `context/project-overview.md`, `https://docs.nestjs.com/techniques/file-upload#file-upload`.
-
 <!-- Feature Goals-->
-
-## Feature Goals
-
-1. Ship a guarded self-service profile update endpoint on the existing users surface, with identity
-   taken from the session and never from the request body or path.
-2. Restrict the writable field set to `name`, `image`, `bio`, `website` at the DTO boundary.
-3. Validate the optional image with `ParseFilePipe` — 1 MB ceiling, PNG/JPEG/JPG/AVIF only.
-4. Keep S3 consistent: upload new, persist, then delete the superseded object.
-5. Match the conventions already established by `updateAdmin()` and the `/api/users/*` endpoints.
 
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
