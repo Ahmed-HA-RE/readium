@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
@@ -7,6 +7,9 @@ import { BlogQueryDto, BlogSortOptions } from '../blogs/dto/blog-query-dto';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
+// `import type`: the DTO extends `OmitType` from the ESM-only
+// `@nestjs/mapped-types`, which Jest cannot load as a value.
+import type { UpdateUserProfileDto } from './dto/update-user-profile-dto';
 import { Prisma } from '../generated/prisma/client';
 
 // The arguments the service hands to Prisma. The mocks below are typed with
@@ -27,6 +30,24 @@ type UserFindUniqueArgs = {
 };
 
 type BlogCountArgs = { where: Prisma.BlogWhereInput };
+
+// `updateUserProfile` reads the row by id, so `user.findUnique` is called with
+// two different shapes across the suite.
+type ProfileFindUniqueArgs = {
+  where: { id: string };
+  select: Record<string, boolean>;
+};
+
+type UserUpdateArgs = {
+  where: { id: string };
+  data: Prisma.UserUpdateInput;
+  select: Record<string, boolean>;
+};
+
+type UserFindFirstArgs = {
+  where: { name: { equals: string; mode: string } };
+  select: Record<string, boolean>;
+};
 
 type BlogFindManyArgs = {
   where: Prisma.BlogWhereInput;
@@ -67,7 +88,14 @@ type LikesAndBookmarksMocks = {
 };
 
 type PrismaMocks = {
-  user: { findUnique: jest.Mock<Promise<unknown>, [UserFindUniqueArgs]> };
+  user: {
+    findUnique: jest.Mock<
+      Promise<unknown>,
+      [UserFindUniqueArgs | ProfileFindUniqueArgs]
+    >;
+    findFirst: jest.Mock<Promise<unknown>, [UserFindFirstArgs]>;
+    update: jest.Mock<Promise<unknown>, [UserUpdateArgs]>;
+  };
   blog: {
     count: jest.Mock<Promise<number>, [BlogCountArgs]>;
     findMany: jest.Mock<Promise<unknown[]>, [BlogFindManyArgs]>;
@@ -106,6 +134,28 @@ const userRow = {
 
 // The owner's own view carries `isPublished`, because drafts are listed too.
 const myBlogRow = { ...blogRow, isPublished: false };
+
+// The row `updateUserProfile` reads before writing, and the one it selects back.
+const existingProfileRow = {
+  id: 'user-1',
+  name: 'Ahmed',
+  image: 'old-profile-key',
+};
+
+const updatedUserRow = {
+  id: 'user-1',
+  name: 'Ahmed',
+  email: 'ahmed@example.com',
+  image: 'new-profile-key',
+  bio: 'Writes about backends',
+  website: 'https://example.com',
+};
+
+const avatar = {
+  originalname: 'avatar.png',
+  mimetype: 'image/png',
+  buffer: Buffer.from('image'),
+} as Express.Multer.File;
 
 const commentRow = {
   id: 'comment-1',
@@ -150,9 +200,16 @@ const session = (overrides: Record<string, unknown> = {}) =>
 describe('UsersService', () => {
   let service: UsersService;
   let prisma: PrismaMocks;
-  let s3: { getSignedUrl: jest.Mock };
+  let s3: {
+    getSignedUrl: jest.Mock;
+    uploadFile: jest.Mock;
+    deleteFile: jest.Mock;
+  };
 
-  const findUniqueArgs = () => prisma.user.findUnique.mock.calls[0][0];
+  const findUniqueArgs = () =>
+    prisma.user.findUnique.mock.calls[0][0] as UserFindUniqueArgs;
+
+  const updateArgs = () => prisma.user.update.mock.calls[0][0];
 
   const countArgs = () => prisma.blog.count.mock.calls[0][0];
 
@@ -167,7 +224,18 @@ describe('UsersService', () => {
     });
 
     prisma = {
-      user: { findUnique: jest.fn<Promise<unknown>, [UserFindUniqueArgs]>() },
+      user: {
+        findUnique: jest.fn<
+          Promise<unknown>,
+          [UserFindUniqueArgs | ProfileFindUniqueArgs]
+        >(),
+        findFirst: jest
+          .fn<Promise<unknown>, [UserFindFirstArgs]>()
+          .mockResolvedValue(null),
+        update: jest
+          .fn<Promise<unknown>, [UserUpdateArgs]>()
+          .mockResolvedValue(updatedUserRow),
+      },
       blog: {
         count: jest.fn<Promise<number>, [BlogCountArgs]>().mockResolvedValue(1),
         findMany: jest
@@ -182,7 +250,11 @@ describe('UsersService', () => {
       like: likesAndBookmarksMocks(),
       bookmark: likesAndBookmarksMocks(),
     };
-    s3 = { getSignedUrl: jest.fn().mockResolvedValue('https://signed/url') };
+    s3 = {
+      getSignedUrl: jest.fn().mockResolvedValue('https://signed/url'),
+      uploadFile: jest.fn().mockResolvedValue(undefined),
+      deleteFile: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -795,6 +867,173 @@ describe('UsersService', () => {
       expect(s3.getSignedUrl).not.toHaveBeenCalled();
       expect(result.blogs[0].coverImage).toBeNull();
       expect(result.blogs[0].author.image).toBeNull();
+    });
+  });
+
+  describe('updateUserProfile', () => {
+    const update = (
+      dto: Partial<UpdateUserProfileDto> = {},
+      image?: Express.Multer.File,
+    ) =>
+      service.updateUserProfile(
+        session().user,
+        dto as UpdateUserProfileDto,
+        image,
+      );
+
+    beforeEach(() =>
+      prisma.user.findUnique.mockResolvedValue({ ...existingProfileRow }),
+    );
+
+    it('scopes the read and the write to the session user id', async () => {
+      await update({ bio: 'A new bio' });
+
+      expect(findUniqueArgs().where).toEqual({ id: 'user-1' });
+      expect(updateArgs().where).toEqual({ id: 'user-1' });
+    });
+
+    it('writes only name, bio, website and image', async () => {
+      await update({
+        name: 'Ahmed',
+        bio: 'A new bio',
+        website: 'https://a.io',
+      });
+
+      expect(Object.keys(updateArgs().data).sort()).toEqual([
+        'bio',
+        'image',
+        'name',
+        'website',
+      ]);
+    });
+
+    // The DTO turns an empty bio or website into null; Prisma writes null but
+    // skips undefined, so clearing only works if the null survives to `data`.
+    it('writes null through to clear a bio or website', async () => {
+      await update({ bio: null, website: null });
+
+      expect(updateArgs().data.bio).toBeNull();
+      expect(updateArgs().data.website).toBeNull();
+    });
+
+    it('leaves an omitted field undefined so Prisma skips it', async () => {
+      await update({ name: 'Ahmed' });
+
+      expect(updateArgs().data.bio).toBeUndefined();
+      expect(updateArgs().data.website).toBeUndefined();
+    });
+
+    it('throws when the session user no longer has a row', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(update({ bio: 'A new bio' })).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a name another account already uses', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-2' });
+
+      await expect(update({ name: 'Sara' })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('compares the name case-insensitively', async () => {
+      await update({ name: 'Sara' });
+
+      expect(prisma.user.findFirst.mock.calls[0][0].where).toEqual({
+        name: { equals: 'Sara', mode: 'insensitive' },
+      });
+    });
+
+    it('skips the taken check when the name is unchanged but recased', async () => {
+      await update({ name: 'AHMED' });
+
+      expect(prisma.user.findFirst).not.toHaveBeenCalled();
+      expect(prisma.user.update).toHaveBeenCalled();
+    });
+
+    it('keeps the existing avatar when no file is uploaded', async () => {
+      await update({ bio: 'A new bio' });
+
+      expect(updateArgs().data.image).toBe('old-profile-key');
+      expect(s3.uploadFile).not.toHaveBeenCalled();
+      expect(s3.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('uploads a new avatar under a generated key and stores it', async () => {
+      await update({}, avatar);
+
+      const [file, key] = s3.uploadFile.mock.calls[0] as [
+        Express.Multer.File,
+        string,
+      ];
+      expect(file).toBe(avatar);
+      expect(key).toContain('user-1');
+      expect(key).toContain('avatar.png');
+      expect(updateArgs().data.image).toBe(key);
+    });
+
+    it('deletes the previous avatar only after the row is updated', async () => {
+      await update({}, avatar);
+
+      expect(s3.deleteFile).toHaveBeenCalledWith('old-profile-key');
+      expect(prisma.user.update.mock.invocationCallOrder[0]).toBeLessThan(
+        s3.deleteFile.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('deletes nothing when the user had no previous avatar', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        ...existingProfileRow,
+        image: null,
+      });
+
+      await update({}, avatar);
+
+      expect(s3.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('still succeeds when deleting the previous avatar fails', async () => {
+      s3.deleteFile.mockRejectedValue(new Error('S3 is down'));
+
+      await expect(update({}, avatar)).resolves.toMatchObject({
+        id: 'user-1',
+      });
+    });
+
+    it('returns the stored key and never signs it', async () => {
+      const result = await update({}, avatar);
+
+      expect(result.image).toBe('new-profile-key');
+      expect(s3.getSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it('returns a null image when the user has none', async () => {
+      prisma.user.update.mockResolvedValue({
+        ...updatedUserRow,
+        image: null,
+      });
+
+      const result = await update({ bio: 'A new bio' });
+
+      expect(result.image).toBeNull();
+    });
+
+    it('never selects role, banned or any other moderation column', async () => {
+      await update({ bio: 'A new bio' });
+
+      expect(Object.keys(updateArgs().select).sort()).toEqual([
+        'bio',
+        'email',
+        'id',
+        'image',
+        'name',
+        'website',
+      ]);
     });
   });
 });

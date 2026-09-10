@@ -7,5 +7,7 @@ import { S3ServiceModule } from '../s3-service/s3-service.module';
   controllers: [UsersController],
   providers: [UsersService],
   imports: [S3ServiceModule],
+  // Exported for `AdminService`, which reuses `isUsernameTaken`.
+  exports: [UsersService],
 })
 export class UsersModule {}

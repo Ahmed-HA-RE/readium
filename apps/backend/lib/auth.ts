@@ -34,6 +34,15 @@ export const auth = betterAuth({
 
   trustedOrigins: [process.env.APP_FRONTEND_URL as string],
 
+  // Both columns already exist on the Prisma `User` model, so declaring them
+  // here only tells better-auth to carry them on the session user.
+  user: {
+    additionalFields: {
+      bio: { type: 'string', required: false },
+      website: { type: 'string', required: false },
+    },
+  },
+
   databaseHooks: {
     user: {
       create: {

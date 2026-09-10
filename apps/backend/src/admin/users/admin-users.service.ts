@@ -352,13 +352,4 @@ export class AdminUsersService {
   }
 
   // This service is for checking whether the username is already taken by another user
-  async isUsernameTaken(username: string): Promise<boolean> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        name: { equals: username, mode: 'insensitive' },
-      },
-      select: { id: true },
-    });
-    return !!user;
-  }
 }

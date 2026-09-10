@@ -10,8 +10,8 @@ import { differenceInMinutes } from 'date-fns';
 import { DatabaseService } from '../../database/database.service';
 import { UserSession } from '@thallesp/nestjs-better-auth';
 
-// How stale lastActivityAt must be before it is written again. Without this
-// throttle every authenticated request would cost an extra write.
+// How stale lastActivityAt must be before it is written again, so that not
+// every authenticated request costs an extra write.
 const ACTIVITY_REFRESH_MINUTES = 15;
 
 @Injectable()

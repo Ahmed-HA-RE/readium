@@ -1,14 +1,53 @@
 <!-- Feature Title -->
 
+## Feature Name
+
+Update User Profile
+
 <!-- Feature Description -->
+
+## Feature Description
+
+Allow an authenticated user to update their own basic profile information through a single endpoint.
+Scope is strictly `name`, `image`, `bio` and `website` — no other user field may be written by this
+endpoint. Password, email and 2FA are explicitly out of scope and land later via Better Auth when the
+frontend dashboard is built.
+
+The optional avatar upload is handled with `@UseInterceptors(FileInterceptor('image'))` plus NestJS's
+built-in `ParseFilePipe`, validating with `MaxFileSizeValidator` (max **1 MB**) and a regex
+`FileTypeValidator` restricted to PNG, JPEG, JPG and AVIF. The file must remain optional, since a user
+does not have to change their picture.
 
 <!-- Feature Notes -->
 
+## Feature Notes
+
+- `UpdateUserProfileDto` extends the existing `UpdateAdminDto` — same fields, same validation rules.
+  Do not add fields `UpdateAdminDto` does not already support.
+- On a new upload: generate the key with the existing `generateImageKey` from
+  `apps/backend/lib/utils`, upload through the existing S3 service, update the user record, and only
+  then delete the previous image key from the bucket — reusing the existing S3 deletion logic rather
+  than writing new deletion code.
+- `updateAdmin()` in `apps/backend/src/admin/admin.service.ts` is the primary reference for the whole
+  upload path; follow it rather than introducing a different implementation.
+- References: `context/project-overview.md`, `https://docs.nestjs.com/techniques/file-upload#file-upload`.
+
 <!-- Feature Goals-->
+
+## Feature Goals
+
+1. Ship a guarded self-service profile update endpoint on the existing users surface, with identity
+   taken from the session and never from the request body or path.
+2. Restrict the writable field set to `name`, `image`, `bio`, `website` at the DTO boundary.
+3. Validate the optional image with `ParseFilePipe` — 1 MB ceiling, PNG/JPEG/JPG/AVIF only.
+4. Keep S3 consistent: upload new, persist, then delete the superseded object.
+5. Match the conventions already established by `updateAdmin()` and the `/api/users/*` endpoints.
 
 <!-- Feature Status -->
 
 ## Status
+
+Completed
 
 <!-- History -->
 
@@ -339,3 +378,95 @@ non-numeric param transforms into. The `comments.length > 0` guard stays as a se
 **Not included:** the dashboard UI and the `date-fns` compact relative-time formatting, which are
 frontend work; Phase 3's profile settings (`PUT /api/users/me`, username availability) and every
 later phase.
+
+### 6. Update User Profile — completed 2026-09-10
+
+The first write endpoint on the user surface, and the first half of the plan's Phase 3.
+`PUT /api/users/me` lets a signed-in user update their own `name`, `bio`, `website` and avatar.
+`@Roles(['user'])`, identity from `@Session()`, no caller-supplied identifier in any `where` clause.
+
+**Implemented**
+
+- `PUT /api/users/me` on the existing `UsersController` — multipart, `FileInterceptor('image')`,
+  with `ParseFilePipe` (`fileIsRequired: false`, `MaxFileSizeValidator` at 1 MB, `FileTypeValidator`
+  on `image/(png|jpeg|jpg|avif)`).
+- `UsersService.updateUserProfile()` — reads the row, checks the name, uploads, updates, then
+  deletes the superseded S3 object.
+- `UpdateUserProfileDto extends UpdateAdminDto` in `users/dto/update-user-profile-dto.ts`. It adds
+  no fields, which is what keeps `role` and every other column unwritable.
+- `UpdateUserProfile` in `packages/types/src/users.ts` as a `Pick` off `CurrentUser`.
+- `bio` and `website` declared as `user.additionalFields` in `apps/backend/lib/auth.ts`, so
+  better-auth carries them on the session user, and added to `CurrentUser`.
+- Empty-string clearing on `bio` and `website` — see below.
+- 26 tests: 16 in `users.service.spec.ts` and a new `admin/users/dto/update-user-dto.spec.ts` (10).
+  Suite is 124 passing.
+
+**Decisions worth remembering**
+
+- **The write response returns the stored S3 key, not a presigned URL.** Signing is the read path's
+  job; a write response reports what was persisted. `updateAdmin()` already did this. An earlier
+  draft presigned `image` here and was corrected.
+- **Empty string clears a field, and the transform lives on the DTO.** `@Transform(emptyStringToNull)`
+  on `bio` and `website` maps `''` to `null` before validation, so `@IsOptional()` short-circuits and
+  Prisma writes `NULL`. **Omitted stays `undefined` and empty becomes `null`** — Prisma skips the
+  first and writes the second, so "leave alone" and "clear" stay distinct operations. Before this,
+  `@IsOptional()` only skipped `null`/`undefined`, so `bio: ''` hit `@MinLength(10)` and a user could
+  never remove a bio once set. **This changed `UpdateUserDto`, the shared base**, so
+  `PUT /api/admin/settings` and `PUT /api/admin/users/:username` accept `''` to clear as well.
+- **The old avatar key comes from the row, not the session.** `updateAdmin()` reads `user.image` off
+  the session, which goes stale after an earlier update and would delete the wrong object. This
+  endpoint reads `{ id, name, image }` first and deletes based on that.
+- **A failed S3 delete does not fail the request.** The row is already updated at that point, so
+  throwing would report a failure that did not happen. It is logged and leaves an unreferenced
+  object behind.
+- **`name` keeps `@MaxLength(50)`, which still contradicts sign-up.** `databaseHooks.user.create.before`
+  in `lib/auth.ts` caps names at 20. `user-management-plan.md:119` wanted 3–20 here; the spec asked
+  for `UpdateAdminDto`'s rules to be inherited unchanged, so the divergence stands. **Revisit.**
+- **`FileTypeValidator` checks magic numbers, not the mimetype.** Nest 11 inspects the buffer with
+  `file-type` (resolvable from `@nestjs/common` — verified). It matches the *detected* mime, so the
+  spec's `jpg` alternative is inert: a `.jpg` is always detected as `image/jpeg`. Stricter than a
+  mimetype check, and a file too small to have a signature is rejected since `fallbackToMimetype`
+  is off.
+- **The DTO cannot be imported as a value in a Jest spec.** It extends `OmitType` from the ESM-only
+  `@nestjs/mapped-types` — the same trap as history #1. `users.service.spec.ts` uses
+  `import type`; the empty-string rules are therefore tested against `UpdateUserDto`, which is a
+  plain class.
+- **Extra body fields are not rejected.** The global `ValidationPipe` sets no `whitelist`, so
+  `{ role: 'admin' }` survives validation. It cannot reach the database because the service
+  destructures only three fields — the guarantee is the destructure, not the DTO.
+
+**Also fixed, both assigned to this phase by the plan**
+
+- **`updateAdmin()` wiped the avatar.** `image: imageKey` unconditionally set `image` to `null`
+  whenever the settings form was saved without picking a file. Now `imageKey ?? user.image`
+  (`user-management-plan.md:128`). It still reads the key from the session rather than the row, so
+  it can act on a stale key; that was left alone.
+- **`isUsernameTaken()` moved** from `AdminUsersService` to `UsersService`, which now exports it;
+  `AdminModule` imports `UsersModule` and `AdminService` calls it there. It is not admin-specific,
+  and having `UsersService` inject `AdminUsersService` would have pointed the dependency the wrong
+  way (`user-management-plan.md:248`).
+- **Comment density reduced** across `src/users`, `packages/types/src/users.ts`, the admin profile
+  `select` and `LastActivityInterceptor`, per a standing instruction: 1–2 sentences per comment, no
+  multi-line explanatory blocks. Rationale belongs in this history instead.
+
+**Verified**
+
+- `pnpm turbo build` green for `backend` and `web`; `eslint` clean on every changed file.
+- `pnpm test` — 124 passing (98 before, 26 added).
+- `tsc --noEmit` reports nothing new. The two pre-existing `admin.service.spec.ts` `BlogQueryDto`
+  errors from history #3 are still there, untouched.
+- The empty-string rules were executed, not just read: `''` → `null` for both fields, omitted stays
+  `undefined`, `name: ''` still rejected, and the length and URL rules still fire on non-empty input.
+- `file-type` resolves from inside `@nestjs/common`, so magic-number validation works at runtime.
+
+**Not verified:** anything live. The app was never booted, so route mapping, the `@Roles(['user'])`
+rejection, the `me`-before-`:username` ordering, a real multipart upload and the S3 round trip all
+rest on unit tests and reading. This is now the sixth feature carrying that gap and the first with a
+**write** path in it — exercise `PUT /api/users/me` first when the frontend lands.
+
+**Known gap:** a `P2002` race on `name` (taken between the availability check and the write) answers
+500 rather than 400, and orphans the just-uploaded S3 object. Same pattern in `updateAdmin`.
+
+**Not included:** `GET /api/users/me/username-available` from the plan's Phase 3 table, the settings
+UI, and everything from Phase 4 on — the security tab, password, email and 2FA, which the spec
+defers to Better Auth.

@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsEnum,
   IsNotEmpty,
@@ -13,6 +14,11 @@ enum UserRole {
   ADMIN = 'admin',
 }
 
+// An empty string means "clear this field", so it becomes null and Prisma nulls
+// the column. `@IsOptional()` then skips the remaining rules.
+const emptyStringToNull = ({ value }: { value: unknown }) =>
+  value === '' ? null : value;
+
 export class UpdateUserDto {
   @IsOptional()
   @IsString()
@@ -22,12 +28,13 @@ export class UpdateUserDto {
   name?: string;
 
   @IsOptional()
+  @Transform(emptyStringToNull)
   @IsUrl(
     { protocols: ['http', 'https'], require_protocol: true },
     { message: 'Website must be a valid URL' },
   )
   @IsNotEmpty()
-  website?: string;
+  website?: string | null;
 
   @IsOptional()
   @IsEnum(UserRole, { message: 'Role must be either user or admin' })
@@ -35,9 +42,10 @@ export class UpdateUserDto {
   role?: UserRole;
 
   @IsOptional()
+  @Transform(emptyStringToNull)
   @IsString()
   @IsNotEmpty()
   @MinLength(10, { message: 'Bio must be at least 10 characters long' })
   @MaxLength(500, { message: 'Bio must not exceed 500 characters long' })
-  bio?: string;
+  bio?: string | null;
 }

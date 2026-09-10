@@ -1,10 +1,16 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   GetMyBlogs,
   GetMyComments,
   GetMyLikesAndBookmarks,
   GetUserProfileWithBlogs,
   LikesAndBookmarksBlogCard,
+  UpdateUserProfile,
 } from '@repo/types';
 import { UserSession } from '@thallesp/nestjs-better-auth';
 import { DatabaseService } from '../database/database.service';
@@ -14,6 +20,8 @@ import { buildBlogQuery } from '../blogs/utils/blog-query';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
+import { UpdateUserProfileDto } from './dto/update-user-profile-dto';
+import { generateImageKey } from '../../lib/utils';
 import {
   buildLikesAndBookmarksFilter,
   buildLikesAndBookmarksPage,
@@ -22,13 +30,10 @@ import {
   likesAndBookmarksSelect,
 } from './utils/user-query';
 
-// Subscriptions are not implemented yet, so there is nothing to derive this
-// from. Replace it once the subscription model lands — the same placeholder
-// situation as `PLACEHOLDER_TOTAL_SUBSCRIBERS` in `admin.service.ts`.
+// Placeholder until the subscription model lands.
 const PLACEHOLDER_IS_PRO = true;
 
-// Matches the default the admin comment feed uses, so both cursor endpoints
-// page at the same size when the client sends no `limit`.
+// Matches the admin comment feed's default, so both cursor endpoints page alike.
 const DEFAULT_COMMENTS_PAGE_SIZE = 10;
 
 @Injectable()
@@ -51,9 +56,8 @@ export class UsersService {
       { search, sort, page, limit },
     );
 
-    // Sorting and pagination are shared with the blog feed. The filter is not:
-    // these blogs belong to one author already, so `buildUserBlogsFilter`
-    // searches the title and the content only.
+    // Sorting and pagination are shared with the blog feed; the filter is not,
+    // since these blogs already belong to one author.
     const { querySort, limitValue, pageValue } = buildBlogQuery(
       undefined,
       sort,
@@ -66,8 +70,8 @@ export class UsersService {
       isPublished: true,
     };
 
-    // `banned` is selected so a banned account can answer 404, but it is
-    // stripped below and never reaches the response.
+    // `banned` is selected only to answer 404 below; it never reaches the
+    // response, and `email`, `role` and `banReason` are never selected at all.
     const publicUserSelect = {
       name: true,
       bio: true,
@@ -108,8 +112,8 @@ export class UsersService {
       }),
     ]);
 
-    // A banned user is reported as missing rather than banned, so a reader
-    // cannot tell the two apart.
+    // A banned user answers 404, so it is indistinguishable from one that
+    // never existed.
     if (!user || user.banned) {
       throw new NotFoundException(
         `User with username ${username} does not exist`,
@@ -143,17 +147,11 @@ export class UsersService {
   }
 
   /**
-   * The signed-in user's own profile, for the dashboard sidebar.
+   * The signed-in user's own profile, returned straight from the session with
+   * no database read — only `image` is rewritten from an S3 key to a URL.
    *
-   * No database read: the guard has already resolved the session, so both
-   * objects are returned exactly as better-auth built them rather than being
-   * re-queried and reassembled. The return type is derived from `UserSession`
-   * for that reason — it is the type the guard actually hands over, so the
-   * response cannot drift from it. `@repo/types` mirrors this shape by hand as
-   * `GetCurrentLoggedInUser` for the Next.js app; keep the two in step.
-   *
-   * Only `image` is rewritten: the column holds an S3 key, and the sidebar
-   * needs a URL it can render.
+   * `GetCurrentLoggedInUser` in `@repo/types` mirrors this shape by hand; keep
+   * the two in step.
    */
   async getCurrentLoggedInUser(
     session: UserSession,
@@ -175,14 +173,11 @@ export class UsersService {
   }
 
   /**
-   * The signed-in user's own blogs, drafts included.
+   * The signed-in user's own blogs, drafts included, scoped to `user.id` from
+   * the session so no caller-supplied identifier reaches the `where` clause.
    *
-   * The author is fixed to `user.id` from the session; no caller-supplied
-   * identifier reaches the `where` clause, so one user cannot read another's
-   * blogs. Sorting and pagination come from `buildBlogQuery`, but its
-   * `queryFilter` is deliberately unused — it also matches `author.name`,
-   * which would make a search for the caller's own username return every one
-   * of their blogs regardless of the term.
+   * `buildBlogQuery`'s `queryFilter` is deliberately unused: it also matches
+   * `author.name`, which would return every blog on a self-username search.
    */
   async getMyBlogs(
     user: UserSession['user'],
@@ -204,8 +199,7 @@ export class UsersService {
       limit,
     );
 
-    // Scoped by the session user's id. Drafts are included: these are the
-    // caller's own blogs, and the dashboard lists both.
+    // Drafts are included: these are the caller's own blogs.
     const blogsWhere: Prisma.BlogWhereInput = {
       ...buildUserBlogsFilter(search),
       authorId: user.id,
@@ -256,15 +250,8 @@ export class UsersService {
   }
 
   /**
-   * The signed-in user's own comments, newest first.
-   *
-   * Cursor-paginated with no filter and no sort: the dashboard's Comments tab
-   * is a plain reverse-chronological feed, so `CommentQueryDto` is reused for
-   * `limit` and `cursor` and nothing else is accepted.
-   *
-   * The author is fixed to `user.id` from the session — no caller-supplied
-   * identifier reaches the `where` clause, so one user cannot read another's
-   * comments.
+   * The signed-in user's own comments, newest first, cursor-paginated with no
+   * filter or sort. Scoped to `user.id` from the session.
    */
   async getMyComments(
     user: UserSession['user'],
@@ -281,13 +268,10 @@ export class UsersService {
     const comments = await this.prisma.comment.findMany({
       where: { authorId: user.id },
       take,
-      // `skip: 1` steps over the cursor row itself, which the client already
-      // has as the last row of the previous page.
+      // `skip: 1` steps over the cursor row, which the client already has.
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-      // `createdAt` alone is not a unique ordering, so a cursor on `id` would
-      // sit at an ambiguous position whenever two comments share a timestamp
-      // and rows would be skipped or repeated across pages. History #2 records
-      // this exact bug on the admin feed — do not drop the `id` tie-break.
+      // Do not drop the `id` tie-break: `createdAt` alone is not unique, which
+      // makes the cursor ambiguous and pages skip or repeat rows.
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: {
         id: true,
@@ -296,8 +280,8 @@ export class UsersService {
       },
     });
 
-    // Every one of these comments is the caller's own, so the author is the
-    // session user and the avatar is signed once here rather than per row.
+    // Every comment is the caller's own, so the avatar is signed once here
+    // rather than per row.
     const image = user.image
       ? await this.s3Service.getSignedUrl(user.image)
       : null;
@@ -305,14 +289,8 @@ export class UsersService {
 
     return {
       data: comments.map((comment) => ({ ...comment, author })),
-      // A short page is the last page, so there is nothing further to fetch.
-      // Returning the last id unconditionally would cost the client one extra
-      // round trip to discover the feed had already ended.
-      //
-      // The emptiness check guards the index. `@Min(1)` on the DTO means `take`
-      // can no longer be 0, so `length === take` already implies a non-empty
-      // page — but when both were zero this indexed `[-1]` and threw, so the
-      // check stays as the second line of defence.
+      // A short page is the last page. The emptiness check guards the index —
+      // `@Min(1)` on the DTO makes it redundant, but it stays as a backstop.
       nextCursor:
         comments.length > 0 && comments.length === take
           ? comments[comments.length - 1].id
@@ -321,11 +299,8 @@ export class UsersService {
   }
 
   /**
-   * Blogs the signed-in user has liked, newest like first.
-   *
-   * Offset-paginated so the tab does not load the caller's entire history at
-   * once. Not filtered or sorted: the ordering is fixed to when they liked the
-   * blog.
+   * Blogs the signed-in user has liked, newest like first. Offset-paginated,
+   * not filtered or sorted.
    */
   async getMyLikes(
     user: UserSession['user'],
@@ -359,10 +334,8 @@ export class UsersService {
   }
 
   /**
-   * Blogs the signed-in user has bookmarked, newest bookmark first.
-   *
-   * Identical in every respect to `getMyLikes` but for the table it reads;
-   * both tabs render the same card and page the same way.
+   * Blogs the signed-in user has bookmarked, newest bookmark first. Identical
+   * to `getMyLikes` but for the table it reads.
    */
   async getMyBookmarks(
     user: UserSession['user'],
@@ -396,17 +369,98 @@ export class UsersService {
   }
 
   /**
-   * Unwraps the join rows a likes or bookmarks query returns and swaps both
-   * stored S3 keys — the cover image and the author's avatar — for signed URLs.
+   * Updates the signed-in user's own profile. Only `name`, `bio`, `website`
+   * and the avatar are writable — the DTO carries no other field.
+   */
+  async updateUserProfile(
+    user: UserSession['user'],
+    updateUserProfileDto: UpdateUserProfileDto,
+    profileImage?: Express.Multer.File,
+  ): Promise<UpdateUserProfile> {
+    const { name, bio, website } = updateUserProfileDto;
+
+    this.logger.log(`Updating the profile of ${user.name}`);
+
+    // Read the row rather than trusting `user.image` from the session, which
+    // goes stale after an earlier update and would delete the wrong object.
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, name: true, image: true },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException(`User with id ${user.id} does not exist`);
+    }
+
+    // Compared case-insensitively, and skipped when the name is unchanged so a
+    // user is not blocked by their own row.
+    if (name && name.toLowerCase() !== existingUser.name.toLowerCase()) {
+      if (await this.isUsernameTaken(name)) {
+        throw new BadRequestException(`${name} name is already taken`);
+      }
+    }
+
+    let imageKey: string | null = null;
+
+    if (profileImage) {
+      imageKey = generateImageKey({
+        userId: existingUser.id,
+        fileName: profileImage.originalname,
+      });
+      await this.s3Service.uploadFile(profileImage, imageKey);
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        name,
+        bio,
+        website,
+        image: imageKey ?? existingUser.image,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        bio: true,
+        website: true,
+      },
+    });
+
+    // Only after the row is updated, so a failed write cannot orphan the avatar
+    // the user still has.
+    if (imageKey && existingUser.image) {
+      try {
+        await this.s3Service.deleteFile(existingUser.image);
+      } catch {
+        // The update itself succeeded, so this must not fail the request — it
+        // only leaves an unreferenced object behind.
+        this.logger.error(
+          `Failed to delete the previous avatar ${existingUser.image}`,
+        );
+      }
+    }
+
+    return updatedUser;
+  }
+
+  // Whether any account already uses this username, compared case-insensitively.
+  // Lived on `AdminUsersService` until this feature; it is not admin-specific.
+  async isUsernameTaken(username: string): Promise<boolean> {
+    const user = await this.prisma.user.findFirst({
+      where: { name: { equals: username, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    return !!user;
+  }
+
+  /**
+   * Unwraps the join rows and swaps both stored S3 keys — cover image and
+   * author avatar — for signed URLs.
    *
-   * `LikesAndBookmarksBlogCard` types the input as well as the output: the
-   * fields hold S3 keys going in and URLs coming out, which is the same shape
-   * either way.
-   *
-   * Shared by both endpoints. `Like` and `Bookmark` are distinct Prisma models,
-   * so their payload types are unrelated even though the blog they select is
-   * identical — hence the structural parameter type rather than one derived
-   * from either model.
+   * The parameter is typed structurally because `Like` and `Bookmark` are
+   * unrelated Prisma models despite selecting an identical blog.
    */
   private async presignBlogCards(
     rows: { blog: LikesAndBookmarksBlogCard }[],

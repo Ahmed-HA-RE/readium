@@ -1,22 +1,37 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  FileTypeValidator,
+  Get,
+  MaxFileSizeValidator,
+  Param,
+  ParseFilePipe,
+  Put,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import {
   AllowAnonymous,
   Roles,
   Session,
   type UserSession,
 } from '@thallesp/nestjs-better-auth';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
+import { UpdateUserProfileDto } from './dto/update-user-profile-dto';
+
+const MAX_AVATAR_SIZE_IN_BYTES = 1024 * 1024; // 1MB
 
 @Controller('api/users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   // The `me` routes must stay above `:username`: Nest matches in declaration
-  // order, so a `:username` declared first would swallow `/api/users/me` and
-  // answer 404 for a user who has no account named "me".
+  // order, so `:username` first would swallow `/api/users/me`.
 
   // Method           GET /api/users/me
   // Description      Get the signed-in user's own profile for the dashboard sidebar
@@ -68,6 +83,36 @@ export class UsersController {
     @Query() query: LikesAndBookmarksQueryDto,
   ) {
     return this.usersService.getMyBookmarks(session.user, query);
+  }
+
+  // Method           PUT /api/users/me
+  // Description      Update the signed-in user's own name, bio, website and avatar
+  @Put('me')
+  @Roles(['user'])
+  @UseInterceptors(FileInterceptor('image'))
+  updateUserProfile(
+    @Session() session: UserSession,
+    @Body() updateUserProfileDto: UpdateUserProfileDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        // The avatar is optional: a user editing only their bio sends no file.
+        fileIsRequired: false,
+        validators: [
+          new MaxFileSizeValidator({ maxSize: MAX_AVATAR_SIZE_IN_BYTES }),
+          new FileTypeValidator({
+            fileType: 'image/(png|jpeg|jpg|avif)',
+            errorMessage: 'Only PNG, JPEG, JPG, and AVIF images are allowed',
+          }),
+        ],
+      }),
+    )
+    image?: Express.Multer.File,
+  ) {
+    return this.usersService.updateUserProfile(
+      session.user,
+      updateUserProfileDto,
+      image,
+    );
   }
 
   // Method           GET /api/users/:username
