@@ -35,13 +35,16 @@ export interface GetAllBlogsResponse {
     author: BlogAuthor;
     isLikedByLoggedInUser: boolean;
     isBookmarkedByLoggedInUser: boolean;
+    isReportedByLoggedInUser: boolean;
   })[];
   totalPages: number;
 }
 
+// No author avatar: the detail page does not render one, so the key is not
+// selected and never reaches the client as an unsigned S3 key.
 export interface GetBlogBySlugResponse {
   blog: Blog & {
-    author: BlogAuthor;
+    author: Pick<BlogAuthor, 'id' | 'name'>;
   };
   isLikedByLoggedInUser: boolean;
   isBookmarkedByLoggedInUser: boolean;

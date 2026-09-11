@@ -67,11 +67,14 @@ export class AdminUsersService {
       role: { equals: 'user' }, // admin users should not be returned
     };
 
+    const limitValue = limit ?? 10;
+    const pageValue = page ?? 1;
+
     const [users, totalUsers] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        skip: limit && page ? (page - 1) * limit : undefined,
-        take: limit,
+        skip: (pageValue - 1) * limitValue,
+        take: limitValue,
         select: {
           id: true,
           name: true,
@@ -94,7 +97,7 @@ export class AdminUsersService {
       }),
     ]);
 
-    const totalPages = limit ? Math.ceil(totalUsers / limit) : 1;
+    const totalPages = Math.ceil(totalUsers / limitValue);
 
     this.logger.log(
       `Retrieved ${users.length} ${users.length > 1 ? 'users' : 'user'} out of ${totalUsers} total users`,

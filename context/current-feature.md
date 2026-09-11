@@ -10,6 +10,8 @@
 
 ## Status
 
+Completed
+
 <!-- History -->
 
 ## History
@@ -518,3 +520,97 @@ own limiter, because the Nest guard cannot reach it.
 
 **Not included:** likes, bookmarks, comments and admin writes keep the global; a second
 narrow-window throttler to catch bursts; and any frontend handling of 429 responses.
+
+### 8. Backend Audit Fixes — completed 2026-09-11
+
+Not a feature. A `backend-auditor` subagent reviewed `apps/backend` end to end and reported one
+exploitable IDOR plus a set of contract warts that would be expensive to find after the web app was
+built against them. This branch closes the ones that block frontend work.
+
+**Implemented**
+
+- **Mass assignment closed, two layers.** `ValidationPipe` in `src/main.ts` gained
+  `whitelist: true` and `forbidNonWhitelisted: true`; `BlogsService.updateBlog` now destructures
+  `{ title, content, tags, isPublished }` instead of spreading the raw DTO into Prisma's `data`.
+- `GET /api/users/me/blogs/:slug` — `UsersService.getMyBlogBySlug()`, `@Roles(['user'])`, `where`
+  scoped `{ slug, authorId: user.id }`. `GetMyBlogBySlug` added to `packages/types/src/users.ts`.
+- `CreateBlogDto.isPublished` gained the string→boolean `@Transform` it never had;
+  `UpdateBlogDto`'s transform gained its missing `return value` fallback.
+- `ReportQueryDto.page` / `limit` converted to `@Type(() => Number)` + `@IsInt()` + `@Min(1)`, with
+  `@Max(100)` on `limit`.
+- `getAllUsersAsAdmin` defaults to page 1 of 10; `totalPages` derives from the real limit.
+- `author.image` is presigned in `getAllBlogs` and in all three `CommentsService` paths.
+  `CommentsService` now injects `S3ServiceService`; `CommentsModule` imports `S3ServiceModule`.
+- `getBlogBySlug` no longer selects `author.image` at all — the detail page does not render one.
+- `getCommentsForBlog`'s `nextCursor` is now `comments.length === take ? ... : null`.
+- `GetAllBlogsResponse` gained `isReportedByLoggedInUser`; `GetBlogBySlugResponse.author` narrowed
+  to `Pick<BlogAuthor, 'id' | 'name'>`.
+- 38 tests added (124 → 162): `report-query-dto.spec.ts`, `blogs/dto/update-blog-dto.spec.ts`, and a
+  `getMyBlogBySlug` block in `users.service.spec.ts`.
+
+**Decisions worth remembering**
+
+- **The draft read went in `users`, not `blogs`.** `GET /api/blogs/:slug` is `@AllowAnonymous()` and
+  hardcodes `isPublished: true`; adding an `?includeDrafts` branch would have made a public endpoint
+  conditionally private, which is the shape that leaks. Writes stayed in `blogs` — they have no
+  anonymous path, so there is nothing to separate, and splitting blog CRUD across two modules would
+  have no rule behind it. **Consequence:** the editor reads from `/api/users/me/blogs/:slug` and
+  writes to `/api/blogs/:slug`. If that asymmetry becomes annoying, move the read to
+  `GET /api/blogs/:slug/draft` — do not relax the public endpoint.
+- **`@Type(() => Boolean)` cannot replace the `@Transform`, and this was proven by execution.** It is
+  `!!value`, so the string `'false'` coerces to `true` and unpublishing becomes impossible;
+  `'yes'` silently publishes instead of returning 400. `@Type(() => Number)` is safe on the query
+  DTOs for the opposite reason: `Number('abc')` is `NaN` and `@IsInt()` catches it. `Boolean()` can
+  never fail, so bad input is undetectable.
+- **`whitelist` keys off decorators, not declared fields.** A property declared on a DTO with no
+  class-validator decorator is stripped silently. All 16 DTOs were swept before the flag went on —
+  every field carries at least one decorator.
+- **`forbidNonWhitelisted` had to land before the frontend, not after.** It turns previously-ignored
+  extra fields into hard 400s, so enabling it later would break a client already sending one.
+- **A DTO is a rule list, not a shape.** `plainToInstance` iterates the *body's* keys, so
+  `authorId` landed on the instance and validation never looked at it — zero errors does not mean
+  the object matches the DTO. That is why every other service destructures; history #6 already wrote
+  the rule down ("the guarantee is the destructure, not the DTO") and `blogs.service.ts` was the one
+  place it was never applied.
+- **Finding 13 (admins 403 on `/api/users/me`) was a false positive.** `/api/admin/me`,
+  `/api/admin/me/blogs`, `/api/admin/me/comments` and `PUT /api/admin/settings` are the admin's
+  parallel dashboard, so the guard is stopping a duplicate, not locking anyone out. Admins writing
+  through `/api/blogs` with no `@Roles` is correct: `/api/admin/me/blogs` exists to list those blogs.
+- **Response envelope decided: bare bodies everywhere.** `POST`/`PUT /api/blogs` are the only two
+  endpoints returning `{ success, data }`. **Not yet applied** — see gaps.
+
+**Verified**
+
+- `pnpm turbo build` green for `backend` and `web`; `pnpm test` 162 passing; `eslint` clean on every
+  changed file.
+- `tsc --noEmit` reports nothing new. The two pre-existing `admin.service.spec.ts` `BlogQueryDto`
+  errors from history #3 are still there, untouched.
+- The mass assignment is pinned by a test that runs the **real `ValidationPipe`**: an unguarded pipe
+  copies `authorId` onto the instance and carries it through a spread; the guarded one answers
+  `property authorId should not exist`.
+- **Live-verified in Postman:** `POST /api/blogs` and `PUT /api/blogs/:slug` both publish correctly
+  after the transform fix. A long debugging detour on the `PUT` turned out to be a malformed
+  request — the body sent `isPublished` twice, which Express and multer collect into an array
+  (`[true, true]`), and `@IsBoolean()` correctly rejected it. The code was right the whole time.
+  **The identical transform on both DTOs is what proved it:** same code, `POST` worked, so the
+  difference had to be the request.
+- **Not verified:** the app was not booted from this session, so route mapping for
+  `GET /api/users/me/blogs/:slug` and its `@Roles(['user'])` rejection still rest on reading. Same
+  gap as the last six features — exercise it first when the editor lands.
+
+**Known gaps — all still open**
+
+- **`GET /api/users/me` still returns `session.token`** (audit finding 14). Deliberate per history
+  #4, but it voids the httpOnly cookie the moment there is any XSS. Drop it before SSR code starts
+  reading it.
+- **The `{ success, data }` envelope is still on `POST`/`PUT /api/blogs`** despite the decision above.
+- `admin-reports.service.ts` still returns raw S3 keys for `user.image` and `blog.author.image`.
+- `admin-blog-query-dto.ts` and `admin/users/user-query-dto.ts` still have no `@Max` on `limit`
+  (audit finding 8) and `admin-blog-query-dto` uses `@IsNumber()` without `@IsInt()`, so
+  `limit=1.5` still reaches Prisma.
+- Admins can like and bookmark but have no `/api/admin/me/likes` or `/bookmarks` to list them.
+
+**Not included:** every other audit finding — the missing indexes on the hottest queries (the comment
+feed still sequential-scans on `blogId`), the like/bookmark/report check-then-insert races that 500
+on a double click, S3 failures turning successful deletes into 500s, drafts being commentable and
+likeable by slug, and the whole test backfill for `blogs`/`likes`/`bookmarks`/`reports`.
