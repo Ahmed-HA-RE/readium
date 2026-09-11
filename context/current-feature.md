@@ -10,8 +10,6 @@
 
 ## Status
 
-Completed
-
 <!-- History -->
 
 ## History
