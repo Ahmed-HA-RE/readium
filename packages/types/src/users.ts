@@ -89,6 +89,11 @@ export interface GetMyBlogs {
   totalPages: number;
 }
 
+// `GET /api/users/me/blogs/:slug`. One of the caller's own blogs, draft or published.
+export interface GetMyBlogBySlug {
+  blog: GetMyBlogs['blogs'][number];
+}
+
 /**
  * `GET /api/users/me/comments`. Cursor-paginated, newest first. `nextCursor`
  * is the last id of a full page and `null` on the final page; pass it back as

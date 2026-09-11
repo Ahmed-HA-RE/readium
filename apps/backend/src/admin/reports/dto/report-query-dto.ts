@@ -1,12 +1,15 @@
 import {
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 import { ReportReason, ReportStatus } from '../../../generated/prisma/enums';
-import { Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 
 export class ReportQueryDto {
   @IsOptional()
@@ -27,34 +30,16 @@ export class ReportQueryDto {
   @IsEnum(ReportStatus as object)
   status: ReportStatus;
 
-  @Transform(({ value }) => {
-    if (value === undefined || value === null) {
-      return undefined;
-    }
-
-    const parsedValue = Number(value);
-
-    if (isNaN(parsedValue)) {
-      return undefined;
-    }
-    return parsedValue;
-  })
+  @Type(() => Number)
   @IsOptional()
-  page: number;
+  @IsInt()
+  @Min(1)
+  page?: number;
 
+  @Type(() => Number)
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === undefined || value === null) {
-      return undefined;
-    }
-
-    const parsedValue = Number(value);
-
-    if (isNaN(parsedValue)) {
-      return undefined;
-    }
-    return parsedValue;
-  })
-  @IsOptional()
-  limit: number;
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
 }

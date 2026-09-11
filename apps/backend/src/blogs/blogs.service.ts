@@ -105,6 +105,10 @@ export class BlogsService {
         ? await this.s3Service.getSignedUrl(blog.coverImage)
         : null;
 
+      const authorImage = blog.author.image
+        ? await this.s3Service.getSignedUrl(blog.author.image)
+        : null;
+
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { likes, bookmarks, report, ...blogData } = blog; // Purpose of this line is to remove the likes, bookmarks, and report properties from the blog object so that they don't get sent to the client. These properties are only used to determine if the logged in user has liked, bookmarked, or reported the blog.
 
@@ -116,6 +120,7 @@ export class BlogsService {
 
       return {
         ...blogData,
+        author: { ...blogData.author, image: authorImage },
         isLikedByLoggedInUser,
         isBookmarkedByLoggedInUser,
         isReportedByLoggedInUser,
@@ -151,7 +156,6 @@ export class BlogsService {
           select: {
             id: true,
             name: true,
-            image: true,
           },
         },
 
@@ -260,6 +264,8 @@ export class BlogsService {
     let imageKey: string | null = null;
     let updatedSlug: string | null = null;
 
+    const { title, content, tags, isPublished } = updateBlogData;
+
     const existingBlog = await this.prisma.blog.findUnique({
       where: { slug, authorId: userId },
       select: {
@@ -273,8 +279,8 @@ export class BlogsService {
       throw new NotFoundException(`Blog with slug ${slug} not found`);
     }
 
-    if (updateBlogData.title && existingBlog.title !== updateBlogData.title) {
-      updatedSlug = generateSlug(updateBlogData.title);
+    if (title && existingBlog.title !== title) {
+      updatedSlug = generateSlug(title);
     }
     if (coverImage) {
       imageKey = generateImageKey({
@@ -287,7 +293,10 @@ export class BlogsService {
     const updatedBlog = await this.prisma.blog.update({
       where: { slug: existingBlog.slug, authorId: userId },
       data: {
-        ...updateBlogData,
+        title,
+        content,
+        tags,
+        isPublished,
         coverImage: imageKey ?? existingBlog.coverImage,
         slug: updatedSlug ?? slug,
       },

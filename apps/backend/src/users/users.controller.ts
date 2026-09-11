@@ -53,6 +53,17 @@ export class UsersController {
     return this.usersService.getMyBlogs(session.user, query);
   }
 
+  // Method           GET /api/users/me/blogs/:slug
+  // Description      Get one of the signed-in user's own blogs, draft or published, for the editor
+  @Get('me/blogs/:slug')
+  @Roles(['user'])
+  getMyBlogBySlug(
+    @Session() session: UserSession,
+    @Param('slug') slug: string,
+  ) {
+    return this.usersService.getMyBlogBySlug(session.user, slug);
+  }
+
   // Method           GET /api/users/me/comments
   // Description      Get the signed-in user's own comments, cursor-paginated
   @Get('me/comments')

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  GetMyBlogBySlug,
   GetMyBlogs,
   GetMyComments,
   GetMyLikesAndBookmarks,
@@ -246,6 +247,51 @@ export class UsersService {
     return {
       blogs: blogsWithPresignedUrls,
       totalPages: Math.ceil(totalBlogs / limitValue),
+    };
+  }
+
+  /**
+   * One of the caller's own blogs, draft or published, for the editor. A blog
+   * owned by someone else answers 404 exactly like one that does not exist.
+   */
+  async getMyBlogBySlug(
+    user: UserSession['user'],
+    slug: string,
+  ): Promise<GetMyBlogBySlug> {
+    this.logger.verbose(`Fetching the blog ${slug} of ${user.name}`);
+
+    const blog = await this.prisma.blog.findUnique({
+      where: { slug, authorId: user.id },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        content: true,
+        tags: true,
+        coverImage: true,
+        isPublished: true,
+        createdAt: true,
+        _count: {
+          select: {
+            comments: true,
+            likes: true,
+            bookmarks: true,
+          },
+        },
+      },
+    });
+
+    if (!blog) {
+      throw new NotFoundException(`Blog with slug ${slug} not found`);
+    }
+
+    return {
+      blog: {
+        ...blog,
+        coverImage: blog.coverImage
+          ? await this.s3Service.getSignedUrl(blog.coverImage)
+          : null,
+      },
     };
   }
 

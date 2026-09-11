@@ -8,10 +8,30 @@ import { DatabaseService } from '../database/database.service';
 import { Comment } from '@repo/types';
 import { CreateCommentDto } from './dto/create-comment-dto';
 import { UserSession } from '@thallesp/nestjs-better-auth';
+import { S3ServiceService } from '../s3-service/s3-service.service';
 
 @Injectable()
 export class CommentsService {
-  constructor(private readonly prisma: DatabaseService) {}
+  constructor(
+    private readonly prisma: DatabaseService,
+    private readonly s3Service: S3ServiceService,
+  ) {}
+
+  // `author.image` is stored as an S3 key, so every path that returns a comment
+  // signs it. Without this the client receives an unrenderable key.
+  private async presignAuthorImage<
+    T extends { author: { image: string | null } },
+  >(comment: T): Promise<T> {
+    if (!comment.author.image) return comment;
+
+    return {
+      ...comment,
+      author: {
+        ...comment.author,
+        image: await this.s3Service.getSignedUrl(comment.author.image),
+      },
+    };
+  }
 
   private async findBlogBySlug(blogSlug: string) {
     const blog = await this.prisma.blog.findUnique({
@@ -76,8 +96,12 @@ export class CommentsService {
     });
 
     return {
-      data: comments,
-      nextCursor: comments.length > 0 ? comments[comments.length - 1].id : null,
+      data: await Promise.all(
+        comments.map((comment) => this.presignAuthorImage(comment)),
+      ),
+      // Only a full page can have more after it; a short page ends the feed.
+      nextCursor:
+        comments.length === take ? comments[comments.length - 1].id : null,
     };
   }
 
@@ -107,7 +131,7 @@ export class CommentsService {
       },
     });
 
-    return newComment;
+    return this.presignAuthorImage(newComment);
   }
 
   async updateComment(
@@ -138,7 +162,7 @@ export class CommentsService {
       },
     });
 
-    return updatedComment;
+    return this.presignAuthorImage(updatedComment);
   }
 
   async deleteComment(

@@ -17,6 +17,8 @@ const bootstrap = async () => {
     new ValidationPipe({
       stopAtFirstError: true,
       transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
     }),
   );
   await app.listen(port);

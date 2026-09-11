@@ -59,6 +59,13 @@ type BlogFindManyArgs = {
   };
 };
 
+type BlogFindUniqueArgs = {
+  where: { slug: string; authorId: string };
+  select: Record<string, unknown> & {
+    _count: { select: Record<string, boolean> };
+  };
+};
+
 type CommentFindManyArgs = {
   where: Prisma.CommentWhereInput;
   take: number;
@@ -99,6 +106,7 @@ type PrismaMocks = {
   blog: {
     count: jest.Mock<Promise<number>, [BlogCountArgs]>;
     findMany: jest.Mock<Promise<unknown[]>, [BlogFindManyArgs]>;
+    findUnique: jest.Mock<Promise<unknown>, [BlogFindUniqueArgs]>;
   };
   comment: {
     findMany: jest.Mock<Promise<unknown[]>, [CommentFindManyArgs]>;
@@ -241,6 +249,9 @@ describe('UsersService', () => {
         findMany: jest
           .fn<Promise<unknown[]>, [BlogFindManyArgs]>()
           .mockResolvedValue([myBlogRow]),
+        findUnique: jest
+          .fn<Promise<unknown>, [BlogFindUniqueArgs]>()
+          .mockResolvedValue({ ...myBlogRow }),
       },
       comment: {
         findMany: jest
@@ -608,6 +619,75 @@ describe('UsersService', () => {
 
       expect(s3.getSignedUrl).not.toHaveBeenCalled();
       expect(result.blogs[0].coverImage).toBeNull();
+    });
+  });
+
+  describe('getMyBlogBySlug', () => {
+    const findUniqueBlogArgs = () => prisma.blog.findUnique.mock.calls[0][0];
+
+    const myBlog = (slug = 'a-published-blog') =>
+      service.getMyBlogBySlug(session().user, slug);
+
+    // The ownership guarantee: the author comes from the session, so the slug
+    // alone can never reach another user's blog.
+    it('scopes the lookup to the session user id', async () => {
+      await myBlog();
+
+      expect(findUniqueBlogArgs().where).toEqual({
+        slug: 'a-published-blog',
+        authorId: 'user-1',
+      });
+    });
+
+    // Another user's blog and a nonexistent one are indistinguishable, so the
+    // endpoint cannot be used to probe which slugs exist.
+    it('throws NotFound when the blog is not the caller’s', async () => {
+      prisma.blog.findUnique.mockResolvedValue(null);
+
+      await expect(myBlog('someone-elses-blog')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('returns a draft', async () => {
+      const result = await myBlog();
+
+      expect(findUniqueBlogArgs().select.isPublished).toBe(true);
+      expect(result.blog.isPublished).toBe(false);
+    });
+
+    it('selects the fields the editor needs to repopulate the form', async () => {
+      await myBlog();
+
+      const { select } = findUniqueBlogArgs();
+      expect(select.title).toBe(true);
+      expect(select.content).toBe(true);
+      expect(select.tags).toBe(true);
+      expect(select.coverImage).toBe(true);
+      expect(select._count.select).toEqual({
+        comments: true,
+        likes: true,
+        bookmarks: true,
+      });
+    });
+
+    it('signs the cover image', async () => {
+      const result = await myBlog();
+
+      expect(s3.getSignedUrl).toHaveBeenCalledWith('cover-key');
+      expect(result.blog.coverImage).toBe('https://signed/url');
+    });
+
+    it('leaves a missing cover image as null', async () => {
+      prisma.blog.findUnique.mockResolvedValue({
+        ...myBlogRow,
+        coverImage: null,
+      });
+
+      const result = await myBlog();
+
+      expect(s3.getSignedUrl).not.toHaveBeenCalled();
+      expect(result.blog.coverImage).toBeNull();
     });
   });
 
