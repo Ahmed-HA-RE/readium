@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, IsUUID, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class CommentQueryDto {
   // `@IsInt` rejects a fractional limit, which Prisma's `take` refuses, and the
@@ -9,6 +16,7 @@ export class CommentQueryDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(100)
   limit?: number;
 
   @IsUUID('4')

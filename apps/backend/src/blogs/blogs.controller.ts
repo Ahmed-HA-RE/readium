@@ -19,6 +19,7 @@ import {
   Session,
   type UserSession,
 } from '@thallesp/nestjs-better-auth';
+import { minutes, Throttle } from '@nestjs/throttler';
 import { BlogQueryDto } from './dto/blog-query-dto';
 import type { Express } from 'express';
 import 'multer';
@@ -56,6 +57,7 @@ export class BlogsController {
 
   // Method           POST /api/blogs
   // Description      Create a new blog
+  @Throttle({ default: { ttl: minutes(1), limit: 10 } })
   @Post()
   @UseInterceptors(FileInterceptor('coverImage'))
   createBlog(
@@ -80,6 +82,7 @@ export class BlogsController {
 
   // Method           PUT /api/blogs/:slug
   // Description      Update an existing blog
+  @Throttle({ default: { ttl: minutes(1), limit: 10 } })
   @Put(':slug')
   @UseInterceptors(FileInterceptor('coverImage'))
   updateBlog(
@@ -110,6 +113,7 @@ export class BlogsController {
 
   // Method           DELETE /api/blogs/:slug
   // Description      Delete a blog by slug
+  @Throttle({ default: { ttl: minutes(1), limit: 10 } })
   @Delete(':slug')
   deleteBlog(@Param('slug') slug: string, @Session() session: UserSession) {
     const userId = session.user.id;

@@ -64,5 +64,11 @@ export const auth = betterAuth({
     },
   },
 
+  rateLimit: {
+    enabled: true,
+    max: 5,
+    window: 60, // 60 seconds
+  },
+
   plugins: [openAPI(), admin()],
 });

@@ -18,6 +18,7 @@ import {
   type UserSession,
 } from '@thallesp/nestjs-better-auth';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { minutes, Throttle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
@@ -87,6 +88,7 @@ export class UsersController {
 
   // Method           PUT /api/users/me
   // Description      Update the signed-in user's own name, bio, website and avatar
+  @Throttle({ default: { ttl: minutes(1), limit: 10 } })
   @Put('me')
   @Roles(['user'])
   @UseInterceptors(FileInterceptor('image'))

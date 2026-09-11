@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Min } from 'class-validator';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
 // Offset pagination only — both tabs are fixed to newest-saved-first, so
 // `BlogQueryDto` is not extended. `@Min(1)` is what stops `page=0` reaching
@@ -15,5 +15,6 @@ export class LikesAndBookmarksQueryDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(100)
   limit?: number;
 }
