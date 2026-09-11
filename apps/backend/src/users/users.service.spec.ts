@@ -350,7 +350,7 @@ describe('UsersService', () => {
 
       await service.getUserProfileWithBlogs(
         'Ahmed',
-        query({ sort: BlogSortOptions.OLDEST, page: '3', limit: '5' }),
+        query({ sort: BlogSortOptions.OLDEST, page: 3, limit: 5 }),
       );
 
       const { blogs } = findUniqueArgs().select;
@@ -389,7 +389,7 @@ describe('UsersService', () => {
 
       const result = await service.getUserProfileWithBlogs(
         'Ahmed',
-        query({ limit: '5' }),
+        query({ limit: 5 }),
       );
 
       expect(result.totalPages).toBe(5);
@@ -553,7 +553,7 @@ describe('UsersService', () => {
     });
 
     it('reuses the sort, limit and page values from buildBlogQuery', async () => {
-      await myBlogs({ sort: BlogSortOptions.OLDEST, page: '3', limit: '5' });
+      await myBlogs({ sort: BlogSortOptions.OLDEST, page: 3, limit: 5 });
 
       const args = findManyArgs();
       expect(args.orderBy).toEqual({ createdAt: 'asc' });
@@ -587,7 +587,7 @@ describe('UsersService', () => {
     it('derives totalPages from the scoped blog count', async () => {
       prisma.blog.count.mockResolvedValue(21);
 
-      const result = await myBlogs({ limit: '5' });
+      const result = await myBlogs({ limit: 5 });
 
       expect(result.totalPages).toBe(5);
     });

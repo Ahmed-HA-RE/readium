@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { minutes, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from '../lib/auth';
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ name: 'default', ttl: minutes(1), limit: 60 }]),
     DatabaseModule,
     AuthModule.forRoot({ auth }),
     BlogsModule,
@@ -31,6 +33,10 @@ import { UsersModule } from './users/users.module';
   ],
   controllers: [AppController],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     // Keeps User.lastActivityAt fresh on every authenticated request so the
     // admin dashboard can report active users.
     {

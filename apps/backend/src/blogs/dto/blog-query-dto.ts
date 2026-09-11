@@ -1,9 +1,12 @@
+import { Type } from 'class-transformer';
 import {
   IsEnum,
   IsNotEmpty,
-  IsNumberString,
   IsOptional,
   IsString,
+  Max,
+  Min,
+  IsInt,
 } from 'class-validator';
 
 export enum BlogSortOptions {
@@ -23,13 +26,17 @@ export class BlogQueryDto {
   @IsEnum(BlogSortOptions)
   sort: BlogSortOptions;
 
+  @Type(() => Number)
   @IsOptional()
   @IsNotEmpty()
-  @IsNumberString()
-  page: string;
+  @Min(1)
+  @IsInt()
+  page: number;
 
+  @Type(() => Number)
   @IsOptional()
-  @IsNotEmpty()
-  @IsNumberString()
-  limit: string;
+  @Min(1)
+  @Max(100)
+  @IsInt()
+  limit: number;
 }

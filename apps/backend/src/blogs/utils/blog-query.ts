@@ -4,11 +4,11 @@ import { BlogSortOptions } from '../dto/blog-query-dto';
 export const buildBlogQuery = (
   search?: string,
   sort?: BlogSortOptions,
-  page?: string,
-  limit?: string,
+  page?: number,
+  limit?: number,
 ) => {
-  const limitValue = limit ? Number(limit) : 10;
-  const pageValue = page ? Number(page) : 1;
+  const limitValue = limit ? limit : 10;
+  const pageValue = page ? page : 1;
 
   // If search query is provided, filter blogs by title or content or author's name
   const queryFilter: Prisma.BlogWhereInput = search
