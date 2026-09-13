@@ -1116,4 +1116,36 @@ describe('UsersService', () => {
       ]);
     });
   });
+
+  describe('isUsernameTaken', () => {
+    it('returns true when a row matches', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-2' });
+
+      await expect(service.isUsernameTaken('Sara')).resolves.toBe(true);
+    });
+
+    it('returns false when no row matches', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.isUsernameTaken('Sara')).resolves.toBe(false);
+    });
+
+    // The sign-up hook in `lib/auth.ts` matches case-insensitively too, so the
+    // live check and the write that follows it cannot disagree.
+    it('compares case-insensitively', async () => {
+      await service.isUsernameTaken('SARA');
+
+      expect(prisma.user.findFirst.mock.calls[0][0].where).toEqual({
+        name: { equals: 'SARA', mode: 'insensitive' },
+      });
+    });
+
+    it('selects only the id, never the row', async () => {
+      await service.isUsernameTaken('Sara');
+
+      expect(prisma.user.findFirst.mock.calls[0][0].select).toEqual({
+        id: true,
+      });
+    });
+  });
 });

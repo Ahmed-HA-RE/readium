@@ -1,8 +1,11 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { useDebounce } from 'use-debounce';
+import { FaCheck, FaXmark } from 'react-icons/fa6';
 import { toast } from 'sonner';
+import { useIsUsernameTaken } from '@/hooks/user';
 import { signUpSchema, type SignUpValues } from '@/schema/auth';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +15,11 @@ import {
   FieldLabel,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
 import { authClient } from '@/lib/auth-client';
 import { Spinner } from '@/components/ui/spinner';
 
@@ -20,6 +28,11 @@ const SignUpForm = ({ verifyRedirectUrl }: { verifyRedirectUrl: string }) => {
     resolver: zodResolver(signUpSchema),
     defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
   });
+
+  const name = useWatch({ control: form.control, name: 'name' });
+  const [debouncedName] = useDebounce(name, 400);
+  const { data: nameIsTaken, isFetching: isCheckingName } =
+    useIsUsernameTaken(debouncedName);
 
   const onSubmit = async ({ name, email, password }: SignUpValues) => {
     await authClient.signUp.email(
@@ -51,15 +64,35 @@ const SignUpForm = ({ verifyRedirectUrl }: { verifyRedirectUrl: string }) => {
           render={({ field, fieldState }) => (
             <Field>
               <FieldLabel htmlFor={field.name}>Name</FieldLabel>
-              <Input
-                {...field}
-                id={field.name}
-                autoComplete='name'
-                placeholder='Enter your name'
-                aria-invalid={fieldState.invalid}
-                className='h-10'
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+              <InputGroup className='h-10'>
+                <InputGroupInput
+                  {...field}
+                  id={field.name}
+                  autoComplete='name'
+                  placeholder='Enter your name'
+                  aria-invalid={fieldState.invalid || nameIsTaken}
+                />
+                {!fieldState.invalid && (
+                  <InputGroupAddon align='inline-end'>
+                    {isCheckingName ? (
+                      <Spinner />
+                    ) : nameIsTaken === true ? (
+                      <FaXmark className='text-red-600' />
+                    ) : nameIsTaken === false ? (
+                      <FaCheck className='text-emerald-600' />
+                    ) : null}
+                  </InputGroupAddon>
+                )}
+              </InputGroup>
+              {fieldState.invalid ? (
+                <FieldError errors={[fieldState.error]} />
+              ) : (
+                nameIsTaken && (
+                  <FieldError
+                    errors={[{ message: 'That name is already taken' }]}
+                  />
+                )
+              )}
             </Field>
           )}
         />
@@ -129,7 +162,7 @@ const SignUpForm = ({ verifyRedirectUrl }: { verifyRedirectUrl: string }) => {
         type='submit'
         size='lg'
         className='h-10 w-full'
-        disabled={isPending}
+        disabled={isPending || nameIsTaken}
       >
         {isPending ? <Spinner /> : 'Create account'}
       </Button>

@@ -57,7 +57,6 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        // eslint-disable-next-line @typescript-eslint/require-await
         before: async (user) => {
           const name = user.name.trim();
           if (name.length < 3)
@@ -69,6 +68,20 @@ export const auth = betterAuth({
               message: 'Name must be at most 50 characters long',
             });
           }
+
+          // Case-insensitive to match `UsersService.isUsernameTaken`, which
+          // drives the live check on the sign-up form — a sensitive check here
+          // would accept a name the form already called taken.
+          const existingName = await prisma.user.findFirst({
+            where: { name: { equals: name, mode: 'insensitive' } },
+            select: { id: true },
+          });
+          if (existingName) {
+            throw new APIError('BAD_REQUEST', {
+              message: 'Name is already taken',
+            });
+          }
+
           return { data: { ...user } };
         },
       },
