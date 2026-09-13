@@ -1,58 +1,14 @@
 <!-- Feature Title -->
 
-## Authentication — Small Features
-
 <!-- Feature Description -->
-
-## Description
-
-Two authentication edge cases in `apps/web`, built on top of a first-class TanStack Query setup:
-
-1. **Live username availability check** — a new endpoint on `user.controller.ts` wrapping the
-   existing `isUserNameTaken` service, consumed from the sign-up form through `useQuery` +
-   `use-debounce` (300–500ms), rendering "name is already taken" under the name field.
-2. **Redirect authenticated users away from auth routes** — a
-   `app/lib/actions/user/getCurrentLoggedInUser.ts` action reusing the existing
-   `getCurrentLoggedInUser` endpoint, called from the `sign-up`, `login` and `forgot-password`
-   Server Components, redirecting to home via `redirect` from `next/navigation` when a session
-   exists.
 
 <!-- Feature Notes -->
 
-## Notes
-
-- **TanStack Query must be set up correctly now, not retrofitted later.** App Router SSR
-  prefetching: prefetch server-side, wrap the client tree in `HydrationBoundary`, consume with
-  `useQuery` in the client component — so SEO and client interactivity come from the same data.
-  Ask before implementing if any part of this is unclear rather than guessing.
-- **Standard pattern for every backend call from here on**, not just this feature:
-  - `app/hooks/` — one file per domain, holding that domain's `useQuery` calls.
-  - `app/lib/actions/` — one file per domain, holding the raw `fetch()` calls.
-  - Every `fetch()` must pass `credentials`; several endpoints require authentication.
-- Type safety: `getCurrentLoggedInUser` returns `Promise<GetCurrentLoggedInUser>` (interface already
-  in `packages/types/src/users.ts`); `isUserNameTaken` returns `Promise<boolean>` — plain boolean,
-  no interface.
-- `getCurrentLoggedInUser` is reused well beyond these three routes.
-- Both backend pieces already exist as services/endpoints — only the username-availability endpoint
-  is new.
-- Spec: `context/specs/frontend/authentication-small-features.md` (gitignored). References
-  `@/context/project-overview.md` and the TanStack Query App Router prefetching example.
-
 <!-- Feature Goals-->
-
-## Goals
-
-- Install and configure TanStack Query in `apps/web` with App Router SSR prefetching + hydration.
-- Establish the `app/hooks/` + `app/lib/actions/` convention as the repo's standard for backend calls.
-- Add a username-availability endpoint to `user.controller.ts` calling `isUserNameTaken`.
-- Debounce sign-up name input and surface a taken-name error inline under the field.
-- Redirect signed-in users away from `sign-up`, `login` and `forgot-password`.
 
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
