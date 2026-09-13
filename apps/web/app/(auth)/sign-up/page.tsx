@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import AuthHeader from '../_components/auth-header';
 import OAuthProviders from '../_components/oauth-providers';
 import SignUpForm from './_components/sign-up-form';
@@ -15,6 +17,9 @@ const SignUpPage = async ({
 }: {
   searchParams: Promise<{ callbackUrl?: string }>;
 }) => {
+  const session = await getCurrentLoggedInUser();
+  if (session) redirect('/');
+
   const { callbackUrl: rawCallbackUrl = '/' } = await searchParams;
   const callbackUrl = toSafeCallbackUrl(rawCallbackUrl);
 

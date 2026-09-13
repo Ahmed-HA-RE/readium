@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Roboto } from 'next/font/google';
-import { Toaster } from '@/components/ui/sonner';
+import Providers from './providers';
 import { SITE_NAME, SITE_URL } from '@/lib/constants';
 import './globals.css';
 
@@ -71,8 +71,7 @@ const RootLayout = ({
   return (
     <html lang='en'>
       <body className={roboto.className}>
-        {children}
-        <Toaster position='bottom-right' />
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

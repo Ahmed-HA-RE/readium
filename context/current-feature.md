@@ -1,14 +1,58 @@
 <!-- Feature Title -->
 
+## Authentication — Small Features
+
 <!-- Feature Description -->
+
+## Description
+
+Two authentication edge cases in `apps/web`, built on top of a first-class TanStack Query setup:
+
+1. **Live username availability check** — a new endpoint on `user.controller.ts` wrapping the
+   existing `isUserNameTaken` service, consumed from the sign-up form through `useQuery` +
+   `use-debounce` (300–500ms), rendering "name is already taken" under the name field.
+2. **Redirect authenticated users away from auth routes** — a
+   `app/lib/actions/user/getCurrentLoggedInUser.ts` action reusing the existing
+   `getCurrentLoggedInUser` endpoint, called from the `sign-up`, `login` and `forgot-password`
+   Server Components, redirecting to home via `redirect` from `next/navigation` when a session
+   exists.
 
 <!-- Feature Notes -->
 
+## Notes
+
+- **TanStack Query must be set up correctly now, not retrofitted later.** App Router SSR
+  prefetching: prefetch server-side, wrap the client tree in `HydrationBoundary`, consume with
+  `useQuery` in the client component — so SEO and client interactivity come from the same data.
+  Ask before implementing if any part of this is unclear rather than guessing.
+- **Standard pattern for every backend call from here on**, not just this feature:
+  - `app/hooks/` — one file per domain, holding that domain's `useQuery` calls.
+  - `app/lib/actions/` — one file per domain, holding the raw `fetch()` calls.
+  - Every `fetch()` must pass `credentials`; several endpoints require authentication.
+- Type safety: `getCurrentLoggedInUser` returns `Promise<GetCurrentLoggedInUser>` (interface already
+  in `packages/types/src/users.ts`); `isUserNameTaken` returns `Promise<boolean>` — plain boolean,
+  no interface.
+- `getCurrentLoggedInUser` is reused well beyond these three routes.
+- Both backend pieces already exist as services/endpoints — only the username-availability endpoint
+  is new.
+- Spec: `context/specs/frontend/authentication-small-features.md` (gitignored). References
+  `@/context/project-overview.md` and the TanStack Query App Router prefetching example.
+
 <!-- Feature Goals-->
+
+## Goals
+
+- Install and configure TanStack Query in `apps/web` with App Router SSR prefetching + hydration.
+- Establish the `app/hooks/` + `app/lib/actions/` convention as the repo's standard for backend calls.
+- Add a username-availability endpoint to `user.controller.ts` calling `isUserNameTaken`.
+- Debounce sign-up name input and surface a taken-name error inline under the field.
+- Redirect signed-in users away from `sign-up`, `login` and `forgot-password`.
 
 <!-- Feature Status -->
 
 ## Status
+
+Completed
 
 <!-- History -->
 
@@ -727,3 +771,116 @@ note above.
 
 **Not included:** `/forgot-password` and `/reset-password`, email-verification UI, 2FA, the session
 and security tabs, and any authenticated surface behind these routes.
+
+### 10. Authentication — Small Features — completed 2026-09-13
+
+Two auth edge cases, plus the TanStack Query foundation the rest of the frontend will be built on.
+The query setup is the durable half: it is configured for App Router SSR prefetching now so the
+blogs feed can prefetch server-side for SEO and hydrate into a client `useQuery` for filtering,
+without retrofitting later.
+
+**Implemented**
+
+- `lib/get-query-client.ts` — fresh `QueryClient` per request on the server, singleton in the
+  browser, `staleTime: 60s`, and `shouldDehydrateQuery` widened to include pending queries so an
+  in-flight prefetch streams instead of being dropped.
+- `app/providers.tsx` — `QueryClientProvider` plus the `Toaster`, mounted once from the root layout.
+- `lib/actions/user/getCurrentLoggedInUser.ts` and `lib/actions/user/isUsernameTaken.ts`.
+- `hooks/user.ts` — `useIsUsernameTaken`, disabled outside 3–50 characters, `retry: false`.
+- `GET /api/users/username-taken?username=` on `UsersController`, `@AllowAnonymous()`, delegating to
+  the existing `UsersService.isUsernameTaken`. `UsernameQueryDto` validates 3–50 characters.
+- Sign-up name field rebuilt on shadcn `InputGroup` with an `InputGroupAddon align='inline-end'`:
+  `Spinner` while checking, emerald `FaCheck` when available, red `FaXmark` when taken, plus the
+  error line and a disabled submit. Debounced 400ms via `use-debounce`, value lifted out of the
+  `Controller` with `useWatch`.
+- Redirect guard on `/login` and `/sign-up` — call the action, `redirect('/')` when a session exists.
+- Sign-up uniqueness now enforced server-side in `databaseHooks.user.create.before`.
+- `@tanstack/react-query`, `use-debounce` and `@repo/types` added to `apps/web`; `input-group`
+  installed; `NEXT_PUBLIC_API_URL` + `API_URL` constant added.
+- 13 tests: `username-query-dto.spec.ts` (9) and an `isUsernameTaken` block in
+  `users.service.spec.ts` (4). Suite is 175 passing.
+
+**Decisions worth remembering**
+
+- **`credentials: 'include'` does nothing in a Server Component, and this was proven by execution.**
+  A local server was booted and hit twice from Node: with `credentials` alone the request arrived
+  with **no `Cookie` header at all**; with the header forwarded it arrived intact. Node's fetch has
+  no cookie jar, so `credentials` is a browser-only instruction. Every server-side action must send
+  `headers: { Cookie: (await cookies()).toString() }` or the endpoint answers 401 for **every**
+  user and the guard silently never fires. Better Auth's own FAQ says the same thing for
+  `auth.api.getSession`. Client-side calls need only `credentials`.
+- **Only `Cookie` is forwarded, not the whole header set.** The docs' `headers: await headers()`
+  works because their example calls `auth.api.getSession` in-process; ours is a real cross-origin
+  call to Nest, where forwarding `host`, `connection` and `content-length` from the Next request
+  can corrupt it.
+- **`cookies()` returns `ReadonlyRequestCookies`, not a string** — `.toString()` is required and
+  `tsc` rejects the object outright. Confirmed by running `check-types`, not by reading.
+- **The route is `username-taken`, not the plan's `username-available`.** Route name, service name
+  and boolean polarity then all agree — `true` means taken everywhere, so there is no inversion to
+  get wrong. The plan also put it under `/me/`, which is authenticated and therefore useless to a
+  visitor who is signing up.
+- **`username-taken` must stay above `:username`** — the same declaration-order trap as the `me`
+  routes in history #4, now four routes wide.
+- **The sign-up hook's uniqueness check was case-sensitive and the live check is not.** Left as
+  written, `ahmed` existing would make the form say `Ahmed` was taken while the hook accepted it —
+  the UI stricter than the server. Now `findFirst` + `mode: 'insensitive'`, matching
+  `isUsernameTaken`, and a test pins it. The length checks were also moved ahead of the query so a
+  1-character name costs no database read.
+- **The live check is advisory, not a guarantee.** It is debounced and racy by nature; the hook is
+  the real constraint. That is the reason it was worth fixing rather than deleting.
+- **Available is signalled by the check mark alone; the border stays neutral.** A green border
+  would fight the focus ring exactly where the cursor is, reward the expected outcome, and add a
+  success colour used nowhere else. Only the taken state colours the border.
+- **`input-group.tsx` ships stock `ring-3`; changed to `ring-1`** to match the edit already made to
+  `input.tsx`, otherwise the grouped field's ring is visibly heavier than every other input.
+- **One `lib/` at the web root, not `app/lib/`.** The spec asked for `app/lib/` and `app/hooks/`,
+  but `apps/web/lib/` already existed and two `lib` folders leave no obvious home for new code.
+  The spec file was updated to match.
+- **Query keys are inline, and `['users', ...]` is reserved.** The availability check uses
+  `['username-taken', name]` so the admin user-filtering list can own the `users` prefix and
+  invalidate it broadly without clearing this cache.
+- **`useWatch`, not `form.watch()`** — hooks cannot be called inside a `Controller` render prop, so
+  the value is lifted into the component body; `useWatch` also keeps re-renders local once fields
+  are split into subcomponents.
+- **The action returns `GetCurrentLoggedInUser | null`, against the spec's table.** A 401 cannot
+  produce a `GetCurrentLoggedInUser`, and `null` is what the guard branches on.
+- **`apps/web` had no `@repo/types`**, exactly as history #4 recorded; added as `workspace:*`.
+
+**Verified**
+
+- `pnpm turbo build` green for `backend` and `web`; `/login` and `/sign-up` still `ƒ (Dynamic)`.
+- `pnpm check-types` and `pnpm lint` clean on `web`; `eslint` clean on `src/users` and `lib/auth.ts`.
+- `tsc --noEmit` reports nothing new — the two `admin.service.spec.ts` `BlogQueryDto` errors from
+  history #3 are still there, untouched.
+- `pnpm test` — 175 passing (162 before, 13 added).
+- The Node cookie behaviour was executed against a throwaway HTTP server, not assumed.
+- Better Auth 1.6 documentation consulted directly for the server-side session rule.
+
+**Not verified — the significant gap**
+
+**Nothing was run in a browser or against a booted server.** The route mapping, the
+`username-taken`-before-`:username` ordering, the 400 on a short name, the debounce timing, the
+spinner/check/X transitions and the redirect itself all rest on compilation and unit tests. A live
+boot was offered and declined. This is the tenth consecutive feature carrying this gap, and the
+ordering trap is the one thing unit tests cannot cover.
+
+**Known gaps**
+
+- **Admins are not redirected away from the auth routes.** `GET /api/users/me` is `@Roles(['user'])`,
+  so an admin receives 403, the action returns `null`, and the guard reads that as logged out. Audit
+  finding 13 (history #8) called this correct for the endpoint; it is a real hole for this guard.
+  Admins have `/api/admin/me`.
+- **`/forgot-password` still does not exist**, so its guard is unwritten — the login link still
+  404s. Deferred by decision, third feature carrying it.
+- **Username enumeration is open at 60/min per IP** — the global throttle, no `@Throttle` override.
+  Inherent to any sign-up availability check, but it compounds the `trust proxy` gap from history
+  #7: in production every caller shares one bucket.
+- `NEXT_PUBLIC_API_URL` was added to `apps/web/.env`, which is gitignored — it must be set wherever
+  this deploys or `API_URL` silently falls back to `localhost:3001`.
+- `components/ui/textarea.tsx` was pulled in as a registry dependency of `input-group` and is unused.
+- The spec file was updated in four places, but `context/specs` is gitignored (`.gitignore:41`), so
+  **those edits exist only locally** — the same situation as history #5.
+
+**Not included:** any actual prefetch + `HydrationBoundary` usage — neither feature has
+server-prefetchable data, so the pattern is configured and unused by decision; the `/forgot-password`
+route; and any 429 handling on the new endpoint.

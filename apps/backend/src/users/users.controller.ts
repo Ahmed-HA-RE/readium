@@ -24,6 +24,7 @@ import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile-dto';
+import { UsernameQueryDto } from './dto/username-query-dto';
 
 const MAX_AVATAR_SIZE_IN_BYTES = 1024 * 1024; // 1MB
 
@@ -126,6 +127,16 @@ export class UsersController {
       updateUserProfileDto,
       image,
     );
+  }
+
+  // Method           GET /api/users/username-taken
+  // Description      Check whether a name is in use, for the live check on the sign-up form
+  // Anonymous: the caller is signing up, so there is no session yet. Like the
+  // `me` routes, this must stay above `:username` or it is swallowed by it.
+  @Get('username-taken')
+  @AllowAnonymous()
+  isUsernameTaken(@Query() query: UsernameQueryDto): Promise<boolean> {
+    return this.usersService.isUsernameTaken(query.username);
   }
 
   // Method           GET /api/users/:username
