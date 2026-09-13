@@ -1,65 +1,14 @@
 <!-- Feature Title -->
 
-# Authentication — Phase 1 (Frontend)
-
-Spec: `context/specs/frontend/authentication-phase-1.md`
-
 <!-- Feature Description -->
-
-## Description
-
-The first user-facing authentication surface in `apps/web`. Sign Up and Login, each supporting both
-credentials and OAuth (Google, GitHub — already configured in `apps/backend/lib/auth.ts`). Both
-routes live in an `app/(auth)/` route group with a shared `layout.tsx` that does not inherit the root
-layout: image on the right, form on the left, rendered conditionally per route.
 
 <!-- Feature Notes -->
 
-## Notes
-
-- **UI reference:** `context/screenshots/authentication-1.png`. It only shows the sign-up form; login
-  reuses the same shared layout. The spec says to ask rather than guess where the screenshot is
-  ambiguous.
-- **Asset name mismatch:** the spec asks for `authentication-image.png`, but the file present in
-  `apps/web/public/` is `authentication-image.svg` (untracked). Confirm which to reference before
-  building the layout.
-- **Icons come from `react-icons`, not shadcn's bundled icon package** — `FaArrowRight` (fa6),
-  `FaGithub` (fa), `FcGoogle` (fc).
-- **Only the shadcn `Field` component needs installing**; `react-hook-form` and `zod` are already
-  there. Follow https://ui.shadcn.com/docs/forms/react-hook-form.
-- **Every `authClient` call must pass both `onSuccess` and `onError`**, and surface the API's message
-  through a shadcn toast in both branches.
-- **OAuth is one reusable component taking a `provider` prop** — not two separate buttons — shared by
-  both routes.
-- Route navigation uses **Button 16** from shadcn-studio, arrow flipped to the right, on the logo
-  line and right-aligned; its label and target flip with the current route.
-- `callbackUrl` is read **server-side** and handed to `authClient`, and must survive navigation
-  between the login and sign-up routes.
-- Zod schemas go in `app/schema/auth.ts` (`passwordSchema`, `signUpSchema` with a `confirmPassword`
-  refine, `loginSchema`).
-- History #4 and #8 flag that `GET /api/users/me` returns `session.token` and that no route mapping
-  has ever been live-verified — this is the frontend landing those entries kept deferring to.
-
 <!-- Feature Goals-->
-
-## Goals
-
-1. `app/(auth)/` route group with a shared layout independent of the root layout, split form-left /
-   image-right.
-2. Sign-up and login routes, each with minimal, human-sounding `title` + `description` metadata.
-3. Zod schemas in `app/schema/auth.ts` wired through `react-hook-form` and shadcn's `Field`.
-4. Credentials sign-up and login through `authClient`, with toast feedback on both success and error.
-5. One reusable OAuth button component, `provider`-driven, on both routes.
-6. Cross-route navigation button that preserves `callbackUrl`, plus a "Forgot password?" link on the
-   login route pointing at `/forgot-password`.
-7. `callbackUrl` resolved SSR and passed into `authClient` so users return to where they were
-   interrupted.
 
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
