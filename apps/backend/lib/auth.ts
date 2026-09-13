@@ -32,6 +32,17 @@ export const auth = betterAuth({
     expiresIn: 1000 * 60 * 60, // 1 hour
   },
 
+  socialProviders: {
+    github: {
+      clientId: process.env.GITHUB_CLIENT_ID as string,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+    },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    },
+  },
+
   trustedOrigins: [process.env.APP_FRONTEND_URL as string],
 
   // Both columns already exist on the Prisma `User` model, so declaring them
@@ -53,9 +64,9 @@ export const auth = betterAuth({
             throw new APIError('BAD_REQUEST', {
               message: 'Name must be at least 3 characters long',
             });
-          if (name.length > 20) {
+          if (name.length > 50) {
             throw new APIError('BAD_REQUEST', {
-              message: 'Name must be at most 20 characters long',
+              message: 'Name must be at most 50 characters long',
             });
           }
           return { data: { ...user } };

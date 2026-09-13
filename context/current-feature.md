@@ -1,14 +1,65 @@
 <!-- Feature Title -->
 
+# Authentication — Phase 1 (Frontend)
+
+Spec: `context/specs/frontend/authentication-phase-1.md`
+
 <!-- Feature Description -->
+
+## Description
+
+The first user-facing authentication surface in `apps/web`. Sign Up and Login, each supporting both
+credentials and OAuth (Google, GitHub — already configured in `apps/backend/lib/auth.ts`). Both
+routes live in an `app/(auth)/` route group with a shared `layout.tsx` that does not inherit the root
+layout: image on the right, form on the left, rendered conditionally per route.
 
 <!-- Feature Notes -->
 
+## Notes
+
+- **UI reference:** `context/screenshots/authentication-1.png`. It only shows the sign-up form; login
+  reuses the same shared layout. The spec says to ask rather than guess where the screenshot is
+  ambiguous.
+- **Asset name mismatch:** the spec asks for `authentication-image.png`, but the file present in
+  `apps/web/public/` is `authentication-image.svg` (untracked). Confirm which to reference before
+  building the layout.
+- **Icons come from `react-icons`, not shadcn's bundled icon package** — `FaArrowRight` (fa6),
+  `FaGithub` (fa), `FcGoogle` (fc).
+- **Only the shadcn `Field` component needs installing**; `react-hook-form` and `zod` are already
+  there. Follow https://ui.shadcn.com/docs/forms/react-hook-form.
+- **Every `authClient` call must pass both `onSuccess` and `onError`**, and surface the API's message
+  through a shadcn toast in both branches.
+- **OAuth is one reusable component taking a `provider` prop** — not two separate buttons — shared by
+  both routes.
+- Route navigation uses **Button 16** from shadcn-studio, arrow flipped to the right, on the logo
+  line and right-aligned; its label and target flip with the current route.
+- `callbackUrl` is read **server-side** and handed to `authClient`, and must survive navigation
+  between the login and sign-up routes.
+- Zod schemas go in `app/schema/auth.ts` (`passwordSchema`, `signUpSchema` with a `confirmPassword`
+  refine, `loginSchema`).
+- History #4 and #8 flag that `GET /api/users/me` returns `session.token` and that no route mapping
+  has ever been live-verified — this is the frontend landing those entries kept deferring to.
+
 <!-- Feature Goals-->
+
+## Goals
+
+1. `app/(auth)/` route group with a shared layout independent of the root layout, split form-left /
+   image-right.
+2. Sign-up and login routes, each with minimal, human-sounding `title` + `description` metadata.
+3. Zod schemas in `app/schema/auth.ts` wired through `react-hook-form` and shadcn's `Field`.
+4. Credentials sign-up and login through `authClient`, with toast feedback on both success and error.
+5. One reusable OAuth button component, `provider`-driven, on both routes.
+6. Cross-route navigation button that preserves `callbackUrl`, plus a "Forgot password?" link on the
+   login route pointing at `/forgot-password`.
+7. `callbackUrl` resolved SSR and passed into `authClient` so users return to where they were
+   interrupted.
 
 <!-- Feature Status -->
 
 ## Status
+
+Completed
 
 <!-- History -->
 
@@ -612,3 +663,118 @@ built against them. This branch closes the ones that block frontend work.
 feed still sequential-scans on `blogId`), the like/bookmark/report check-then-insert races that 500
 on a double click, S3 failures turning successful deletes into 500s, drafts being commentable and
 likeable by slug, and the whole test backfill for `blogs`/`likes`/`bookmarks`/`reports`.
+
+### 9. Authentication Phase 1 — Login & Sign Up — completed 2026-09-13
+
+The first frontend feature in this history, and the first UI in `apps/web` beyond a placeholder home
+page. `/login` and `/sign-up` in an `app/(auth)/` route group, each offering credentials and OAuth
+(Google, GitHub).
+
+**Implemented**
+
+- `app/(auth)/layout.tsx` — two-column grid: form panel left, marketing heading plus the unDraw SVG
+  right (hidden below `lg`). It nests inside the root layout rather than replacing it.
+- `app/(auth)/login/page.tsx` and `sign-up/page.tsx` — both `async`, both read `searchParams`, both
+  declare `title` + `description`. Next reports them as `ƒ (Dynamic)`.
+- `app/(auth)/_components/auth-header.tsx` — server component holding the logo and the cross-route
+  nav link (shadcn-studio Button 16, arrow flipped right, hover-translate preserved).
+- `app/(auth)/_components/oauth-button.tsx` — one `provider`-driven client component, and
+  `oauth-providers.tsx` pairing both buttons with the `Marker variant='separator'` OR rule.
+- `login/_components/login-form.tsx` and `sign-up/_components/sign-up-form.tsx` — react-hook-form +
+  `zodResolver` + shadcn `Field`, per the official docs pattern.
+- `schema/auth.ts` — `passwordSchema`, `signUpSchema` (with the `confirmPassword` refine) and
+  `loginSchema`.
+- `lib/absolute-url.ts` — `toAbsoluteUrl` and `toSafeCallbackUrl`.
+- shadcn `field`, `input`, `label`, `sonner`, `marker`, `separator`, `spinner` installed;
+  `@hookform/resolvers` added. `<Toaster />` mounted in the root layout, and its `bg-black` dropped.
+- `--app` / `--app-from` / `--app-to` brand tokens in `globals.css`, sampled from the app icon.
+- `socialProviders` (GitHub, Google) added to `apps/backend/lib/auth.ts`.
+
+**Decisions worth remembering**
+
+- **A route-group layout cannot escape the root layout, and layouts get no `searchParams`.** Both
+  shaped the structure. The spec's "doesn't inherit from the root layout" was read as "owns its own
+  visual shell" — true isolation needs multiple root layouts and duplicated metadata, which was
+  rejected. Because the layout cannot read `searchParams`, the header could not live there and stay
+  server-rendered, so `AuthHeader` is a server component each **page** renders with `mode` and
+  `callbackUrl` as props. The alternative — a `'use client'` nav button on `usePathname` +
+  `useSearchParams` behind a Suspense boundary — was considered and dropped.
+- **`callbackURL` handed to `authClient` must be absolute.** Better Auth resolves a relative one
+  against its own `baseURL`, which is the backend, so `/` sent users to the API host after
+  verifying their email. `toAbsoluteUrl` expands it against `NEXT_PUBLIC_SITE_URL`.
+- **The fix was built in the backend first, then moved to the frontend on request.** A
+  `withFrontendCallback` helper rewrote the `callbackURL` param inside `sendVerificationEmail` and
+  `sendResetPassword`, which covered every trigger in one place. It was reverted in favour of the
+  frontend passing absolute URLs. **The trade this accepts:** `sendResetPassword` and any future
+  server-initiated email are no longer covered, so each new caller has to remember. Verified in the
+  1.6.26 source that no `emailVerification.callbackURL` config option exists — rewriting is the only
+  route.
+- **On `signIn.email`, `callbackURL` does two unrelated jobs**, which is why `LoginForm` takes two
+  props. `sign-in.mjs:316` feeds it into the verification email, while `:335` sets the post-login
+  `Location`. `verifyRedirectUrl` is absolute and always `/login`; `callbackUrl` stays **relative**
+  so `router.push` soft-navigates. Collapsing them breaks one case or the other.
+- **Open redirect found in review and fixed.** `router.push(callbackUrl)` took the query param
+  unvalidated, so `?callbackUrl=https://evil.com` bounced users off-site straight after a successful
+  login. `toSafeCallbackUrl` compares hostnames and returns a **relative** path, so the result is
+  same-origin by construction. `new URL(path, base)` does **not** sanitise — an absolute input
+  silently ignores the base, which is what made the hole easy to miss.
+- **Only `router.push` was exposed.** Every `callbackURL` reaching `authClient` is already validated
+  by Better Auth's `originCheckMiddleware` against `trustedOrigins` (403 `INVALID_CALLBACK_URL`), so
+  OAuth and the verification email were never at risk. `NEXT_PUBLIC_SITE_URL` and `APP_FRONTEND_URL`
+  must therefore stay identical — a mismatch 403s every sign-in.
+- **A live test appeared to disprove the open redirect and did not.** `?callbackUrl=https://google.com`
+  left the page unchanged, but `navigate-reducer.js:34` routes external URLs to
+  `completeHardNavigation` — so `onSuccess` had never run, almost certainly a 403 on an unverified
+  account. The guard went in regardless; router internals are not a security boundary.
+- **`FieldError` styling was moved off the label.** `Field` carries
+  `data-[invalid=true]:text-destructive`, which turned the label red too; `data-invalid` was dropped
+  from `Field` so only the input border and the error text signal state.
+- **`useTransition`, not a `useState` boolean**, for the OAuth pending state — no manual reset on
+  error paths.
+- **Sign-up follows the spec's schema, not the screenshot.** The reference shows First/Last Name and
+  a Terms checkbox; the schema has one `name` plus `email`, and nothing stored a terms value.
+
+**Verified**
+
+- `pnpm turbo build` green for `backend` and `web`; `pnpm check-types` and `pnpm lint` clean on both.
+- `toSafeCallbackUrl` executed against `https://evil.com/phish`, `//evil.com`, `javascript:alert(1)`
+  and `''` — all collapse to `/`; `/blog?page=2#top` keeps its query and hash.
+- `toAbsoluteUrl` executed to confirm an absolute input overrides the base — the reason the guard is
+  a separate function.
+- Better Auth 1.6.26 source read directly for the `callbackURL` default, `originCheckMiddleware`,
+  `getIp` and the rate-limiter key, rather than relying on the docs.
+
+**Not verified — the significant gap**
+
+**Nothing was rendered in a browser.** No route loaded, no form submitted, no OAuth round trip, no
+verification link clicked, no toast seen. Layout, responsive behaviour and every runtime path rest on
+compilation alone. This is the ninth consecutive feature carrying this gap and the first that is
+entirely UI. The user did report one manual sign-in attempt, which failed — see the open-redirect
+note above.
+
+**Known gaps**
+
+- **`/forgot-password` does not exist.** The login link 404s; deferred to the next phase by decision.
+- **`name` allows 50 characters, the backend rejects over 20.** `databaseHooks.user.create.before`
+  caps at 20, so a 21–50 character name passes the form and fails at the API with a red toast. Third
+  feature to carry this (history #6). **Still unresolved.**
+- **`sendResetPassword` still mails a backend-relative `callbackURL`**, so the reset link will land
+  users on the API until `/reset-password` exists and passes an absolute URL.
+- **Better Auth cannot resolve a client IP**, so rate limiting uses one shared bucket per path.
+  `NODE_ENV` is unset, and `getIp` only falls back to `127.0.0.1` when it reads `dev`/`development`.
+  Harmless locally, an outage in production — 5 sign-ins per minute across all users. Needs
+  `advanced.ipAddress.trustedProxies`/`ipAddressHeaders` plus `app.set('trust proxy', n)` for the
+  Nest throttler, both requiring the real deployment topology.
+- `--color-app-from` / `--color-app-to` are defined but unused; the logo renders as an image with no
+  gradient. Use `bg-linear-to-r` (v4 spelling), not `bg-gradient-to-r`.
+
+**Spec deviations**
+
+- Schema lives at `schema/auth.ts`, not `app/schema/auth.ts`.
+- `authClient.signIn.social` has no `onSuccess`/`onError`, against the spec's "every authClient call
+  must include both" — dropped by decision since the call redirects away.
+- `context/screenshots` was added to `.gitignore`, so the design reference the spec points at is not
+  in the repo — the same situation as `context/specs`.
+
+**Not included:** `/forgot-password` and `/reset-password`, email-verification UI, 2FA, the session
+and security tabs, and any authenticated surface behind these routes.
