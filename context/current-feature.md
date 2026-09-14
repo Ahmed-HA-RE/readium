@@ -1,14 +1,59 @@
 <!-- Feature Title -->
 
+# Authentication Phase 2 — Forgot & Reset Password
+
 <!-- Feature Description -->
+
+## Description
+
+Complete the credentials auth flow with the two routes Phase 1 left missing: `/forgot-password` and
+`/reset-password`, both inside the existing `app/(auth)/` route group so they inherit the shared
+two-column auth layout. Alongside them, replace the raw `fetch()` calls in `apps/web/lib/actions`
+with a shared axios instance so the base URL stops being repeated at every call site.
+
+Spec: `context/specs/frontend/authentication-phase-2.md`
 
 <!-- Feature Notes -->
 
+## Notes
+
+- **Axios instance** at `web/lib/axios.ts`, base URL from `API_URL` in `lib/constants/index.ts`,
+  configured with credentials so authenticated endpoints keep working. Both existing action files
+  migrate to it.
+- **Forgot password** uses Better Auth's `requestPasswordReset` with
+  `redirectTo: {SITE_URL}/reset-password`, plus a "Back to login" link below submit — `FaArrowLeft`
+  with a `group-hover` translate-x on a `group`-classed `Button`.
+- **Reset password** reads `token` server-side from `searchParams`; missing token or
+  `error=INVALID_TOKEN` redirects to `/login`, otherwise the token is passed to the client form.
+- **Success state** is `isSuccess` in `reset-password-form.tsx`, set from `authClient.resetPassword`'s
+  `onSuccess`, switching the render to `ResetPasswordConfirmation` — which must live in its own file
+  under the domain's `_components/`, not inline.
+- **Confirmation component**: `IoShieldCheckmark` in green, "Password Reset Successful" heading, and
+  an outlined green-bordered `Link` button back to `/login` reusing the arrow pattern.
+- **Zod schemas for both forms already exist** in `web/schema/auth.ts` — do not rewrite them.
+- **`app/robots.ts`** added with `/reset-password` in `disallow`.
+- Relevant open gaps from history #9/#10: `sendResetPassword` still mails a backend-relative
+  `callbackURL`, and the `/forgot-password` link on `/login` currently 404s — this feature closes
+  both.
+
 <!-- Feature Goals-->
+
+## Goals
+
+1. Centralise API calls behind one axios instance and remove the repeated base URL from
+   `lib/actions`.
+2. Ship `/forgot-password` so a user can request a reset email from the link already on `/login`.
+3. Ship `/reset-password` with server-side token validation, redirecting invalid or missing tokens
+   to `/login`.
+4. Render a distinct success confirmation after a completed reset, in its own component file.
+5. Keep both routes inside `app/(auth)/` so the shared layout and header are reused unchanged.
+6. Block `/reset-password` from search engines via `app/robots.ts`.
 
 <!-- Feature Status -->
 
 ## Status
+
+**Completed**
 
 <!-- History -->
 
@@ -840,3 +885,111 @@ ordering trap is the one thing unit tests cannot cover.
 **Not included:** any actual prefetch + `HydrationBoundary` usage — neither feature has
 server-prefetchable data, so the pattern is configured and unused by decision; the `/forgot-password`
 route; and any 429 handling on the new endpoint.
+
+### 11. Authentication Phase 2 — Forgot & Reset Password — completed 2026-09-14
+
+The two routes Phase 1 left missing, closing the credentials flow, plus the axios migration that
+removes the repeated base URL from `lib/actions`. **The first feature in this history verified in a
+real browser** — the previous ten all carried "nothing was rendered in a browser".
+
+**Implemented**
+
+- `lib/axios.ts` — one `axios.create({ baseURL: API_URL, withCredentials: true })` instance.
+  Both files in `lib/actions/user/` migrated off `fetch`; no `fetch` remains there.
+- `app/(auth)/forgot-password/` — page plus `_components/forgot-password-form.tsx`, calling
+  `authClient.requestPasswordReset` with an absolute `redirectTo`.
+- `app/(auth)/reset-password/` — page reading `token` from `searchParams` server-side, plus
+  `_components/reset-password-form.tsx` and `_components/reset-password-confirmation.tsx`.
+- `app/robots.ts` — `disallow: ['/reset-password']`.
+- `AuthHeader`'s `mode` / `callbackUrl` made optional, rendering the logo alone when omitted.
+- **`@Roles(['user'])` removed from `GET /api/users/me`** — see below.
+- No tests added. The feature is frontend-only bar that one guard removal; suite stays at 166.
+
+**Decisions worth remembering**
+
+- **`withCredentials: true`, not an `Authorization` header.** The axios docs' "shared authentication
+  headers" example is a Bearer-token pattern and does not apply: the session is an httpOnly cookie
+  that JS cannot read, so there is no token to attach. That example also evaluates `getToken()`
+  **once at module load**, freezing the value — which is why the docs immediately show
+  `instance.defaults.headers.common[...]` as the fix.
+- **`withCredentials` is a request-config option, not a header.** An attempt to pass it inside
+  `headers` sent a junk `withcredentials: true` header to Nest and did nothing. It belongs on the
+  instance.
+- **`withCredentials` still does nothing server-side** — history #10's rule is unchanged. Every
+  server-side action must forward `headers: { Cookie: (await cookies()).toString() }` by hand;
+  proven again here against a throwaway HTTP server, which also confirmed axios joins
+  `baseURL` + `/users/me` to `/api/users/me` correctly.
+- **axios throws on non-2xx where fetch only set `ok: false`.** `getCurrentLoggedInUser` therefore
+  needs a `try/catch`. **This is a silent-failure shape:** the bare `catch` swallows the status, so
+  any failure reads as "signed out" and nothing is logged. It cost real time during this feature —
+  see the debugging note.
+- **`GET /api/users/me` is no longer role-guarded.** It backs the redirect guard on every public
+  auth route, and `@Roles(['user'])` made an admin 403, which the guard read as logged out — the
+  known gap recorded in history #10. Removing the decorator leaves the global `AuthGuard`, so the
+  route is still authenticated-only. **Nothing pins this in a test**, and the endpoint still returns
+  `session.token` (history #8's open gap), which it now hands to admins too.
+- **The reset-password heading lives in the client form, not the page.** Every other auth page keeps
+  its heading server-side, but the success state must replace the heading as well — otherwise
+  "Reset Password" sits above "Password Reset Successful".
+- **The reset page's guard is `if (error || !token)`.** Better Auth's `/reset-password/:token`
+  callback redirects with `?token=` on success and `?error=INVALID_TOKEN` otherwise; read directly
+  from `password.mjs:125-128` in the installed source rather than from the docs.
+- **`redirectTo` must be absolute**, for the same reason as `callbackURL` in history #9:
+  `redirectError`/`redirectCallback` resolve it with `new URL(callbackURL, ctx.baseURL)`, where
+  `baseURL` is the backend. It is also `originCheck`ed (`password.mjs:50`), so `NEXT_PUBLIC_SITE_URL`
+  must stay identical to `APP_FRONTEND_URL` or every request 403s.
+- **Better Auth versions are skewed across the apps** — `apps/backend` is on 1.7.1, `apps/web` on
+  1.6.26, both declared `^`. The backend serves the endpoints, so its version governs the redirect
+  contract above.
+
+**Verified — live, in a browser**
+
+- `pnpm turbo build` green; `check-types` and `lint` clean on `web`; `pnpm test` 166 passing.
+- Route manifest: `/forgot-password` and `/reset-password` are `ƒ (Dynamic)`, `/robots.txt` static
+  and serving `Disallow: /reset-password`.
+- `/forgot-password` submit → `POST /api/auth/request-password-reset` **200**, form reset, toast
+  shown. Request body confirmed as
+  `{"email":"…","redirectTo":"http://localhost:3000/reset-password"}` — absolute and pointing at the
+  **frontend**, which closes history #9's `sendResetPassword` gap. The 200 (rather than a 403
+  `INVALID_CALLBACK_URL`) also proves the `originCheck` passes.
+- `/reset-password` with no token → `/login`; with `?error=INVALID_TOKEN` → `/login`; with `?token=`
+  → renders the form.
+- Mismatched passwords produce "Passwords don't match" and never reach the network.
+- A deliberately invalid token → `POST /api/auth/reset-password` **400** and a toast reading
+  "Invalid token".
+- The confirmation component was rendered by temporarily flipping `useState(true)` (reverted):
+  emerald-600 shield at 100×100, green outlined button to `/login` carrying the `group` class, and
+  the form correctly unmounted.
+- The axios-migrated username check: `GET /api/users/username-taken?username=Ahmed` **200**, taken →
+  red X and "That name is already taken", free name → green check. Confirms `params` encoding and
+  `baseURL` joining in the browser as well as in Node.
+
+**Not verified**
+
+- **`getCurrentLoggedInUser()` has never run with a real session through axios.** Every browser check
+  was signed out, so the authenticated path — the axios migration's main risk, guarding three routes
+  behind a `catch` that swallows everything — rests on the isolated Node proof alone.
+- **The emailed reset link was never clicked.** `redirectTo` was confirmed to leave correctly and the
+  form was confirmed to work given a token, but the join between them — the backend's redirect from
+  `:3001` to `:3000?token=` — was not exercised.
+- OAuth, and the `/forgot-password` redirect guard for an already-signed-in user.
+
+**A debugging note worth keeping**
+
+A 403 from `/api/users/me` was misdiagnosed at length. The admin/`@Roles(['user'])` cause was
+identified first, then **wrongly dismissed** because a Neon query returned `role: 'user'`,
+`emailVerified: false` and zero sessions. That database (`crimson-thunder-97981154`) is **not the one
+the backend uses** — proven when a reset token generated seconds earlier failed to appear in it.
+**Check `DATABASE_URL` before trusting any query against Neon from the MCP.** The bare `catch` in
+`getCurrentLoggedInUser` is what hid the status code and made this expensive; it was the 401-vs-403
+distinction that finally identified the cause.
+
+**Known gaps**
+
+- `GET /api/users/me` still returns `session.token`, now to admins as well.
+- The `catch` in `getCurrentLoggedInUser` cannot distinguish 401 from a backend outage — a dead API
+  logs every user out silently rather than erroring.
+- `context/specs` remains gitignored, so the spec this was built from is not in the repo.
+
+**Not included:** email-verification UI, 2FA, the security and session tabs, change-password while
+signed in, and any 429 handling on the two new auth calls.
