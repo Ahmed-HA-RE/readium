@@ -1,59 +1,14 @@
 <!-- Feature Title -->
 
-# Authentication Phase 2 — Forgot & Reset Password
-
 <!-- Feature Description -->
-
-## Description
-
-Complete the credentials auth flow with the two routes Phase 1 left missing: `/forgot-password` and
-`/reset-password`, both inside the existing `app/(auth)/` route group so they inherit the shared
-two-column auth layout. Alongside them, replace the raw `fetch()` calls in `apps/web/lib/actions`
-with a shared axios instance so the base URL stops being repeated at every call site.
-
-Spec: `context/specs/frontend/authentication-phase-2.md`
 
 <!-- Feature Notes -->
 
-## Notes
-
-- **Axios instance** at `web/lib/axios.ts`, base URL from `API_URL` in `lib/constants/index.ts`,
-  configured with credentials so authenticated endpoints keep working. Both existing action files
-  migrate to it.
-- **Forgot password** uses Better Auth's `requestPasswordReset` with
-  `redirectTo: {SITE_URL}/reset-password`, plus a "Back to login" link below submit — `FaArrowLeft`
-  with a `group-hover` translate-x on a `group`-classed `Button`.
-- **Reset password** reads `token` server-side from `searchParams`; missing token or
-  `error=INVALID_TOKEN` redirects to `/login`, otherwise the token is passed to the client form.
-- **Success state** is `isSuccess` in `reset-password-form.tsx`, set from `authClient.resetPassword`'s
-  `onSuccess`, switching the render to `ResetPasswordConfirmation` — which must live in its own file
-  under the domain's `_components/`, not inline.
-- **Confirmation component**: `IoShieldCheckmark` in green, "Password Reset Successful" heading, and
-  an outlined green-bordered `Link` button back to `/login` reusing the arrow pattern.
-- **Zod schemas for both forms already exist** in `web/schema/auth.ts` — do not rewrite them.
-- **`app/robots.ts`** added with `/reset-password` in `disallow`.
-- Relevant open gaps from history #9/#10: `sendResetPassword` still mails a backend-relative
-  `callbackURL`, and the `/forgot-password` link on `/login` currently 404s — this feature closes
-  both.
-
 <!-- Feature Goals-->
-
-## Goals
-
-1. Centralise API calls behind one axios instance and remove the repeated base URL from
-   `lib/actions`.
-2. Ship `/forgot-password` so a user can request a reset email from the link already on `/login`.
-3. Ship `/reset-password` with server-side token validation, redirecting invalid or missing tokens
-   to `/login`.
-4. Render a distinct success confirmation after a completed reset, in its own component file.
-5. Keep both routes inside `app/(auth)/` so the shared layout and header are reused unchanged.
-6. Block `/reset-password` from search engines via `app/robots.ts`.
 
 <!-- Feature Status -->
 
 ## Status
-
-**Completed**
 
 <!-- History -->
 
