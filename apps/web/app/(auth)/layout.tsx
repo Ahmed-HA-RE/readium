@@ -8,12 +8,12 @@ const AuthLayout = ({ children }: Readonly<{ children: React.ReactNode }>) => {
           {children}
         </div>
 
-        <div className='hidden flex-col justify-center gap-8 px-4 lg:flex'>
+        <div className='hidden flex-col justify-center gap-20 px-4 lg:flex'>
           <div className='flex flex-col gap-4'>
             <h2 className='text-4xl font-bold tracking-tight text-balance xl:text-5xl'>
               Where good ideas find their readers.
             </h2>
-            <p className='max-w-md text-lg text-pretty text-muted-foreground'>
+            <p className='max-w-lg text-lg text-pretty text-muted-foreground'>
               Publish what you know, follow the writers you trust, and keep the
               conversation going.
             </p>

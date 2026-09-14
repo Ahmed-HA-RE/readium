@@ -36,9 +36,8 @@ export class UsersController {
   // order, so `:username` first would swallow `/api/users/me`.
 
   // Method           GET /api/users/me
-  // Description      Get the signed-in user's own profile for the dashboard sidebar
+  // Description      Get the signed-in user's own profile
   @Get('me')
-  @Roles(['user'])
   getCurrentLoggedInUser(@Session() session: UserSession) {
     return this.usersService.getCurrentLoggedInUser(session);
   }

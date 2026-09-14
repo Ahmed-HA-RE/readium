@@ -159,7 +159,7 @@ export class UsersService {
   ): Promise<UserSession & { user: { isPro: boolean } }> {
     const { user } = session;
 
-    this.logger.verbose(`Fetching the dashboard profile of ${user.name}`);
+    this.logger.verbose(`Fetching the profile: ${user.name}`);
 
     return {
       ...session,

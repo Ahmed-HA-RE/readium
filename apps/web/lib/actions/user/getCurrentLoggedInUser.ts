@@ -1,16 +1,18 @@
 import { cookies } from 'next/headers';
 import type { GetCurrentLoggedInUser } from '@repo/types';
-import { API_URL } from '@/lib/constants';
+import { api } from '@/lib/axios';
 
 export const getCurrentLoggedInUser =
   async (): Promise<GetCurrentLoggedInUser | null> => {
-    const response = await fetch(`${API_URL}/users/me`, {
-      credentials: 'include',
-      headers: { Cookie: (await cookies()).toString() },
-      cache: 'no-store',
-    });
+    try {
+      const { data } = await api.get<GetCurrentLoggedInUser>('/users/me', {
+        headers: { Cookie: (await cookies()).toString() },
+      });
 
-    if (!response.ok) return null;
-
-    return response.json();
+      return data;
+    } catch {
+      // axios throws on 401/403, where fetch only set `ok: false`. Any failure here
+      // means no session we can confirm, which callers already treat as signed out.
+      return null;
+    }
   };

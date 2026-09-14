@@ -28,10 +28,12 @@ const LoginPage = async ({
       <AuthHeader mode='login' callbackUrl={callbackUrl} />
 
       <div className='flex flex-1 items-center justify-center py-12'>
-        <div className='flex w-full max-w-sm flex-col gap-8 rounded-2xl border py-8 px-6 lg:rounded-none lg:border-0 lg:p-0'>
-          <div className='flex flex-col gap-1.5'>
-            <h1 className='text-2xl font-bold tracking-tight'>Welcome back</h1>
-            <p className='text-sm text-muted-foreground'>
+        <div className='flex w-full max-w-md flex-col gap-8 rounded-2xl py-8 px-6 lg:rounded-none'>
+          <div className='flex flex-col gap-1'>
+            <h1 className='text-2xl lg:text-4xl font-medium tracking-tight capitalize'>
+              Welcome back
+            </h1>
+            <p className='text-sm md:text-base text-muted-foreground'>
               Sign in to keep reading and start writing
             </p>
           </div>
