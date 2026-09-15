@@ -1,7 +1,7 @@
 import { createAuthClient } from 'better-auth/react';
-import { adminClient } from 'better-auth/client/plugins';
+import { adminClient, lastLoginMethodClient } from 'better-auth/client/plugins';
 
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL as string,
-  plugins: [adminClient()],
+  plugins: [adminClient(), lastLoginMethodClient()],
 });

@@ -1,14 +1,62 @@
 <!-- Feature Title -->
 
+## Last Used Login Method Badge
+
 <!-- Feature Description -->
+
+## Description
+
+Show a "Last used" badge on `/login` so a returning user can see at a glance which method they
+signed in with last time — Google, GitHub, or email credentials. Backed by Better Auth's
+`lastLoginMethod` plugin, which records the method after every successful sign-in or sign-up and
+stores it in a non-httpOnly cookie the page can read.
 
 <!-- Feature Notes -->
 
+## Notes
+
+- **Login page only, by decision.** `OAuthProviders` is shared by `/login` and `/sign-up`, but the
+  badge is a returning-user hint and reads as a contradiction on a sign-up page. `/sign-up` renders
+  the same component with no last-method value, so nothing changes there.
+- **Cookie only, no database.** `storeInDatabase` stays at its default `false`, so there is no
+  Prisma migration and no Neon work. Cookie is `better-auth.last_used_login_method`, `httpOnly:
+  false`, 30 day `maxAge`. Losing it when a user clears cookies is harmless — it is a hint, not
+  state.
+- **Read server-side, passed as a prop.** `/login/page.tsx` is already an `async` server component,
+  so it reads the cookie via `cookies()` from `next/headers` and passes the value down. The client
+  plugin's `getLastUsedLoginMethod()` reads `document.cookie` and would either force the buttons
+  client-only or risk a hydration mismatch on `<html>`-adjacent state — the same class of bug that
+  broke navigation during the dark mode attempt.
+- **`clearLastUsedLoginMethod()` needs a `domain` if it is ever used.** With
+  `crossSubDomainCookies` now enabled (`COOKIE_DOMAIN`), Better Auth's docs require the matching
+  `domain` on `lastLoginMethodClient()` or the clear call is silently ignored by the browser. Not
+  needed for a read-only badge, but required the moment a "not you?" affordance is added.
+- **Method values:** `"email"` for `/sign-in/email` and `/sign-up/email`, and the provider id
+  (`"google"`, `"github"`) for `/callback/:id`.
+- **Version drift between apps.** `apps/backend` is on better-auth `1.7.1`, `apps/web` on `1.6.26`.
+  Both ship the plugin, so this is not a blocker, but the two should be brought into step.
+- **Badge colour is deliberately undecided.** Options to be presented at the end of the feature —
+  `--app` brand token versus the shadcn default.
+
 <!-- Feature Goals-->
+
+## Goals
+
+1. Register `lastLoginMethod()` in `apps/backend/lib/auth.ts` alongside the existing `openAPI()` and
+   `admin()` plugins.
+2. Install the shadcn `badge` component — `apps/web/components/ui/` does not have one yet.
+3. Read the cookie in `/login/page.tsx` and pass the value into `OAuthProviders` and `LoginForm`.
+4. Render the badge on the matching Google or GitHub button, and on the credentials Sign in button
+   when the last method was `email`.
+5. Leave `/sign-up` visually unchanged.
+6. Verify in a browser — badge appears for each of the three methods and survives a reload. Nine of
+   the last ten features closed with "not verified live"; this one should not.
 
 <!-- Feature Status -->
 
 ## Status
+
+In Progress
 
 <!-- History -->
 

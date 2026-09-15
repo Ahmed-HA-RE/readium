@@ -2,7 +2,7 @@ import { APIError, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { adapter } from './adapter';
-import { admin, openAPI } from 'better-auth/plugins';
+import { admin, lastLoginMethod, openAPI } from 'better-auth/plugins';
 import sendEmailVerification from '../mails/send-email-verification';
 import sendRequestPasswordReset from '../mails/send-request-password-reset';
 
@@ -33,6 +33,10 @@ export const auth = betterAuth({
   },
 
   advanced: {
+    ipAddress: {
+      ipAddressHeaders: ['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for'],
+    },
+
     crossSubDomainCookies: {
       enabled: true,
       domain: process.env.COOKIE_DOMAIN || undefined,
@@ -107,5 +111,5 @@ export const auth = betterAuth({
     window: 60, // 60 seconds
   },
 
-  plugins: [openAPI(), admin()],
+  plugins: [openAPI(), admin(), lastLoginMethod()],
 });

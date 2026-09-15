@@ -1,11 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { loginSchema, type LoginValues } from '@/schema/auth';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Field,
@@ -26,10 +28,14 @@ interface LoginFormProps {
 
 const LoginForm = ({ callbackUrl, verifyRedirectUrl }: LoginFormProps) => {
   const router = useRouter();
+  const [isLastUsed, setIsLastUsed] = useState(false);
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
   });
+
+  // Reads after mount because the cookie is browser-only, same as the OAuth buttons.
+  useEffect(() => setIsLastUsed(authClient.isLastUsedLoginMethod('email')), []);
 
   const onSubmit = async (values: LoginValues) => {
     await authClient.signIn.email(
@@ -103,14 +109,21 @@ const LoginForm = ({ callbackUrl, verifyRedirectUrl }: LoginFormProps) => {
         />
       </FieldGroup>
 
-      <Button
-        type='submit'
-        size='lg'
-        className='h-10 w-full'
-        disabled={isPending}
-      >
-        {isPending ? <Spinner /> : 'Sign in'}
-      </Button>
+      <div className='relative'>
+        {isLastUsed && (
+          <Badge className='absolute -top-1 right-0 z-10 bg-foreground text-background shadow-sm'>
+            Last used
+          </Badge>
+        )}
+        <Button
+          type='submit'
+          size='lg'
+          className='h-10 w-full'
+          disabled={isPending}
+        >
+          {isPending ? <Spinner /> : 'Sign in'}
+        </Button>
+      </div>
     </form>
   );
 };

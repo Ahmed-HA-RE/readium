@@ -38,7 +38,7 @@ const LoginPage = async ({
             </p>
           </div>
 
-          <OAuthProviders callbackUrl={toAbsoluteUrl(callbackUrl)} />
+          <OAuthProviders callbackUrl={toAbsoluteUrl(callbackUrl)} showLastUsed />
           <LoginForm
             callbackUrl={callbackUrl}
             verifyRedirectUrl={toAbsoluteUrl('/login')}
