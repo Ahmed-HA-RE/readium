@@ -36,7 +36,6 @@ const LoginForm = ({ callbackUrl, verifyRedirectUrl }: LoginFormProps) => {
       { ...values, callbackURL: verifyRedirectUrl },
       {
         onSuccess: () => {
-          toast.success('Welcome back.');
           router.push(callbackUrl);
         },
         onError: ({ error }) => {

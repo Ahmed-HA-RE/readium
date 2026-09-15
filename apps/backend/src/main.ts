@@ -9,8 +9,9 @@ const bootstrap = async () => {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
   });
+
   app.enableCors({
-    origin: ['http://localhost:3000'],
+    origin: [process.env.APP_FRONTEND_URL as string],
     credentials: true,
   });
   app.useGlobalPipes(

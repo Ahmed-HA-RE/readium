@@ -32,6 +32,19 @@ export const auth = betterAuth({
     expiresIn: 1000 * 60 * 60, // 1 hour
   },
 
+  advanced: {
+    crossSubDomainCookies: {
+      enabled: true,
+      domain: process.env.COOKIE_DOMAIN || undefined,
+    },
+    defaultCookieAttributes: {
+      sameSite: 'none',
+      secure: true,
+      domain: process.env.COOKIE_DOMAIN || undefined,
+      path: '/',
+    },
+  },
+
   socialProviders: {
     github: {
       clientId: process.env.GITHUB_CLIENT_ID as string,
