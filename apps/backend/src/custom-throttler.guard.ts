@@ -8,21 +8,9 @@ type TrackedRequest = {
   ip?: string;
 };
 
-// Temporary: logs the forwarded headers once per process so we can see which of
-// them Render actually sends. Remove once the answer is known.
-let headersLogged = false;
-
 @Injectable()
 export class CustomThrottlerGuard extends ThrottlerGuard {
   protected getTracker(req: TrackedRequest): Promise<string> {
-    if (!headersLogged) {
-      headersLogged = true;
-      console.log(
-        '[throttler] forwarded headers:',
-        JSON.stringify(req.headers),
-      );
-    }
-
     // `x-forwarded-for` is a chain, so take the leftmost entry, which Render
     // documents as the real client. The others carry a single address.
     for (const name of IP_HEADERS) {

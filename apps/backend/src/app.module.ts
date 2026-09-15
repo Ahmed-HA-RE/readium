@@ -20,8 +20,7 @@ import { CustomThrottlerGuard } from './custom-throttler.guard';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    // TEMPORARY: lowered from 60 to test per-IP buckets. Revert after testing.
-    ThrottlerModule.forRoot([{ name: 'default', ttl: minutes(1), limit: 2 }]),
+    ThrottlerModule.forRoot([{ name: 'default', ttl: minutes(1), limit: 60 }]),
     DatabaseModule,
     AuthModule.forRoot({ auth }),
     BlogsModule,
