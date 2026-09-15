@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { minutes, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { minutes, ThrottlerModule } from '@nestjs/throttler';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from '../lib/auth';
@@ -15,6 +15,7 @@ import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
 import { LastActivityInterceptor } from './common/interceptors/last-activity.interceptor';
 import { UsersModule } from './users/users.module';
+import { CustomThrottlerGuard } from './custom-throttler.guard';
 
 @Module({
   imports: [
@@ -35,7 +36,7 @@ import { UsersModule } from './users/users.module';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: CustomThrottlerGuard,
     },
     // Keeps User.lastActivityAt fresh on every authenticated request so the
     // admin dashboard can report active users.
