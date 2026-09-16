@@ -1,56 +1,77 @@
 <!-- Feature Title -->
 
-## Last Used Login Method Badge
+## HomePage — Phase 1 (Header)
 
 <!-- Feature Description -->
 
 ## Description
 
-Show a "Last used" badge on `/login` so a returning user can see at a glance which method they
-signed in with last time — Google, GitHub, or email credentials. Backed by Better Auth's
-`lastLoginMethod` plugin, which records the method after every successful sign-in or sign-up and
-stores it in a non-httpOnly cookie the page can read.
+The homepage header, which sets the UI/UX pattern for the rest of the app. Two columns: on the left
+a sidebar trigger (`FaBars`), the logo and a shadcn `Command` search palette; on the right a "Write"
+button routing to `/new-story`, a notification bell (`GoBell`), a dark mode toggle and a profile
+dropdown. The header is responsive — on small screens it collapses to a search icon plus the
+profile dropdown. Search is wired to real backend data through a new NestJS `search` module —
+`GET /api/search/suggestions` returns the latest 3 users and 3 blogs, case-insensitive, validated by
+`SuggestionQueryDto`.
 
 <!-- Feature Notes -->
 
 ## Notes
 
-- **Login page only, by decision.** `OAuthProviders` is shared by `/login` and `/sign-up`, but the
-  badge is a returning-user hint and reads as a contradiction on a sign-up page. `/sign-up` renders
-  the same component with no last-method value, so nothing changes there.
-- **Cookie only, no database.** `storeInDatabase` stays at its default `false`, so there is no
-  Prisma migration and no Neon work. Cookie is `better-auth.last_used_login_method`, `httpOnly:
-  false`, 30 day `maxAge`. Losing it when a user clears cookies is harmless — it is a hint, not
-  state.
-- **Read server-side, passed as a prop.** `/login/page.tsx` is already an `async` server component,
-  so it reads the cookie via `cookies()` from `next/headers` and passes the value down. The client
-  plugin's `getLastUsedLoginMethod()` reads `document.cookie` and would either force the buttons
-  client-only or risk a hydration mismatch on `<html>`-adjacent state — the same class of bug that
-  broke navigation during the dark mode attempt.
-- **`clearLastUsedLoginMethod()` needs a `domain` if it is ever used.** With
-  `crossSubDomainCookies` now enabled (`COOKIE_DOMAIN`), Better Auth's docs require the matching
-  `domain` on `lastLoginMethodClient()` or the clear call is silently ignored by the browser. Not
-  needed for a read-only badge, but required the moment a "not you?" affordance is added.
-- **Method values:** `"email"` for `/sign-in/email` and `/sign-up/email`, and the provider id
-  (`"google"`, `"github"`) for `/callback/:id`.
-- **Version drift between apps.** `apps/backend` is on better-auth `1.7.1`, `apps/web` on `1.6.26`.
-  Both ship the plugin, so this is not a blocker, but the two should be brought into step.
-- **Badge colour is deliberately undecided.** Options to be presented at the end of the feature —
-  `--app` brand token versus the shadcn default.
+- **Open question — answered: most recent, deterministic.** When many users match the query the 3
+  returned are ordered `createdAt: 'desc'`, the same ordering the blogs use. Random shuffling was
+  rejected: results would jump between keystrokes, the TanStack Query cache would be meaningless,
+  and bounding it needs raw SQL (`ORDER BY random()`).
+- **Signed-out header shows Sign in + Get started.** The homepage is public, so the Write button,
+  the bell and the profile dropdown only render with a session; anonymous visitors get the two auth
+  links instead. The sidebar trigger, logo and search palette render either way.
+- **Responsive collapse at `lg` (added on top of the spec).** Below `lg` the `Command` palette
+  renders as a search icon only — tapping it opens the same dialog. The Write button, the bell and
+  the dark mode toggle all move **inside** the profile dropdown, so the small-screen header is
+  sidebar trigger + logo + search icon + avatar. At `lg` and up everything sits inline as the spec
+  describes and the dropdown carries only its own items.
+- **Notifications are display-only in this phase.** WebSocket-powered live updates (likes,
+  bookmarks) come in a later phase; the bell is the shell for them.
+- **`user.isPro` is hardcoded `false`** on the frontend for the "Become a Readium member 🌟" link —
+  the same placeholder situation as `PLACEHOLDER_IS_PRO` in `users.service.ts` (history #4). When
+  `true`, the item is not rendered at all.
+- **The sidebar trigger must be a Client Component** — it drives the sidebar open state. Everything
+  else in the header stays server-rendered where it can.
+- **Search data flow:** `lib/actions/` holds the fetch that calls the endpoint, `hooks/` wraps it in
+  a `useQuery`. TanStack Query is already configured for App Router SSR (history #10), and
+  `lib/axios.ts` is the HTTP layer (history #11).
+- **Debounce, and only fire above 2 characters.** The palette shows a skeleton on open, then the
+  latest 3 users and 3 blogs.
+- **Empty groups disappear entirely** — check `.length` before rendering a group's `<h4>` heading
+  *and* its list.
+- **Scaffold with the bare `nest` CLI:** `nest g module search && nest g controller search
+  --no-specs && nest g service search --no-specs`.
+- **Dark mode has bitten this repo before** — the earlier attempt broke navigation via a hydration
+  mismatch on `<html>`-adjacent state. The toggle here is exposed to the same trap, and putting it
+  inside a dropdown on small screens does not change that.
+- **`/new-story`, `/profile`, `/settings` and `/plans` do not exist yet** — the header links to them
+  regardless, so they 404 until later phases.
 
 <!-- Feature Goals-->
 
 ## Goals
 
-1. Register `lastLoginMethod()` in `apps/backend/lib/auth.ts` alongside the existing `openAPI()` and
-   `admin()` plugins.
-2. Install the shadcn `badge` component — `apps/web/components/ui/` does not have one yet.
-3. Read the cookie in `/login/page.tsx` and pass the value into `OAuthProviders` and `LoginForm`.
-4. Render the badge on the matching Google or GitHub button, and on the credentials Sign in button
-   when the last method was `email`.
-5. Leave `/sign-up` visually unchanged.
-6. Verify in a browser — badge appears for each of the three methods and survives a reload. Nine of
-   the last ten features closed with "not verified live"; this one should not.
+1. Answer the open question on user-result ordering (most recent vs. shuffled) before writing the
+   service.
+2. Scaffold the `search` module, controller and service with the Nest CLI and register it in
+   `app.module.ts`.
+3. `GET /api/search/suggestions` — `SuggestionQueryDto` validation, case-insensitive Prisma query
+   (`mode: 'insensitive'`), latest 3 blogs and 3 users, with the response shape declared in
+   `packages/types`.
+4. Jest unit tests for the search service.
+5. Build the header: sidebar trigger, logo, `Command` palette, Write button, bell, dark mode toggle
+   and profile dropdown with its conditional Pro item.
+6. Wire the palette to the endpoint through `lib/actions/` and a `hooks/` `useQuery`, with debounce,
+   the >2 character threshold, a loading skeleton and hidden empty groups.
+7. Make the header responsive — search icon in place of the palette, and Write, bell and dark mode
+   folded into the profile dropdown on small screens.
+8. Verify in a browser at both widths — the palette opens, fetches, renders both groups, hides a
+   group that returns nothing, and every collapsed action still works from inside the dropdown.
 
 <!-- Feature Status -->
 

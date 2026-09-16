@@ -16,6 +16,7 @@ import { AdminModule } from './admin/admin.module';
 import { LastActivityInterceptor } from './common/interceptors/last-activity.interceptor';
 import { UsersModule } from './users/users.module';
 import { CustomThrottlerGuard } from './custom-throttler.guard';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CustomThrottlerGuard } from './custom-throttler.guard';
     ReportsModule,
     AdminModule,
     UsersModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [
