@@ -77,7 +77,7 @@ profile dropdown. Search is wired to real backend data through a new NestJS `sea
 
 ## Status
 
-In Progress
+Completed
 
 <!-- History -->
 
@@ -1017,3 +1017,110 @@ distinction that finally identified the cause.
 
 **Not included:** email-verification UI, 2FA, the security and session tabs, change-password while
 signed in, and any 429 handling on the two new auth calls.
+
+### 12. HomePage Phase 1 — Header & Search — completed 2026-09-16
+
+The first app chrome: a responsive header shared by every non-auth route, backed by a new `search`
+module. **Live-verified end to end** — the endpoint with real data, the UI in a browser.
+
+**Implemented — backend**
+
+- `SearchModule` / `SearchController` / `SearchService` in `apps/backend/src/search/`, scaffolded
+  with the Nest CLI and registered in `app.module.ts`.
+- `GET /api/search/suggestions`, `@AllowAnonymous()` — the homepage is public. Returns the latest 3
+  users and 3 published blogs, both `orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]`.
+- `SuggestionQueryDto` — `q` optional, `@IsNotEmpty`, `@IsString`, `@MaxLength(100)`.
+- `GetSearchSuggestions`, `SearchSuggestionUser`, `SearchSuggestionBlog` in
+  `packages/types/src/search.ts`.
+- 11 tests in `search.service.spec.ts`, plus a new `s3-service.service.spec.ts` (4). Suite is 181.
+
+**Implemented — frontend**
+
+- `components/home/` — `header`, `search-command`, `user-menu`, `sidebar-trigger`, `theme-toggle`,
+  `notifications-bell`. All homepage chrome lives here by convention.
+- `app/(main)/layout.tsx` mounts `SidebarProvider` + `Header`; `app/page.tsx` moved into the group so
+  the auth routes keep the bare root layout.
+- `lib/actions/search/getSuggestions.ts` and `hooks/search.ts` (`useSearchSuggestions`).
+- `next-themes` wired into `providers.tsx` per the shadcn docs, `suppressHydrationWarning` on `<html>`.
+- shadcn-studio `navbar-component-10` and `dashboard-sidebar-01` installed and refactored; their demo
+  routes, `assets/svg/logo.tsx` and `components/shadcn-studio/` deleted.
+- `ghost-plain` button variant — ghost with no hover surface — on the hamburger and search triggers.
+- `default_blog_cover.jpg` (Unsplash) and the existing `default_avatar.png` behind
+  `DEFAULT_BLOG_COVER` / `DEFAULT_AVATAR`.
+- `prompt: 'select_account'` on both social providers in `lib/auth.ts`, so OAuth always offers the
+  account chooser instead of silently reusing the last session.
+
+**Decisions worth remembering**
+
+- **The spec's open question was answered: most recent, deterministic.** Random shuffling was
+  rejected — results would jump between keystrokes, the query cache would be meaningless, and
+  bounding it needs raw `ORDER BY random()`. The `id` tie-break is what makes the same term return
+  the same three rows; a test pins it.
+- **`getSignedUrl` now returns any `http(s)` value untouched.** OAuth sign-ups store the *provider's*
+  avatar URL in `User.image` (Google `picture`, GitHub `avatar_url`) because there is no
+  `mapProfileToUser` in `lib/auth.ts`. All 9 presign call sites assumed an S3 key, so the URL became
+  the object key and every OAuth avatar 403'd forever. Fixed at the single shared point rather than
+  at 9 call sites. **This is why OAuth avatars never appeared** — Google was sending the picture all
+  along.
+- **This `CommandDialog` does not wrap its children in `Command`,** unlike upstream shadcn, so the
+  palette establishes the context itself. Without it `CommandInput` throws "Cannot read properties of
+  undefined (reading 'subscribe')". `shouldFilter={false}` because the endpoint already filtered.
+- **`DropdownMenuLabel` is base-ui's `GroupLabel` and throws outside a `Group`** — "MenuGroupContext
+  is missing". The profile block is a plain `div` instead.
+- **Sign-out order matters: `push` then `refresh`.** `refresh()` first was superseded by the push,
+  which served `/` from the router cache and kept the signed-in header on screen while the cookie was
+  already gone.
+- **The theme toggle renders both icons and hides one with CSS.** Choosing an icon from
+  `resolvedTheme` during render cannot match the server markup — the hydration trap that broke
+  navigation on the earlier dark mode attempt.
+- **`retry: false` on both query hooks.** TanStack retries 3× by default; on a 429 that spends more of
+  the quota that just ran out, and it delays the error state by several seconds of backoff. A 400 or
+  429 is deterministic — there is nothing to retry.
+- **`isPro` is now a single placeholder.** `PLACEHOLDER_IS_PRO` in `users.service.ts` flipped `true` →
+  `false` (two tests updated with it) and the header reads `session.user.isPro` instead of keeping its
+  own copy. The Pro menu item will hide itself automatically when subscriptions land.
+- **Avatars use `AvatarFallback` + `Skeleton`, not initials.** The presigned URL embeds a fresh
+  `X-Amz-Date`, so the `src` differs on every request and the browser cache always misses — the image
+  re-downloads on each load. Suspense cannot fix that; it controls HTML streaming, not an image fetch.
+- **Group headings use `CommandGroup`'s `heading` prop**, which renders a `div` — a deliberate
+  deviation from the spec's `<h4>`.
+- **Own pages are top-level, other people's are nested:** `/profile`, `/settings`, `/bookmarks` for
+  the signed-in user; `/profile/[username]` for everyone else. Both targets are already
+  `@AllowAnonymous()` (`GET /api/users/:username`, `GET /api/blogs/:slug`), so search results are
+  clickable while signed out.
+- **The shadcn MCP server sees no registries.** It resolves `components.json` from the repo root,
+  which has none — the config lives in `apps/web/`. Run the `shadcn` CLI from `apps/web` instead; the
+  `@ss-blocks` registry and its `EMAIL`/`LICENSE_KEY` work there. `-y` does not prevent overwrites, so
+  `yes n |` was piped to decline them and keep the customised `button.tsx` (the `--app` gradient),
+  `input.tsx` and `input-group.tsx`.
+
+**Verified**
+
+- `pnpm turbo build` green for both apps; `/` is `ƒ (Dynamic)`. `pnpm lint` clean at
+  `--max-warnings 0`; `eslint` clean on all new backend files.
+- `pnpm test` — **181 passing** (166 before, 15 added). `tsc --noEmit` reports nothing new; the two
+  pre-existing `admin.service.spec.ts` errors from history #3 are still there, untouched.
+- **Live, against the running backend:** `GET /api/search/suggestions` 200 anonymously with the
+  declared shape; `?q=test2` matched "Ahmed Test2" and `?q=HI` matched the blog "hi sir", proving
+  `mode: 'insensitive'` in both directions; no match returns `{"users":[],"blogs":[]}`; `?q=`,
+  a 101-character `q` and an unknown param all 400.
+- **The avatar fix proven on real data** in the same response: one user's Google URL came back
+  untouched while another's S3 key was still signed.
+- The UI was confirmed in a browser at both widths, including sign-out swapping the header.
+
+**Known gaps — accepted by decision**
+
+- **Search shares the 60/min global throttle.** At a 300ms debounce, sustained typing can exceed it
+  and 429. The palette now says "Something went wrong. Try again." rather than "No results found.",
+  and no longer retries into the exhausted quota, but the limit itself was left alone.
+- **Uploaded avatars still re-download on every page load** (the presigned-URL cache miss above).
+  OAuth avatars now cache correctly, since their URLs are stable.
+- **The sidebar was deferred.** `SidebarProvider` is mounted so `useSidebar()` resolves, but no
+  `<Sidebar>` renders — the hamburger toggles state nothing consumes yet.
+- **Every header destination 404s:** `/new-story`, `/notifications`, `/profile`, `/profile/[username]`,
+  `/settings`, `/plans`, `/blogs/[slug]`.
+- History #11.5 was never written: the "Last Used Login Method Badge" feature was merged to `main`
+  (`f2032f9`) without running `/feature complete`, so its decisions are not recorded anywhere.
+
+**Not included:** the sidebar's contents, WebSocket notifications, the blog feed, and the rest of the
+homepage below the header.

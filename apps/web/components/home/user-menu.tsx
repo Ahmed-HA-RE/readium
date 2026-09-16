@@ -1,0 +1,145 @@
+'use client';
+
+import { useTransition } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
+import { toast } from 'sonner';
+import { FaEdit } from 'react-icons/fa';
+import { GoBell, GoGear, GoMoon, GoSignOut, GoSun } from 'react-icons/go';
+import { cn } from 'cn';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { authClient } from '@/lib/auth-client';
+import { DEFAULT_AVATAR } from '@/lib/constants';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const ICON_CLASS = 'size-4';
+
+// Header actions with no room below `lg`, so they collapse into this menu.
+const collapsedLinks = [
+  { href: '/new-story', label: 'Write', Icon: FaEdit },
+  { href: '/notifications', label: 'Notifications', Icon: GoBell },
+];
+
+const accountLinks = [{ href: '/settings', label: 'Settings', Icon: GoGear }];
+
+interface UserMenuProps {
+  name: string;
+  image: string | null;
+  isPro: boolean;
+}
+
+const UserMenu = ({ name, image, isPro }: UserMenuProps) => {
+  const [isSigningOut, startSignOut] = useTransition();
+  const { setTheme, resolvedTheme } = useTheme();
+  const router = useRouter();
+
+  const signOut = () =>
+    startSignOut(async () => {
+      await authClient.signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            router.push('/');
+            router.refresh();
+          },
+          onError: ({ error }) => {
+            toast.error(error.message || 'Could not sign you out');
+          },
+        },
+      });
+    });
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant='ghost' size='icon-lg'>
+            <Avatar size='lg'>
+              <AvatarImage src={image ?? DEFAULT_AVATAR} alt={name} />
+
+              <AvatarFallback>
+                <Skeleton className='size-full rounded-full' />
+              </AvatarFallback>
+            </Avatar>
+          </Button>
+        }
+      />
+      <DropdownMenuContent align='end' className='w-64'>
+        <div className='flex items-center gap-3 px-2 py-2 font-normal'>
+          <Avatar size='lg'>
+            <AvatarImage src={image ?? DEFAULT_AVATAR} alt={name} />
+            <AvatarFallback>
+              <Skeleton className='size-full rounded-full' />
+            </AvatarFallback>
+          </Avatar>
+          <div className='flex min-w-0 flex-col leading-tight'>
+            <span className='truncate font-medium'>{name}</span>
+            <Link href='/profile' className='text-muted-foreground w-fit'>
+              <small className='hover:text-foreground transition'>
+                View Profile
+              </small>
+            </Link>
+          </div>
+        </div>
+
+        <DropdownMenuSeparator />
+
+        {/* Below `lg` the header's own actions have no room, so they live here. */}
+        <DropdownMenuGroup className='lg:hidden space-y-1'>
+          {collapsedLinks.map(({ href, label, Icon }) => (
+            <DropdownMenuItem key={href} render={<Link href={href} />}>
+              <Icon className={ICON_CLASS} />
+              {label}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuItem
+            onClick={() =>
+              setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+            }
+          >
+            <GoSun className={cn(ICON_CLASS, 'dark:hidden')} />
+            <GoMoon className={cn('hidden dark:block', ICON_CLASS)} />
+            Toggle theme
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator className='lg:hidden' />
+
+        {accountLinks.map(({ href, label, Icon }) => (
+          <DropdownMenuItem key={href} render={<Link href={href} />}>
+            <Icon className={ICON_CLASS} />
+            {label}
+          </DropdownMenuItem>
+        ))}
+
+        {!isPro && (
+          <DropdownMenuItem render={<Link href='/plans' />} className='mt-1'>
+            Become a Readium member 🌟
+          </DropdownMenuItem>
+        )}
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem
+          variant='destructive'
+          onClick={signOut}
+          disabled={isSigningOut}
+        >
+          <GoSignOut className={ICON_CLASS} />
+          {isSigningOut ? 'Signing out…' : 'Sign out'}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+export default UserMenu;

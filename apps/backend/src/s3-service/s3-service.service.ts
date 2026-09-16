@@ -30,6 +30,10 @@ export class S3ServiceService {
   }
 
   async getSignedUrl(key: string): Promise<string> {
+    // OAuth sign-ups store the provider's avatar URL in `User.image`, not an
+    // S3 key. Signing one would make it the object key and 403 on every read.
+    if (key.startsWith('http://') || key.startsWith('https://')) return key;
+
     const command = new GetObjectCommand({
       Bucket: this.configService.getOrThrow('AWS_BUCKET_NAME'),
       Key: key,

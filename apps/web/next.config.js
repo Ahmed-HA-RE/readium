@@ -9,6 +9,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'public-assets-00.s3.ap-southeast-1.amazonaws.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'readium-0.s3.ap-southeast-1.amazonaws.com',
+      },
     ],
   },
 };

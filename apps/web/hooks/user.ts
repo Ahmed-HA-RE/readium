@@ -12,6 +12,7 @@ export const useIsUsernameTaken = (username: string) => {
     queryKey: ['username-taken', trimmed],
     queryFn: () => isUsernameTaken(trimmed),
     enabled: trimmed.length >= 3 && trimmed.length <= 50,
+    // Retrying a 429 only spends more of the quota that already ran out.
     retry: false,
   });
 };

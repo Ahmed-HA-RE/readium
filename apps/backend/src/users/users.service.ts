@@ -32,7 +32,7 @@ import {
 } from './utils/user-query';
 
 // Placeholder until the subscription model lands.
-const PLACEHOLDER_IS_PRO = true;
+const PLACEHOLDER_IS_PRO = false;
 
 // Matches the admin comment feed's default, so both cursor endpoints page alike.
 const DEFAULT_COMMENTS_PAGE_SIZE = 10;

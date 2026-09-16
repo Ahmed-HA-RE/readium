@@ -476,16 +476,16 @@ describe('UsersService', () => {
         emailVerified: true,
         image: 'https://signed/url',
         role: 'user',
-        isPro: true,
+        isPro: false,
       });
     });
 
     // Hardcoded until subscriptions land. This test is the reminder to update
     // it when they do.
-    it('reports isPro as true for every user', async () => {
+    it('reports isPro as false for every user', async () => {
       const result = await service.getCurrentLoggedInUser(session());
 
-      expect(result.user.isPro).toBe(true);
+      expect(result.user.isPro).toBe(false);
     });
 
     it('signs the avatar so the sidebar can render it', async () => {
