@@ -24,10 +24,20 @@ import { cn } from '@/lib/utils';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-const SuggestionSkeleton = () => (
+const UserSkeleton = () => (
   <div className='flex items-center gap-3 px-2 py-1.5'>
     <Skeleton className='size-8 shrink-0 rounded-full' />
     <Skeleton className='h-4 w-40' />
+  </div>
+);
+
+const BlogSkeleton = () => (
+  <div className='flex items-center gap-3 px-2 py-1.5'>
+    <Skeleton className='size-8 shrink-0 rounded-md' />
+    <div className='flex flex-col gap-1.5'>
+      <Skeleton className='h-4 w-48' />
+      <Skeleton className='h-3 w-24' />
+    </div>
   </div>
 );
 
@@ -53,12 +63,11 @@ const SearchCommand = ({ className }: { className?: string }) => {
 
   return (
     <>
-      {/* The full field at `lg` and up; below it the header keeps only the icon. */}
       <Button
         variant='ghost-plain'
         onClick={() => setOpen(true)}
         className={cn(
-          'bg-muted text-muted-foreground hover:bg-muted h-9 w-56 justify-start gap-2 rounded-full px-3 font-normal max-lg:hidden',
+          'bg-muted text-muted-foreground hover:bg-muted h-9 w-56 justify-start gap-2 rounded-full px-3 font-normal max-md:hidden',
           className,
         )}
       >
@@ -69,7 +78,7 @@ const SearchCommand = ({ className }: { className?: string }) => {
         variant='ghost-plain'
         size='icon-lg'
         onClick={() => setOpen(true)}
-        className='text-muted-foreground lg:hidden'
+        className='text-muted-foreground md:hidden'
       >
         <GoSearch className='size-5' />
         <span className='sr-only'>Search</span>
@@ -89,11 +98,18 @@ const SearchCommand = ({ className }: { className?: string }) => {
           />
           <CommandList>
             {isFetching ? (
-              <div className='p-1'>
-                <SuggestionSkeleton />
-                <SuggestionSkeleton />
-                <SuggestionSkeleton />
-              </div>
+              <>
+                <CommandGroup heading='Users'>
+                  <UserSkeleton />
+                  <UserSkeleton />
+                  <UserSkeleton />
+                </CommandGroup>
+                <CommandGroup heading='Blogs'>
+                  <BlogSkeleton />
+                  <BlogSkeleton />
+                  <BlogSkeleton />
+                </CommandGroup>
+              </>
             ) : (
               <>
                 {/* A failed request leaves `data` undefined, which would

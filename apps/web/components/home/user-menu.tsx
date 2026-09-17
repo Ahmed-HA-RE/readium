@@ -30,7 +30,9 @@ const collapsedLinks = [
   { href: '/notifications', label: 'Notifications', Icon: GoBell },
 ];
 
-const accountLinks = [{ href: '/settings', label: 'Settings', Icon: GoGear }];
+const accountLinks = [
+  { href: '/me/settings', label: 'Settings', Icon: GoGear },
+];
 
 interface UserMenuProps {
   name: string;
@@ -63,7 +65,7 @@ const UserMenu = ({ name, image, isPro }: UserMenuProps) => {
       <DropdownMenuTrigger
         render={
           <Button variant='ghost' size='icon-lg'>
-            <Avatar size='lg'>
+            <Avatar>
               <AvatarImage src={image ?? DEFAULT_AVATAR} alt={name} />
 
               <AvatarFallback>

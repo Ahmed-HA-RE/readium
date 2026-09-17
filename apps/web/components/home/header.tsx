@@ -2,9 +2,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FaEdit } from 'react-icons/fa';
 import { APP_LOGO } from '@repo/assets';
+import type { GetCurrentLoggedInUser } from '@repo/types';
 import { cn } from 'cn';
 import { buttonVariants } from '@/components/ui/button';
-import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import SidebarTrigger from './sidebar-trigger';
 import SearchCommand from './search-command';
 import NotificationsBell from './notifications-bell';
@@ -13,14 +13,15 @@ import UserMenu from './user-menu';
 
 const logoStyle = { width: 36, height: 'auto' };
 
-const Header = async () => {
-  const session = await getCurrentLoggedInUser();
-
+// The session is read once in the layout, which also needs it to decide whether
+// the sidebar renders at all.
+const Header = ({ session }: { session: GetCurrentLoggedInUser | null }) => {
   return (
     <header className='bg-background sticky top-0 z-50 border-b'>
-      <div className='flex h-15 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8'>
+      <div className='flex h-14 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8'>
         <div className='flex items-center gap-2 lg:gap-2'>
-          <SidebarTrigger />
+          {/* Anonymous visitors get no sidebar, so there is nothing to toggle. */}
+          {session && <SidebarTrigger />}
           <Link href='/' className='shrink-0'>
             <Image
               src={APP_LOGO}
@@ -31,10 +32,10 @@ const Header = async () => {
               style={logoStyle}
             />
           </Link>
-          <SearchCommand className='lg:ml-6' />
+          {session && <SearchCommand className='md:ml-6' />}
         </div>
 
-        <div className='flex items-center gap-2 sm:gap-4'>
+        <div className='flex items-center gap-2 sm:gap-3'>
           {session ? (
             <>
               <Link
@@ -48,7 +49,7 @@ const Header = async () => {
                 Write
               </Link>
               <NotificationsBell className='max-lg:hidden' />
-              {/* Signed in, the toggle also sits in the dropdown below `lg`. */}
+
               <ThemeToggle className='max-lg:hidden' />
               <UserMenu
                 name={session.user.name}
