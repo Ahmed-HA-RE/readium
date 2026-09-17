@@ -1,60 +1,22 @@
 <!-- Feature Title -->
 
-## HomePage — Phase 2 (Left Sidebar)
+##
 
 <!-- Feature Description -->
 
 ## Description
 
-The homepage's left sidebar: sticky, navigation-only, and rendered for authenticated users only.
-Anonymous visitors get no sidebar at all — not rendered, not merely hidden.
-
-A new `HomePageSidebar` component, wrapped in `layout.tsx` inside shadcn's `<SidebarProvider>`, built
-from the shadcn MCP server first (`https://ui.shadcn.com/docs/components/base/sidebar` as fallback)
-and matched exactly to `context/screenshots/medium-homepage.png` for spacing, icon placement and
-styling.
-
-Nav items (authenticated only):
-
-| Route                 | Icon                               | Label   |
-| --------------------- | ---------------------------------- | ------- |
-| `/`                   | `IoHome` (react-icons/io5)         | Home    |
-| `/me/stories`         | `IoNewspaperOutline` (react-icons/io5) | Stories |
-| `/me/lists/bookmarks` | `MdLibraryBooks` (react-icons/md)  | Library |
-| `/me/lists/likes`     | `FaRegHeart` (react-icons/fa)      | Likes   |
-| `/me`                 | `FaRegUser` (react-icons/fa)       | Profile |
-
-`/me` renders a mini profile snapshot only: name, image, bio, website, and total counts of bookmarks
-and likes.
-
 <!-- Feature Notes -->
 
 ## Notes
-
-- **Library is not permanently single-purpose.** `/me/lists/bookmarks` becomes a tabbed dashboard
-  later (Bookmarks / Likes / Comments, Bookmarks default). Out of scope here, but don't build the
-  route as if that tab structure will never exist.
-- Sidebar must survive scroll **and pagination** — sticky, with no remount flash between feed pages.
-- `context/screenshots` is gitignored (history #9), so the design reference this spec points at is
-  not in the repo.
-- Spec: `context/specs/frontend/homepage-phase-2.md`. References: `context/project-overview.md`,
-  `context/plans/readium-homepage.md`.
 
 <!-- Feature Goals-->
 
 ## Goals
 
-- Create `HomePageSidebar` and mount it in `layout.tsx` inside `<SidebarProvider>`.
-- Render the five nav items above for authenticated users, matching the screenshot exactly.
-- Render nothing at all for anonymous visitors.
-- Keep the sidebar sticky across scroll and pagination.
-- Build the mini profile snapshot at `/me` (name, image, bio, website, bookmark and like counts).
-
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
