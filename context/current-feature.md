@@ -1,76 +1,22 @@
 <!-- Feature Title -->
 
-## Marketing Home Page
+##
 
 <!-- Feature Description -->
 
 ## Description
 
-A marketing landing page shown at `/` to anonymous visitors, following Medium's model: signed out
-gets the pitch, signed in gets the app. The existing session-aware `Header` is reused, so an
-unauthenticated visitor never sees a route into app-only actions.
-
-Built to match `context/screenshots/marketing-hero-homepage.jpg`, with an orangish background taken
-from the tokens already in `globals.css` rather than a hardcoded value.
-
-**Sections**
-
-- **Trusted badge** — shadcn `Badge`, `PiUsersThreeFill` on the left, "Trusted by 10,000+ writers".
-- **Hero** — title plus a subtitle (not yet chosen; options to be proposed), flanked by the two
-  decorative SVGs already in `apps/web/components/icons/`, placed and rotated as in the reference.
-- **CTA** — a single `primary` "Get Started" button to `/login`. The screenshot shows two buttons;
-  only one is wanted.
-- **Marquee** — shadcn/studio Hero 27 block, keeping only `marquee.tsx` and deleting the rest, with
-  brand wordmarks recoloured to the app's brand colour.
-
-**Session handling**
-
-`getCurrentLoggedInUser` gets wrapped in React's `cache()`, so the layout, the header and the page
-can each call it while only one HTTP request fires. The `session` prop is then removed from `Header`,
-which reads the session itself. `(main)/page.tsx` branches: no session renders `Marketing`, a session
-renders the app content.
-
 <!-- Feature Notes -->
 
 ## Notes
-
-- **The `thesvg` snippets in the spec do not match the installed package** — verified against
-  `node_modules`, three separate problems:
-  1. The package is `thesvg` (v3.3.7); there is no `@thesvg/react`. Imports are
-     `import google from 'thesvg/google'`.
-  2. It exports **data modules, not React components** — `{ slug, title, hex, svg, variants,
-     license, url }`. `<Google variant='wordmark' />` does not exist; `variants` is a
-     `Record<string, string>` of raw SVG markup.
-  3. Two of the seven requested variants are unavailable: **Stripe has no `wordmark`** (only
-     `default`, `mono`), and **neither GitHub nor Slack has `wordmarkDark`** (GitHub has `default`,
-     `mono`, `light`, `dark`, `wordmark`; Slack has `default`, `wordmark`).
-- **Recolouring and wordmarks may not compose.** Wordmark SVGs carry their own brand fills, so
-  tinting them to `--app` likely needs the `mono` variant instead — which Microsoft and Slack do not
-  have. Needs a decision once rendered.
-- **The CTA goes to `/login` per the spec, while the header's "Get started" goes to `/sign-up`.**
-  Two buttons with the same label pointing to different routes; worth confirming.
-- The reference's own copy is for an AI writing tool ("AI-powered assistance"), which does not
-  describe Readium — presumably why the subtitle is being replaced.
-- `context/screenshots` and `context/specs` are both gitignored, so neither the reference image nor
-  the spec is in the repo.
-- Spec: `context/specs/frontend/marketing-home-page.md`. Reference: `context/project-overview.md`.
 
 <!-- Feature Goals-->
 
 ## Goals
 
-- Wrap `getCurrentLoggedInUser` in `cache()` and drop the `session` prop from `Header`.
-- Branch in `(main)/page.tsx` — `Marketing` when there is no session, app content when there is.
-- Build the hero: badge, title, chosen subtitle, decorative icons, single "Get Started" CTA.
-- Apply the orangish background from existing `globals.css` tokens.
-- Add the Hero 27 marquee, keep only `marquee.tsx`, and render the brand wordmarks recoloured.
-- Propose subtitle options for selection.
-
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
