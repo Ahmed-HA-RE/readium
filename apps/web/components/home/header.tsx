@@ -2,9 +2,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FaEdit } from 'react-icons/fa';
 import { APP_LOGO } from '@repo/assets';
-import type { GetCurrentLoggedInUser } from '@repo/types';
 import { cn } from 'cn';
 import { buttonVariants } from '@/components/ui/button';
+import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import SidebarTrigger from './sidebar-trigger';
 import SearchCommand from './search-command';
 import NotificationsBell from './notifications-bell';
@@ -13,12 +13,19 @@ import UserMenu from './user-menu';
 
 const logoStyle = { width: 36, height: 'auto' };
 
-// The session is read once in the layout, which also needs it to decide whether
-// the sidebar renders at all.
-const Header = ({ session }: { session: GetCurrentLoggedInUser | null }) => {
+const Header = async () => {
+  const session = await getCurrentLoggedInUser();
+
+  // Signed out, the header sits on top of the marketing hero and shares its
+  // tint rather than cutting a white band across it.
   return (
-    <header className='bg-background sticky top-0 z-50 border-b'>
-      <div className='flex h-14 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8'>
+    <header
+      className={cn(
+        'sticky top-0 z-50 border-b',
+        session ? 'bg-background' : 'bg-app/10',
+      )}
+    >
+      <div className='flex h-15 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8'>
         <div className='flex items-center gap-2 lg:gap-2'>
           {/* Anonymous visitors get no sidebar, so there is nothing to toggle. */}
           {session && <SidebarTrigger />}
@@ -63,7 +70,9 @@ const Header = ({ session }: { session: GetCurrentLoggedInUser | null }) => {
               <ThemeToggle />
               <Link
                 href='/login'
-                className={cn(buttonVariants({ variant: 'ghost', size: 'lg' }))}
+                className={cn(
+                  buttonVariants({ variant: 'ghost-plain', size: 'lg' }),
+                )}
               >
                 Sign in
               </Link>

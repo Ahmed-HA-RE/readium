@@ -24,7 +24,7 @@ const MainLayout = async ({ children }: { children: React.ReactNode }) => {
       mobileSidebarWidth='20rem'
     >
       <div className='flex min-h-svh w-full flex-col'>
-        <Header session={session} />
+        <Header />
 
         {/* The header spans the full width, so the sidebar and the content
             share a row below it rather than sitting beside the header. */}

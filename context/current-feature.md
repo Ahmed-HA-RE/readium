@@ -1,22 +1,76 @@
 <!-- Feature Title -->
 
-##
+## Marketing Home Page
 
 <!-- Feature Description -->
 
 ## Description
 
+A marketing landing page shown at `/` to anonymous visitors, following Medium's model: signed out
+gets the pitch, signed in gets the app. The existing session-aware `Header` is reused, so an
+unauthenticated visitor never sees a route into app-only actions.
+
+Built to match `context/screenshots/marketing-hero-homepage.jpg`, with an orangish background taken
+from the tokens already in `globals.css` rather than a hardcoded value.
+
+**Sections**
+
+- **Trusted badge** — shadcn `Badge`, `PiUsersThreeFill` on the left, "Trusted by 10,000+ writers".
+- **Hero** — title plus a subtitle (not yet chosen; options to be proposed), flanked by the two
+  decorative SVGs already in `apps/web/components/icons/`, placed and rotated as in the reference.
+- **CTA** — a single `primary` "Get Started" button to `/login`. The screenshot shows two buttons;
+  only one is wanted.
+- **Marquee** — shadcn/studio Hero 27 block, keeping only `marquee.tsx` and deleting the rest, with
+  brand wordmarks recoloured to the app's brand colour.
+
+**Session handling**
+
+`getCurrentLoggedInUser` gets wrapped in React's `cache()`, so the layout, the header and the page
+can each call it while only one HTTP request fires. The `session` prop is then removed from `Header`,
+which reads the session itself. `(main)/page.tsx` branches: no session renders `Marketing`, a session
+renders the app content.
+
 <!-- Feature Notes -->
 
 ## Notes
+
+- **The `thesvg` snippets in the spec do not match the installed package** — verified against
+  `node_modules`, three separate problems:
+  1. The package is `thesvg` (v3.3.7); there is no `@thesvg/react`. Imports are
+     `import google from 'thesvg/google'`.
+  2. It exports **data modules, not React components** — `{ slug, title, hex, svg, variants,
+     license, url }`. `<Google variant='wordmark' />` does not exist; `variants` is a
+     `Record<string, string>` of raw SVG markup.
+  3. Two of the seven requested variants are unavailable: **Stripe has no `wordmark`** (only
+     `default`, `mono`), and **neither GitHub nor Slack has `wordmarkDark`** (GitHub has `default`,
+     `mono`, `light`, `dark`, `wordmark`; Slack has `default`, `wordmark`).
+- **Recolouring and wordmarks may not compose.** Wordmark SVGs carry their own brand fills, so
+  tinting them to `--app` likely needs the `mono` variant instead — which Microsoft and Slack do not
+  have. Needs a decision once rendered.
+- **The CTA goes to `/login` per the spec, while the header's "Get started" goes to `/sign-up`.**
+  Two buttons with the same label pointing to different routes; worth confirming.
+- The reference's own copy is for an AI writing tool ("AI-powered assistance"), which does not
+  describe Readium — presumably why the subtitle is being replaced.
+- `context/screenshots` and `context/specs` are both gitignored, so neither the reference image nor
+  the spec is in the repo.
+- Spec: `context/specs/frontend/marketing-home-page.md`. Reference: `context/project-overview.md`.
 
 <!-- Feature Goals-->
 
 ## Goals
 
+- Wrap `getCurrentLoggedInUser` in `cache()` and drop the `session` prop from `Header`.
+- Branch in `(main)/page.tsx` — `Marketing` when there is no session, app content when there is.
+- Build the hero: badge, title, chosen subtitle, decorative icons, single "Get Started" CTA.
+- Apply the orangish background from existing `globals.css` tokens.
+- Add the Hero 27 marquee, keep only `marquee.tsx`, and render the brand wordmarks recoloured.
+- Propose subtitle options for selection.
+
 <!-- Feature Status -->
 
 ## Status
+
+Completed
 
 <!-- History -->
 
@@ -1142,3 +1196,94 @@ users and nothing at all for anonymous visitors. Frontend only — no backend ch
 
 **Not included:** the blog feed, the right-hand rail (Staff Picks, Recommended topics), the content
 column's max-width, and every route the sidebar links to.
+
+### 14. Marketing Home Page — completed 2026-09-18
+
+The signed-out face of the app, following Medium's model: `/` serves a marketing hero to anonymous
+visitors and the app to everyone else. Frontend only; no backend change.
+
+**Implemented**
+
+- `components/marketing/marketing-home.tsx` — badge, two-line headline, subtitle, single `xl` CTA
+  reading "Start reading" into `/sign-up`, over a `bg-app/10` field.
+- `components/marketing/brand-marquee.tsx` — seven brand wordmarks from `thesvg`, recoloured.
+- `components/ui/marquee.tsx` — taken from shadcn/studio's Hero 27.
+- `(main)/page.tsx` branches on the session: no session renders `MarketingHome`, otherwise the app.
+- `getCurrentLoggedInUser` wrapped in React's `cache()`; `Header` reads the session itself again and
+  the `session` prop added in history #13 is gone.
+- Signed out, `Header` drops its solid background for the hero's tint, and hides the sidebar trigger
+  and the search palette.
+- New `xl` button size (`h-12`, `text-lg`, `px-10`) in `components/ui/button.tsx`.
+- Marquee keyframes plus a `prefers-reduced-motion` block in `globals.css`.
+- The two `components/icons/hero-homepage-icon-*.tsx` now take props and use `currentColor`.
+
+**Decisions worth remembering**
+
+- **The gate is in `page.tsx`, never the layout.** A layout gate applies to every route in `(main)`,
+  so once `/blogs/[slug]` lands there a shared link would show an anonymous visitor the marketing
+  hero instead of the article — and the backend is already built for that case
+  (`@AllowAnonymous()` on `GET /api/blogs/:slug` and `GET /api/users/:username`, history #3 and #8).
+  `/` is the only route where "signed out" means "show the pitch" rather than "show the public
+  version of this thing". This was debated at length; do not move it.
+- **`cache()` is what makes the prop unnecessary, and it was measured, not assumed.** The action was
+  temporarily instrumented to append to a file per real call: **two calls per page load without
+  `cache()`, one with**, while the layout, the header and the page all invoke it. It is per-request
+  only, which is also why it is safe for session data — a cross-request cache here would serve one
+  visitor's session to everyone.
+- **Three things in the spec did not match the installed package.** There is no `@thesvg/react`; the
+  package is `thesvg` and it exports **data** (`{ svg, variants, hex, … }`), not React components, so
+  `<Google variant='wordmark' />` does not exist. Stripe has no `wordmark` and Slack has no `mono` —
+  both use `default`. An earlier `slack.variants.mono!` shipped a runtime `undefined`: the `!`
+  silenced the compiler on a variant already proven absent. **Do not assert away a checked fact.**
+- **Wordmarks cannot be recoloured as they ship.** `mono` variants carry no fills and inherit
+  `currentColor`; `wordmark` variants carry four or five hardcoded brand hexes. `toBrandTint`
+  rewrites every `fill="…"` except `fill="none"` to `currentColor`. Verified none of the seven use
+  gradients, `<style>` or strokes, so the rewrite is total.
+- **Hero 27 was not installed.** Its 13 files list `badge`, `avatar` and `dropdown-menu` as registry
+  dependencies, which would have overwritten components the user menu depends on, and it pulls
+  `motion` for files we discard. Only `marquee.tsx` was extracted from the registry JSON. The block
+  is `hero-section-27` under the `base-nova` style, not `hero-27`.
+- **`marquee.tsx` needs keyframes that `tw-animate-css` does not ship.** It provides `paused` and
+  `direction-*` but no marquee animation, so `--animate-marquee-horizontal` / `-vertical` are
+  defined in `globals.css`.
+- **The background is violet, not the reference's orange.** No orange token exists — everything warm
+  in `globals.css` is a `--chart-*` data-visualisation colour, and borrowing one would let a future
+  chart restyle change the landing page. Going `bg-app/10` also removed the clash with the
+  brand-tinted logos.
+- **`Badge` and `Button` both pin sizes that silently beat utility classes.** `Badge` fixes `h-5`,
+  `text-xs` and `[&>svg]:size-3`; `Button`'s `lg` tops out at `h-9`. Overriding a badge needs all
+  three, which is why `xl` became a real variant instead of another pile of overrides.
+- **The header is full-bleed and keeps its signed-out arm.** A `max-w-7xl` was tried and reverted:
+  the sidebar is `position: fixed; left: 0`, so centring the header detached the logo from the rail
+  by 174px at 1920. The signed-out arm (theme toggle, Sign in, Get started) *is* the marketing
+  header, so it stays rather than being rebuilt separately.
+- **Decorative icons use `text-foreground` at reduced opacity**, so they flip per theme. Full opacity
+  made them compete with the headline, which is the same colour and bold.
+
+**Verified**
+
+- `pnpm check-types` and `pnpm lint` (`--max-warnings 0`) clean.
+- **Driven in a browser**: light and dark at 1440px, plus 375px and 320px. No horizontal overflow at
+  any width (`scrollWidth === clientWidth`). Signed-out shows the hero with no sidebar and no dead
+  hamburger; the theme toggle flips both the icons and the tint correctly.
+- The `cache()` dedupe measured directly, as above.
+- The reported "script tag while rendering" warning was chased down: no brand SVG contains a
+  `<script>`, and a sweep of every element in `main` found only two backgrounds. The apparent stray
+  rectangle in a screenshot was a PNG artifact, not an element.
+
+**Known gaps**
+
+- **At 320px the headline wraps to four lines**, because the text wraps naturally *and* the
+  hardcoded `<br />` adds its own break. Nothing overflows and it stays readable. Fixed by a smaller
+  base size (`text-4xl min-[400px]:text-5xl`) if it ever matters.
+- **The social proof is invented** — "Trusted by 10,000+ Writers" and seven brand wordmarks that
+  imply endorsement. Raised and **accepted by decision**: this is a portfolio project, not a
+  commercial claim. Revisit before any real deployment.
+- **`w-3/4` in `sheet.tsx` is still a local patch** (history #13), and `shadcn add sheet` will undo
+  it. The same now applies to `marquee.tsx`, which lives outside any registry.
+- `--app-from` / `--app-to` are still used only by the sidebar wordmark.
+- The Playwright login needed real credentials; a throwaway verified account was created and then
+  deleted from the dev database.
+
+**Not included:** the blog feed behind the signed-in branch, `prefers-reduced-motion` coverage for
+any animation outside the marquee and the CTA arrow, and the `/me/*` routes the sidebar points at.

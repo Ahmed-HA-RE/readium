@@ -50,6 +50,29 @@
   --color-app: var(--app);
   --color-app-from: var(--app-from);
   --color-app-to: var(--app-to);
+
+  --animate-marquee-horizontal: marquee-horizontal var(--marquee-duration)
+    linear infinite;
+  --animate-marquee-vertical: marquee-vertical var(--marquee-duration) linear
+    infinite;
+
+  @keyframes marquee-horizontal {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(calc(-100% - var(--marquee-gap)));
+    }
+  }
+
+  @keyframes marquee-vertical {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(calc(-100% - var(--marquee-gap)));
+    }
+  }
 }
 
 :root {
@@ -127,6 +150,16 @@
 }
 
 @layer base {
+  /* The marquee and the CTA arrow loop forever, which WCAG 2.2.2 asks us to
+     stop for anyone who has requested reduced motion. */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-marquee-horizontal,
+    .animate-marquee-vertical,
+    .animate-bounce {
+      animation: none !important;
+    }
+  }
+
   * {
     @apply border-border outline-ring/50;
   }

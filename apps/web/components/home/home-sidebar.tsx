@@ -41,9 +41,9 @@ const HomeSidebar = () => {
 
   return (
     <Sidebar
-      // Offset below the sticky `h-14` header, which the fixed container would
+      // Offset below the sticky `h-15` header, which the fixed container would
       // otherwise sit underneath.
-      className='bg-background top-14 h-[calc(100svh-3.5rem)]'
+      className='bg-background top-15 h-[calc(100svh-3.75rem)]'
       aria-label='Main'
     >
       {/* Below `md` the sidebar is a full-width sheet that covers the header,

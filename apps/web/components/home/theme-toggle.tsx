@@ -10,7 +10,7 @@ const ThemeToggle = ({ className }: { className?: string }) => {
 
   return (
     <Button
-      variant='ghost'
+      variant='ghost-plain'
       size='icon-lg'
       onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
       className={cn('text-muted-foreground', className)}

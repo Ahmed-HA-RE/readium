@@ -1,8 +1,11 @@
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import type { GetCurrentLoggedInUser } from '@repo/types';
 import { api } from '@/lib/axios';
 
-export const getCurrentLoggedInUser =
+// `cache` dedupes this per request, so the layout, the header and the page can
+// each call it while only one request reaches the backend.
+export const getCurrentLoggedInUser = cache(
   async (): Promise<GetCurrentLoggedInUser | null> => {
     try {
       const { data } = await api.get<GetCurrentLoggedInUser>('/users/me', {
@@ -15,4 +18,5 @@ export const getCurrentLoggedInUser =
       // means no session we can confirm, which callers already treat as signed out.
       return null;
     }
-  };
+  },
+);
