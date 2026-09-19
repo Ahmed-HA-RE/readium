@@ -1,65 +1,22 @@
 <!-- Feature Title -->
 
-## Home Page Phase 3 — Blog Feed with Sorting and Pagination
+##
 
 <!-- Feature Description -->
 
 ## Description
 
-Render the blog feed on the home page for authenticated users only, with sorting and pagination.
-Blogs are prefetched in a server component and handed to a client component through
-`<HydrationBoundary>`, so the markup is crawlable for SEO while `useQuery` still drives client
-interactivity. Sort and page live in the URL via `nuqs` with `{ shallow: false }`, so the server
-component re-reads `searchParams` whenever the client changes them.
-
-Layout matches the Medium home page max-width (`context/screenshots/medium-hompage.png`), plus an
-`<aside>` holding only an `<h2>` "Trending on {APP_NAME}" as a placeholder for the future
-most-liked-blogs endpoint.
-
-Spec: `context/specs/frontend/homepage-phase-3.md`
-
 <!-- Feature Notes -->
 
 ## Notes
-
-- **Card layout, decided:** tags render at the **top**, above the title, as small muted pills — this
-  mirrors Medium putting topic context above the headline and leaves the bottom row free. The
-  ellipsis sits **top-right** (it acts on the whole blog) and the like + bookmark pair sits
-  **bottom-right**, opposite the author on the same row.
-- **Pagination renders at the bottom-right of the page**, not centred.
-- The `useQuery` hook takes `search`, `sort` and `page`, but Phase 3 renders **no** search input —
-  search stays in the header. `search` is optional on `BlogQueryDto`, so the feed simply omits it;
-  the param is wired up now for the future full search-results page.
-- The report/bookmark/like icons are display-only this phase. The dropdown menu behind the ellipsis
-  is deliberately deferred.
-- `blog-card.tsx` and the pagination component both go in `apps/web/components/shared` — they are
-  reused across domains.
-- shadcn/studio sources (`blog-component-03`, `Pagination 2`) pull in extra files; all of them get
-  deleted except the component itself.
 
 <!-- Feature Goals-->
 
 ## Goals
 
-1. Install and configure `nuqs` (provider/adapter + server-side `searchParams` parsing).
-2. Add `apps/web/lib/actions/blogs/getAllBlogs` calling the existing `GET /api/blogs`.
-3. Add a `useQuery` hook over that action, keyed identically to the server prefetch.
-4. Wrap the home page child in `<Suspense fallback={<BlogCardSkeleton />}>` so the feed streams in.
-5. Prefetch in the child server component and wrap the client grandchild in `<HydrationBoundary>`.
-6. Build `components/shared/blog-card.tsx` from `blog-component-03`, refactored to the real backend
-   fields, including tags, a Read More link to `/[blogSlug]`, and state-coloured like/bookmark/report
-   icons driven by `isLikedByLoggedInUser`, `isBookmarkedByLoggedInUser`,
-   `isReportedByLoggedInUser`.
-7. Build `components/shared/` pagination from shadcn/studio **Pagination 2**, aligned bottom-right.
-8. Add a shadcn `<Select>` for sorting, with options bound to the `BlogSortOptions` enum from
-   `packages/types/src/blogs.ts`.
-9. Match the Medium max-width and add the "Trending on {APP_NAME}" `<aside>`.
-
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
