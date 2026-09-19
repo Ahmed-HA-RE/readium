@@ -1,22 +1,65 @@
 <!-- Feature Title -->
 
-##
+## Home Page Phase 3 — Blog Feed with Sorting and Pagination
 
 <!-- Feature Description -->
 
 ## Description
 
+Render the blog feed on the home page for authenticated users only, with sorting and pagination.
+Blogs are prefetched in a server component and handed to a client component through
+`<HydrationBoundary>`, so the markup is crawlable for SEO while `useQuery` still drives client
+interactivity. Sort and page live in the URL via `nuqs` with `{ shallow: false }`, so the server
+component re-reads `searchParams` whenever the client changes them.
+
+Layout matches the Medium home page max-width (`context/screenshots/medium-hompage.png`), plus an
+`<aside>` holding only an `<h2>` "Trending on {APP_NAME}" as a placeholder for the future
+most-liked-blogs endpoint.
+
+Spec: `context/specs/frontend/homepage-phase-3.md`
+
 <!-- Feature Notes -->
 
 ## Notes
+
+- **Card layout, decided:** tags render at the **top**, above the title, as small muted pills — this
+  mirrors Medium putting topic context above the headline and leaves the bottom row free. The
+  ellipsis sits **top-right** (it acts on the whole blog) and the like + bookmark pair sits
+  **bottom-right**, opposite the author on the same row.
+- **Pagination renders at the bottom-right of the page**, not centred.
+- The `useQuery` hook takes `search`, `sort` and `page`, but Phase 3 renders **no** search input —
+  search stays in the header. `search` is optional on `BlogQueryDto`, so the feed simply omits it;
+  the param is wired up now for the future full search-results page.
+- The report/bookmark/like icons are display-only this phase. The dropdown menu behind the ellipsis
+  is deliberately deferred.
+- `blog-card.tsx` and the pagination component both go in `apps/web/components/shared` — they are
+  reused across domains.
+- shadcn/studio sources (`blog-component-03`, `Pagination 2`) pull in extra files; all of them get
+  deleted except the component itself.
 
 <!-- Feature Goals-->
 
 ## Goals
 
+1. Install and configure `nuqs` (provider/adapter + server-side `searchParams` parsing).
+2. Add `apps/web/lib/actions/blogs/getAllBlogs` calling the existing `GET /api/blogs`.
+3. Add a `useQuery` hook over that action, keyed identically to the server prefetch.
+4. Wrap the home page child in `<Suspense fallback={<BlogCardSkeleton />}>` so the feed streams in.
+5. Prefetch in the child server component and wrap the client grandchild in `<HydrationBoundary>`.
+6. Build `components/shared/blog-card.tsx` from `blog-component-03`, refactored to the real backend
+   fields, including tags, a Read More link to `/[blogSlug]`, and state-coloured like/bookmark/report
+   icons driven by `isLikedByLoggedInUser`, `isBookmarkedByLoggedInUser`,
+   `isReportedByLoggedInUser`.
+7. Build `components/shared/` pagination from shadcn/studio **Pagination 2**, aligned bottom-right.
+8. Add a shadcn `<Select>` for sorting, with options bound to the `BlogSortOptions` enum from
+   `packages/types/src/blogs.ts`.
+9. Match the Medium max-width and add the "Trending on {APP_NAME}" `<aside>`.
+
 <!-- Feature Status -->
 
 ## Status
+
+Completed
 
 <!-- History -->
 
@@ -1233,3 +1276,67 @@ visitors and the app to everyone else. Frontend only; no backend change.
 
 **Not included:** the blog feed behind the signed-in branch, `prefers-reduced-motion` coverage for
 any animation outside the marquee and the CTA arrow, and the `/me/*` routes the sidebar points at.
+
+### 15. HomePage Phase 3 — Blog Feed with Sorting & Pagination — completed 2026-09-19
+
+The signed-in half of the home page: a Medium-width blog feed prefetched on the server, hydrated
+into TanStack Query for client interactivity, with sort and page held in the URL by `nuqs`.
+
+**Implemented**
+
+- `lib/search-params.ts` — one `blogFeedParsers` descriptor shared by `createLoader` (server) and
+  `useQueryStates` (client), so the two can never disagree about defaults.
+- `lib/actions/blogs/getAllBlogs.ts` — `'use server'` action calling `GET /api/blogs`.
+- `hooks/blogs.ts` — `useAllBlogs`, keyed `['blogs', { sort, page }]`.
+- `components/home/blog-feed-section.tsx` — server child: parses `searchParams`, prefetches into a
+  fresh `QueryClient`, wraps the client feed in `<HydrationBoundary>`.
+- `components/home/blog-feed.tsx` — client grandchild: `useQueryStates(..., { shallow: false })`,
+  the sort select, the pagination and the four render states.
+- `components/shared/blog-card.tsx` (from shadcn/studio `blog-component-03`) and
+  `components/shared/pagination.tsx` (from `pagination-02`), both shared across domains.
+- `components/home/blog-sort-select.tsx`, `components/home/blog-card-skeleton.tsx`.
+- `formatPublishedAt` in `lib/utils.ts` — under 30 days reads as a distance, older as `MMM d`.
+- Backend: `getAllBlogs` now hides blogs the caller reported, and `blogs.service.spec.ts` was
+  written from scratch (19 tests; suite went 181 → 200).
+
+**Decisions worth remembering**
+
+- **Reported blogs are filtered out of the feed, for the reporter only.** A single `PENDING` report
+  must not remove a blog for everyone before a moderator sees it — global takedown stays an admin
+  action. Both the `findMany` and the `count` read one shared `where` constant, because filtering
+  one and not the other makes `totalPages` promise pages that render empty. A test asserts they
+  stay identical.
+- **`isReportedByLoggedInUser` was dropped from `GetAllBlogsResponse`.** Once the feed filters those
+  rows it would always be `false`. It stays on `GetBlogBySlugResponse`, which a direct link reaches.
+- **The client reads sort/page from `useQueryStates`, not from props.** Props were tried first and
+  made the sort select lag a full server round-trip before repainting.
+- **`BlogSortOptions` is deliberately duplicated** between `blog-query-dto.ts` and `@repo/types`.
+  `packages/types` has no build step (`main` points at raw `.ts`), so Nest compiles to `dist/` and
+  cannot `require` it at runtime. Type-only imports work because they are erased; an enum is a
+  runtime value and is not. The real fix is giving `packages/types` a build step.
+- **The action is `'use server'`** so `cookies()` can be read inside it while `useQuery` still calls
+  it from the client. The cost is an extra hop — browser → Next → Nest — on every sort or page
+  change.
+- **Error state is checked before the empty state.** `?page=0` passes nuqs' integer parser but the
+  DTO's `@Min(1)` rejects it, and the feed previously rendered "No blogs to show yet." over four
+  500s. Try again clears the query params rather than retrying the same failing request.
+- **`search` stays optional on `BlogQueryDto`.** The feed never sends it — search lives in the
+  header — but the endpoint keeps it for the future search results page.
+
+**Known gaps**
+
+- **The like and bookmark buttons have no accessible name**; a screen reader announces a bare
+  "button". They are display-only this phase, so nothing works when clicked either.
+- **The skeleton renders 5 rows, the backend returns 10**, so the page still shifts when the feed
+  lands.
+- **The excerpt is the raw `content` field.** Once posts are authored in markdown the card will show
+  the syntax; it needs an excerpt field or a strip-markdown helper.
+- **No `placeholderData`**, so changing sort or page flashes the skeleton — raised and declined.
+- **Author avatars re-download on every load.** Presigned URLs carry a fresh signature each
+  response, so the `src` changes every time and the browser cache always misses. Memoizing the
+  signing per key, or serving avatars unsigned, would fix it.
+- Relative timestamps can trip a hydration warning if a post crosses a boundary between the server
+  render and hydration.
+- `blog-feed-section.tsx` builds a bare `new QueryClient()` rather than `getQueryClient()`, so the
+  app's configured defaults do not apply to the prefetch client. No live impact, since the prefetch
+  is awaited.

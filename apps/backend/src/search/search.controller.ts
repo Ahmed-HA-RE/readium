@@ -9,7 +9,6 @@ export class SearchController {
 
   // Method           GET /api/search/suggestions
   // Description      Get the latest 3 users and 3 published blogs matching the search term
-  // Anonymous: the header renders for signed-out visitors too.
   @Get('suggestions')
   @AllowAnonymous()
   getSuggestions(@Query() query: SuggestionQueryDto) {

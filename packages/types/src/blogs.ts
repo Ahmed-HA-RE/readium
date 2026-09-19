@@ -1,3 +1,9 @@
+export enum BlogSortOptions {
+  'NEWEST' = 'newest',
+  'OLDEST' = 'oldest',
+  'MOST_LIKED' = 'most_liked',
+}
+
 export interface Blog {
   id: string;
   title: string;
@@ -35,7 +41,6 @@ export interface GetAllBlogsResponse {
     author: BlogAuthor;
     isLikedByLoggedInUser: boolean;
     isBookmarkedByLoggedInUser: boolean;
-    isReportedByLoggedInUser: boolean;
   })[];
   totalPages: number;
 }

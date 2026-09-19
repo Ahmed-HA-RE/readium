@@ -66,6 +66,8 @@ Read operations are always served by a **NestJS endpoint** (controller → servi
 
   **Note**: Run the test with **Jest** (the backend test runner, configured in `apps/backend/package.json`) via `pnpm test`, and make sure to write unit tests for the feature if not already written.
 
+- If the feature involves the frontend, make sure the UI/UX is tested thoroughly, including responsiveness, accessibility, and interaction states by running the **Playwright** mcp server.
+
 ## If `complete` hint is provided, then make sure to follow the steps below:
 
 - Once the feature is completed and reviewed, navigate to `@/context/current-feature.md` and update the **Status** section to **Completed**. Then, update the **History** section with details about the implemented feature.

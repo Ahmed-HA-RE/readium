@@ -37,11 +37,16 @@ export class BlogsService {
       limit,
     );
 
+    // Hidden from the reporter only. A pending report must not pull a blog out
+    // of everyone's feed before a moderator has looked at it.
+    const where = {
+      ...queryFilter,
+      isPublished: true,
+      ...(userId ? { report: { none: { userId } } } : {}),
+    };
+
     const blogs = await this.prisma.blog.findMany({
-      where: {
-        ...queryFilter,
-        isPublished: true,
-      },
+      where,
       orderBy: querySort,
       take: limitValue,
       skip: (pageValue - 1) * limitValue,
@@ -71,14 +76,6 @@ export class BlogsService {
                   userId: true,
                 },
               },
-              report: {
-                where: {
-                  userId,
-                },
-                select: {
-                  userId: true,
-                },
-              },
             }
           : {}),
         _count: {
@@ -91,12 +88,7 @@ export class BlogsService {
       },
     });
 
-    const totalBlogs = await this.prisma.blog.count({
-      where: {
-        ...queryFilter,
-        isPublished: true,
-      },
-    });
+    const totalBlogs = await this.prisma.blog.count({ where });
 
     const totalPages = Math.ceil(totalBlogs / limitValue);
 
@@ -110,20 +102,18 @@ export class BlogsService {
         : null;
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { likes, bookmarks, report, ...blogData } = blog; // Purpose of this line is to remove the likes, bookmarks, and report properties from the blog object so that they don't get sent to the client. These properties are only used to determine if the logged in user has liked, bookmarked, or reported the blog.
+      const { likes, bookmarks, ...blogData } = blog; // Purpose of this line is to remove the likes and bookmarks properties from the blog object so that they don't get sent to the client. These properties are only used to determine if the logged in user has liked or bookmarked the blog.
 
       const isLikedByLoggedInUser = blog.likes?.length > 0 ? true : false;
       const isBookmarkedByLoggedInUser = userId
         ? blog.bookmarks.length > 0
         : false;
-      const isReportedByLoggedInUser = blog.report?.length > 0 ? true : false;
 
       return {
         ...blogData,
         author: { ...blogData.author, image: authorImage },
         isLikedByLoggedInUser,
         isBookmarkedByLoggedInUser,
-        isReportedByLoggedInUser,
         coverImage: presignedUrl,
       };
     });
