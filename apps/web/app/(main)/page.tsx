@@ -5,6 +5,8 @@ import MarketingHome from '@/components/marketing/marketing-home';
 import BlogFeedSection from '@/components/home/blog-feed-section';
 import BlogCardSkeleton from '@/components/home/blog-card-skeleton';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
+import TrendingPanel from '@/components/home/trending-panel';
+import TrendingCardSkeleton from '@/components/home/trending-card-skeleton';
 
 const HomePage = async ({
   searchParams,
@@ -25,8 +27,14 @@ const HomePage = async ({
         </Suspense>
       </div>
 
-      <aside className='hidden w-80 shrink-0 border-l py-6 pl-16 xl:block'>
+      <aside className='hidden w-80 shrink-0 border-l py-6 pl-8 xl:block'>
         <h2 className='font-medium'>Trending on {SITE_NAME}</h2>
+
+        <div className='mt-8 flex flex-col gap-8'>
+          <Suspense fallback={<TrendingCardSkeleton />}>
+            <TrendingPanel />
+          </Suspense>
+        </div>
       </aside>
     </div>
   );

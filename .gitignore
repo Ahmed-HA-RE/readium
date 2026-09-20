@@ -37,11 +37,7 @@ yarn-error.log*
 .DS_Store
 *.pem
 
-# context specs
-context/specs
 
-# context plans
-context/plans
 
 # context screenshots
 context/screenshots

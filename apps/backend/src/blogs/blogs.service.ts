@@ -1,7 +1,12 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { BlogQueryDto } from './dto/blog-query-dto';
-import { Blog, GetAllBlogsResponse, GetBlogBySlugResponse } from '@repo/types';
+import {
+  Blog,
+  GetAllBlogsResponse,
+  GetBlogBySlugResponse,
+  GetTrendingBlogsResponse,
+} from '@repo/types';
 import { CreateBlogDto } from './dto/create-blog-dto';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { UpdateBlogDto } from './dto/update-blog-dto';
@@ -122,6 +127,57 @@ export class BlogsService {
       blogs: await Promise.all(blogsWithPresignedUrls),
       totalPages,
     };
+  }
+
+  // OAuth sign-ups store the provider's avatar URL in `User.image` instead of
+  // an S3 key, so it is returned as-is rather than signed.
+  private resolveAuthorImage(
+    image: string | null,
+  ): string | Promise<string> | null {
+    if (!image) return null;
+
+    return image.startsWith('http://') || image.startsWith('https://')
+      ? image
+      : this.s3Service.getSignedUrl(image);
+  }
+
+  // The five most-liked published blogs, excluding the caller's own. A tie on
+  // like count goes to the more recently created blog.
+  async getTrendingBlogs(userId?: string): Promise<GetTrendingBlogsResponse[]> {
+    this.logger.verbose(
+      `Fetching trending blogs for ${userId ? `userId: ${userId}` : 'anonymous user'}`,
+    );
+
+    const blogs = await this.prisma.blog.findMany({
+      where: {
+        isPublished: true,
+        likes: { some: {} },
+      },
+      orderBy: [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }],
+      take: 5,
+      select: {
+        title: true,
+        slug: true,
+        content: true,
+        createdAt: true,
+        author: {
+          select: {
+            name: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    return Promise.all(
+      blogs.map(async (blog) => ({
+        ...blog,
+        author: {
+          ...blog.author,
+          image: await this.resolveAuthorImage(blog.author.image),
+        },
+      })),
+    );
   }
 
   async getBlogBySlug(

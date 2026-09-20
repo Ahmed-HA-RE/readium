@@ -1,22 +1,60 @@
 <!-- Feature Title -->
 
-##
+## Trending Blogs Phase
 
 <!-- Feature Description -->
 
 ## Description
 
+Display the top 5 most-liked blogs in a panel on the right side of the Home Page, matching Medium's
+rendering of the same feature. A new `GET /api/blogs/trending` endpoint serves the data; the Home
+Page's SSR component calls it via `axios`.
+
+Spec: `context/specs/frontend/trending-blogs-phase.md`.
+
 <!-- Feature Notes -->
 
 ## Notes
+
+**Backend**
+
+- Controller method `getTrendingBlogs` in `apps/backend/src/blogs/blogs-controller.ts`, route
+  `trending`, decorated `@AllowAnonymous()` as defence in depth (signed-out visitors already get the
+  Marketing component instead).
+- Service returns `take: 5`, ordered by like count, with `orderBy: { createdAt: 'desc' }` as the
+  tie-breaker so the more recently created blog wins on equal likes.
+- Excludes the caller's own blogs via `{ authorId: { not: userId } }`, using `userId` from
+  `@Session()`.
+- Returned fields: blog title, full blog content (the frontend `line-clamp`s it — do **not**
+  pre-truncate), author name, author image, blog `createdAt`. **No `coverImage`.**
+- Sign the author image through `S3ServiceService.getSignedUrl`. Handle the OAuth case: a user with
+  no stored `image` but a populated external `url` field has no signable S3 key.
+
+**Frontend**
+
+- Match `@/context/screenshots/medium-homepage.png` for the UI/UX.
+- Reuse the existing `formatPublishedAt` util; don't reimplement date formatting.
+- Fetch with `axios` from the SSR (Server) component.
+
+**Watch for**
+
+- The `trending` route must be declared above any `:slug` route on `BlogsController` — the same
+  declaration-order trap as the `me` routes in history #4 and `username-taken` in history #10.
 
 <!-- Feature Goals-->
 
 ## Goals
 
+- Serve the 5 most-liked blogs (excluding the caller's own) from a new anonymous-readable endpoint.
+- Return only the fields the trending panel renders, with the author avatar presigned and the OAuth
+  no-S3-image case handled.
+- Render the panel on the right of the Home Page so it matches Medium's trending section.
+
 <!-- Feature Status -->
 
 ## Status
+
+Completed
 
 <!-- History -->
 
@@ -1297,3 +1335,78 @@ into TanStack Query for client interactivity, with sort and page held in the URL
 - `blog-feed-section.tsx` builds a bare `new QueryClient()` rather than `getQueryClient()`, so the
   app's configured defaults do not apply to the prefetch client. No live impact, since the prefetch
   is awaited.
+
+### 16. Trending Blogs Phase
+
+The right rail of the signed-in home page. `GET /api/blogs/trending` serves the five most-liked
+blogs, and the home page renders them as a Medium "Staff Picks"-style panel.
+
+**Implemented**
+
+- `GET /api/blogs/trending` on `BlogsController`, `@AllowAnonymous()`, **declared above `:slug`**.
+- `BlogsService.getTrendingBlogs()` — `isPublished: true` and `likes: { some: {} }`, ordered
+  `[{ likes: { _count: 'desc' } }, { createdAt: 'desc' }]`, `take: 5`.
+- `BlogsService.resolveAuthorImage()` — returns an `http(s)` avatar untouched, signs an S3 key.
+- `GetTrendingBlogsResponse` in `packages/types/src/blogs.ts` — title, slug, content, createdAt and
+  `author: Pick<BlogAuthor, 'name' | 'image'>`. No `coverImage`.
+- `lib/actions/blogs/getTrendingBlogs.ts` — axios from the server, forwarding the cookie header.
+- `components/home/trending-panel.tsx` (cards only) and `trending-card-skeleton.tsx` (five rows via
+  `Array.from({ length: count })`). The `<aside>`, heading and border live on `app/(main)/page.tsx`.
+- 11 Jest tests in `blogs.service.spec.ts`. Suite is 211 passing.
+
+**Decisions worth remembering**
+
+- **`orderBy` sorts, it does not filter — this shipped as a bug and was caught live.** The first
+  implementation had `orderBy: [{ likes: { _count: 'desc' } }, ...]` and `take: 5` but no filter, so
+  with a single like row in the database the endpoint still returned five blogs: one with a like and
+  four with none, tied at zero and separated only by the `createdAt` tie-breaker. The panel had
+  silently degraded into "the 5 newest". `likes: { some: {} }` is what makes it trending. Proven
+  against the real database before and after — 5 rows became 1.
+- **The caller's own blogs are included, against the spec as first written.** The spec asked for
+  `{ authorId: { not: userId } }`; that was dropped on request and the spec file was updated to
+  match. `userId` is still threaded controller → service but now only feeds the log line.
+- **`slug` is returned although the spec's field list omitted it.** Nothing renders it, but every
+  panel item is a link, so without it the rail is dead content. The spec was updated.
+- **The `<aside>` is the Suspense parent, not the suspending child.** An earlier version had
+  `TrendingPanel` own the `<aside>` so an empty list could remove the rail entirely, which forced the
+  skeleton to duplicate the shell. Moving the shell to the page means the heading and left border
+  paint immediately and only the cards swap. **The trade:** hide-on-empty is gone — an unliked site
+  shows a heading over empty space.
+- **`getSignedUrl` already passed external URLs through**, but `resolveAuthorImage` makes the OAuth
+  branch visible at the call site rather than leaving it implicit in the S3 service.
+- **The spec named files that do not exist.** `blogs-controller.ts` is `blogs.controller.ts`,
+  `medium-homepage.png` is `medium-hompage.png` (typo in the filename), and the spec's
+  `orderBy:{createdAt:'dsc'}` is not valid Prisma — `desc`.
+
+**Also changed (outside the feature, on request)**
+
+- `blog-card.tsx` no longer renders a `0` like count — the icon stands alone — and the like/bookmark
+  gap is now `cn(..., _count.likes > 0 ? 'gap-2' : 'gap-0')`.
+- `blogs.service.spec.ts`'s Prisma mocks are typed `jest.Mock<Promise<unknown[]>, [unknown]>`, which
+  cleared three `no-unsafe-member-access` errors — two of them pre-existing on `getAllBlogs`.
+
+**Verified**
+
+- `pnpm turbo build` green for `backend` and `web`; `pnpm check-types` clean; `eslint` clean on every
+  changed file.
+- `pnpm test` — 211 passing (200 before, 11 added).
+- `tsc --noEmit` reports nothing new. The two pre-existing `admin.service.spec.ts` `BlogQueryDto`
+  errors from history #3 are still there, untouched.
+- **Live-verified, both halves.** `GET /api/blogs/trending` returns 200 anonymously with the right
+  shape, no `coverImage`, a presigned S3 avatar and `null` where there is none. A direct database
+  query confirmed exactly five blogs have at least one like and those are exactly the five returned,
+  with the two-like blog first and the `createdAt` tie-breaker ordering the Sep 19 blog above the
+  Sep 17 ones. The page was then rendered in Playwright: the rail shows all five, and zero-like feed
+  cards render the heart with no number.
+
+**Known gaps**
+
+- **No index supports the sort.** `orderBy: { likes: { _count: 'desc' } }` aggregates the whole
+  `like` table on every request, and there is no cache. Fine at ten blogs, not at ten thousand.
+- **Three seed blogs share an identical `createdAt`**, so they tie on both sort keys and their
+  relative order is arbitrary. Harmless with real data; a third key on `id` would make it stable.
+- **Empty state is a bare heading.** See the `<aside>` decision above.
+- The unused `userId` parameter on `getTrendingBlogs` was kept on request.
+
+**Not included:** any like or bookmark mutation from the panel, a "See the full list" link, and
+caching of the trending query.

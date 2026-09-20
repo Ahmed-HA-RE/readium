@@ -43,6 +43,16 @@ export class BlogsController {
     return this.blogsService.getAllBlogs(query, userId);
   }
 
+  // Method           GET /api/blogs/trending
+  // Description      Get the 5 most-liked blogs, excluding the caller's own
+
+  @Get('trending')
+  @AllowAnonymous()
+  getTrendingBlogs(@Session() session: UserSession | undefined) {
+    const userId = session?.user?.id;
+    return this.blogsService.getTrendingBlogs(userId);
+  }
+
   // Method           GET /api/blogs/:slug
   // Description      Get a single blog by slug
   @Get(':slug')
