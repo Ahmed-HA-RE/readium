@@ -5,7 +5,7 @@ import { FaBookmark, FaHeart, FaRegHeart } from 'react-icons/fa';
 import { LuBookmarkPlus } from 'react-icons/lu';
 import { IoEllipsisHorizontal } from 'react-icons/io5';
 import type { GetAllBlogsResponse } from '@repo/types';
-import { formatPublishedAt } from '@/lib/utils';
+import { cn, formatPublishedAt } from '@/lib/utils';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -109,7 +109,12 @@ const BlogCard = ({ blog }: BlogCardProps) => {
 
           {/* Display only this phase — the mutations land with the like and
               bookmark features. */}
-          <div className='relative z-10 ml-auto flex items-center gap-4 text-sm'>
+          <div
+            className={cn(
+              'relative z-10 ml-auto flex items-center text-sm',
+              _count.likes > 0 ? 'gap-2' : 'gap-0',
+            )}
+          >
             <span className='flex items-center'>
               {isLikedByLoggedInUser ? (
                 <Button variant='ghost-plain' size={'icon'}>
@@ -124,7 +129,9 @@ const BlogCard = ({ blog }: BlogCardProps) => {
                   <FaRegHeart />
                 </Button>
               )}
-              <span className='text-muted-foreground'>{_count.likes}</span>
+              {_count.likes > 0 && (
+                <span className='text-muted-foreground'>{_count.likes}</span>
+              )}
             </span>
 
             {isBookmarkedByLoggedInUser ? (

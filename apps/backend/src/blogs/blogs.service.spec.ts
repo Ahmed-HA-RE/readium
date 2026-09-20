@@ -17,8 +17,13 @@ type BlogFindManyArgs = {
 
 type BlogCountArgs = { where: Prisma.BlogWhereInput };
 
+// Typed so `mock.calls[0][0]` is `unknown` rather than `any`, which the
+// `no-unsafe-member-access` rule rejects.
 type PrismaMocks = {
-  blog: { findMany: jest.Mock; count: jest.Mock };
+  blog: {
+    findMany: jest.Mock<Promise<unknown[]>, [unknown]>;
+    count: jest.Mock<Promise<number>, [unknown]>;
+  };
 };
 
 const USER_ID = 'user-1';
@@ -57,8 +62,10 @@ describe('BlogsService', () => {
   beforeEach(async () => {
     prisma = {
       blog: {
-        findMany: jest.fn().mockResolvedValue([]),
-        count: jest.fn().mockResolvedValue(0),
+        findMany: jest
+          .fn<Promise<unknown[]>, [unknown]>()
+          .mockResolvedValue([]),
+        count: jest.fn<Promise<number>, [unknown]>().mockResolvedValue(0),
       },
     };
 
@@ -235,6 +242,111 @@ describe('BlogsService', () => {
           bookmarks: 1,
         });
       });
+    });
+  });
+
+  describe('getTrendingBlogs', () => {
+    // `orderBy` is an array here, unlike `getAllBlogs`, so it needs its own type.
+    type TrendingFindManyArgs = {
+      where: Prisma.BlogWhereInput;
+      orderBy: Prisma.BlogOrderByWithRelationInput[];
+      take: number;
+      select: Record<string, unknown>;
+    };
+
+    const trendingArgs = () =>
+      prisma.blog.findMany.mock.calls[0][0] as TrendingFindManyArgs;
+
+    const trendingRow = (image: string | null = 'avatar-key') => ({
+      title: 'A blog',
+      slug: 'a-blog',
+      content: 'Body text',
+      createdAt: new Date('2026-09-01T00:00:00.000Z'),
+      author: { name: 'Ahmed', image },
+    });
+
+    describe('query', () => {
+      it('never returns unpublished blogs', async () => {
+        await service.getTrendingBlogs(USER_ID);
+
+        expect(trendingArgs().where).toMatchObject({ isPublished: true });
+      });
+
+      // Regression: `orderBy` sorts but does not filter, so without this a
+      // zero-like blog fills a slot and the panel degrades into "5 newest".
+      it('returns only blogs that have at least one like', async () => {
+        await service.getTrendingBlogs(USER_ID);
+
+        expect(trendingArgs().where).toMatchObject({ likes: { some: {} } });
+      });
+
+      it('takes five', async () => {
+        await service.getTrendingBlogs(USER_ID);
+
+        expect(trendingArgs().take).toBe(5);
+      });
+
+      it('orders by like count, breaking ties on the newer blog', async () => {
+        await service.getTrendingBlogs(USER_ID);
+
+        expect(trendingArgs().orderBy).toEqual([
+          { likes: { _count: 'desc' } },
+          { createdAt: 'desc' },
+        ]);
+      });
+
+      // Deliberate divergence from the spec, which asked for them to be
+      // excluded. The list is identical for every caller.
+      it('includes the caller’s own blogs', async () => {
+        await service.getTrendingBlogs(USER_ID);
+
+        expect(trendingArgs().where).not.toHaveProperty('authorId');
+      });
+
+      it('does not select the cover image', async () => {
+        await service.getTrendingBlogs(USER_ID);
+
+        expect(trendingArgs().select).not.toHaveProperty('coverImage');
+      });
+    });
+
+    describe('author avatar', () => {
+      it('signs a stored S3 key', async () => {
+        prisma.blog.findMany.mockResolvedValue([trendingRow()]);
+
+        const blogs = await service.getTrendingBlogs(USER_ID);
+
+        expect(blogs[0].author.image).toBe('signed:avatar-key');
+      });
+
+      // OAuth sign-ups store the provider URL in `User.image`. Signing one
+      // would treat it as an object key and 403 on every read.
+      it.each([
+        'https://lh3.googleusercontent.com/a/photo.jpg',
+        'http://avatars.githubusercontent.com/u/1',
+      ])('returns the external URL %s unsigned', async (url) => {
+        prisma.blog.findMany.mockResolvedValue([trendingRow(url)]);
+
+        const blogs = await service.getTrendingBlogs(USER_ID);
+
+        expect(blogs[0].author.image).toBe(url);
+        expect(s3.getSignedUrl).not.toHaveBeenCalled();
+      });
+
+      it('leaves a missing avatar null without signing', async () => {
+        prisma.blog.findMany.mockResolvedValue([trendingRow(null)]);
+
+        const blogs = await service.getTrendingBlogs(USER_ID);
+
+        expect(blogs[0].author.image).toBeNull();
+        expect(s3.getSignedUrl).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns an empty list when nothing is liked', async () => {
+      prisma.blog.findMany.mockResolvedValue([]);
+
+      await expect(service.getTrendingBlogs(USER_ID)).resolves.toEqual([]);
     });
   });
 });

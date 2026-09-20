@@ -56,6 +56,16 @@ export interface GetBlogBySlugResponse {
   isReportedByLoggedInUser: boolean;
 }
 
+// The trending panel renders a title, an excerpt, the author and a date, so
+// nothing else is selected. `slug` is not rendered but every item is a link.
+export interface GetTrendingBlogsResponse {
+  title: string;
+  slug: string;
+  content: string;
+  createdAt: Date;
+  author: Pick<BlogAuthor, 'name' | 'image'>;
+}
+
 export interface GetAllBlogsForAdmin {
   blogs: (Pick<
     Blog,
