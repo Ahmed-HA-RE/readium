@@ -1,60 +1,22 @@
 <!-- Feature Title -->
 
-## Trending Blogs Phase
+##
 
 <!-- Feature Description -->
 
 ## Description
 
-Display the top 5 most-liked blogs in a panel on the right side of the Home Page, matching Medium's
-rendering of the same feature. A new `GET /api/blogs/trending` endpoint serves the data; the Home
-Page's SSR component calls it via `axios`.
-
-Spec: `context/specs/frontend/trending-blogs-phase.md`.
-
 <!-- Feature Notes -->
 
 ## Notes
-
-**Backend**
-
-- Controller method `getTrendingBlogs` in `apps/backend/src/blogs/blogs-controller.ts`, route
-  `trending`, decorated `@AllowAnonymous()` as defence in depth (signed-out visitors already get the
-  Marketing component instead).
-- Service returns `take: 5`, ordered by like count, with `orderBy: { createdAt: 'desc' }` as the
-  tie-breaker so the more recently created blog wins on equal likes.
-- Excludes the caller's own blogs via `{ authorId: { not: userId } }`, using `userId` from
-  `@Session()`.
-- Returned fields: blog title, full blog content (the frontend `line-clamp`s it — do **not**
-  pre-truncate), author name, author image, blog `createdAt`. **No `coverImage`.**
-- Sign the author image through `S3ServiceService.getSignedUrl`. Handle the OAuth case: a user with
-  no stored `image` but a populated external `url` field has no signable S3 key.
-
-**Frontend**
-
-- Match `@/context/screenshots/medium-homepage.png` for the UI/UX.
-- Reuse the existing `formatPublishedAt` util; don't reimplement date formatting.
-- Fetch with `axios` from the SSR (Server) component.
-
-**Watch for**
-
-- The `trending` route must be declared above any `:slug` route on `BlogsController` — the same
-  declaration-order trap as the `me` routes in history #4 and `username-taken` in history #10.
 
 <!-- Feature Goals-->
 
 ## Goals
 
-- Serve the 5 most-liked blogs (excluding the caller's own) from a new anonymous-readable endpoint.
-- Return only the fields the trending panel renders, with the author avatar presigned and the OAuth
-  no-S3-image case handled.
-- Render the panel on the right of the Home Page so it matches Medium's trending section.
-
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
