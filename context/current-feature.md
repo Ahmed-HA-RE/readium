@@ -1,34 +1,22 @@
 <!-- Feature Title -->
 
-## Blog Indexes & Like Count Denormalisation
+##
 
 <!-- Feature Description -->
 
 ## Description
 
-Follow-up performance work on the blog queries, not a spec'd feature. Every join table (`Like`,
-`Bookmark`, `Report`, `Comment`) was sequentially scanned on `blogId`, and `getTrendingBlogs`
-aggregated the whole `like` table on every request with no index able to serve the sort.
-
 <!-- Feature Notes -->
 
 ## Notes
-
-Raised at the end of history #17, which closed with `getTrendingBlogs` still aggregating the whole
-`like` table per request with no index.
 
 <!-- Feature Goals-->
 
 ## Goals
 
-- Index every foreign key the queries actually filter on.
-- Remove the like-count aggregate from the trending query and the `most_liked` sort.
-
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
