@@ -19,6 +19,7 @@ export class SearchService {
 
   async getSuggestions(
     query: SuggestionQueryDto,
+    userId?: string,
   ): Promise<GetSearchSuggestions> {
     const { q } = query;
 
@@ -31,8 +32,11 @@ export class SearchService {
       ...(q ? { name: { contains: q, mode: 'insensitive' } } : {}),
     };
 
+    // Hidden from the reporter only, matching the feed in `BlogsService`. A
+    // blog the caller reported must not come back through the palette.
     const blogsWhere: Prisma.BlogWhereInput = {
       isPublished: true,
+      ...(userId ? { report: { none: { userId } } } : {}),
       ...(q
         ? {
             OR: [

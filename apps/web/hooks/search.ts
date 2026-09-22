@@ -20,6 +20,10 @@ export const useSearchSuggestions = (term: string, enabled: boolean) => {
     queryFn: () => getSuggestions(q),
     // Only fetches once the palette is open; closing it keeps the cache.
     enabled,
+    // Overrides the 60s global default. The suggestions drop blogs the caller
+    // has reported, so a cached list goes wrong the moment one is reported —
+    // reopening the palette has to ask the server again.
+    staleTime: 0,
     // Retrying a 429 only spends more of the quota that already ran out.
     retry: false,
   });

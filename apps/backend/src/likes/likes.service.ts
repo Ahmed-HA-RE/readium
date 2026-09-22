@@ -12,10 +12,12 @@ export class LikesService {
 
   private readonly logger = new Logger(LikesService.name);
 
-  private async findBlogBySlug(blogSlug: string): Promise<{ id: string }> {
+  private async findBlogBySlug(
+    blogSlug: string,
+  ): Promise<{ id: string; authorId: string }> {
     const blog = await this.prisma.blog.findUnique({
       where: { slug: blogSlug },
-      select: { id: true },
+      select: { id: true, authorId: true },
     });
 
     if (!blog) {
@@ -50,6 +52,10 @@ export class LikesService {
 
     // Check if the blog exists
     const blogExists = await this.findBlogBySlug(blogSlug);
+
+    if (blogExists.authorId === userId) {
+      throw new BadRequestException(`You cannot like your own blog`);
+    }
 
     // Check if the user has already liked the blog
     const existingLike = await this.findLikeByUserAndBlog(

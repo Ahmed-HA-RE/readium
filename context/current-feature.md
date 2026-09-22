@@ -1,22 +1,58 @@
 <!-- Feature Title -->
 
-##
+## Blog Actions Phase
 
 <!-- Feature Description -->
 
 ## Description
 
+Wire up the blog card interactions in `apps/web`: toggling like, toggling bookmark, and reporting a
+blog. The UI and the backend endpoints already exist — only the frontend action layer is missing.
+Like and bookmark must reflect instantly through `useOptimistic()`, before the API call resolves.
+Report is a separate component built on shadcn's `DropdownMenu` + `Dialog` + `RadioGroup`, validated
+with `react-hook-form` and a zod schema over the existing `ReportReason` enum.
+
+Spec: `context/specs/frontend/blog-actions-phase.md`
+
 <!-- Feature Notes -->
 
 ## Notes
+
+- Actions live in `apps/web/lib/actions/blogs/` (like, bookmark) and `apps/web/lib/actions/report/`,
+  called via `axios`.
+- Optimistic pattern, exactly as specified: two `useOptimistic` setters
+  (`setIsLikedOptimistic`, `setIsBookmarkedOptimistic`) seeded from `isLikedByLoggedInUser` /
+  `isBookmarkedByLoggedInUser`; flip the boolean in `onClick` before the call; wrap in
+  `useTransition()` and `if (isPending) return` inside the transition so the mutation cannot
+  double-fire while one is in flight.
+- All three actions invalidate the same key on success:
+  `await queryClient.invalidateQueries({ queryKey: ['blogs'] })` — report included, since
+  `isReportedByLoggedInUser` is part of `GetAllBlogsResponse` (history #8).
+- Report must be its own component in its own file — not embedded in `BlogCard`. Trigger is
+  `<IoEllipsisHorizontal className='absolute top-8 right-0 z-10 size-5 text-muted-foreground' />`,
+  `variant='destructive'`; `DialogTrigger` takes a `render` attribute with `<VscReport />` + "Report".
+- Radio options reuse `ReportReason` from `packages/types/src/reports.ts` — do not redefine them.
+- Schema at `app/schema/report.ts`; submit stays disabled until `useWatch` on `reason` has a value.
+- Visual reference `@/context/screenshots/report-blog.png` is **not** a full match: keep the "Report"
+  heading and the radio options, drop the "Block" checkbox and the "Report a different issue /
+  submit a request / read our rules" block.
 
 <!-- Feature Goals-->
 
 ## Goals
 
+- Like and bookmark toggle instantly in the UI while the request is still in flight, with no
+  duplicate mutations on rapid clicks, and the `blogs` query refetched once the call succeeds.
+- A reusable, self-contained report component reachable from every blog card, backed by the shared
+  `ReportReason` enum and a validated form that cannot submit without a reason.
+- Three frontend actions wired to the existing backend endpoints, with error states surfaced to the
+  user rather than swallowed.
+
 <!-- Feature Status -->
 
 ## Status
+
+Completed
 
 <!-- History -->
 
@@ -1372,3 +1408,122 @@ blogs, and the home page renders them as a Medium "Staff Picks"-style panel.
 
 **Not included:** any like or bookmark mutation from the panel, a "See the full list" link, and
 caching of the trending query.
+
+### 17. Blog Actions Phase — completed 2026-09-22
+
+The blog card's interactions: like, bookmark and report. The UI and every endpoint already existed —
+this is the frontend action layer, plus five bugs the work surfaced.
+
+**Implemented**
+
+- `lib/actions/blogs/{likeBlog,unlikeBlog,bookmarkBlog,unbookmarkBlog}.ts` and
+  `lib/actions/report/reportBlog.ts` — browser-side axios through the shared `api` instance, so
+  `withCredentials` carries the session and no cookie forwarding is needed.
+- `blog-card.tsx` is now a client component: two `useOptimistic` setters seeded from
+  `isLikedByLoggedInUser` / `isBookmarkedByLoggedInUser`, two separate `useTransition`s, and
+  `await queryClient.invalidateQueries({ queryKey: ['blogs'] })` on success.
+- `components/shared/report-blog.tsx` — its own file. `DropdownMenu` → `Dialog` → `RadioGroup` over
+  the shared `ReportReason` enum, `react-hook-form` + `zodResolver`, submit gated on `useWatch`.
+- `schema/report.ts`; shadcn `radio-group` installed.
+- `getErrorMessage(error, fallback)` in `lib/utils.ts` — unwraps Nest's `message`, string or array.
+- `viewerId` / `isAdmin` read from the **cached** `getCurrentLoggedInUser()` in `BlogFeedSection` and
+  threaded to `BlogCard`.
+- Backend: self-like rejected in `LikesService.likeBlog`; reported blogs excluded from
+  `SearchService.getSuggestions` and `BlogsService.getTrendingBlogs`; `sendReportConfirmation` made
+  fire-and-forget.
+- 9 tests added (211 → 222): new `likes.service.spec.ts` (7), plus report-filter tests on search and
+  trending.
+
+**Decisions worth remembering**
+
+- **Four actions, not two toggles.** `likeBlog(slug)` / `unlikeBlog(slug)` rather than
+  `toggleLike({ slug, isLiked })`. The card already computes the flipped value for the optimistic
+  setter, so one variable drives both the UI and the call. A toggle taking the *current* state means
+  two booleans meaning opposite things at the call site, and getting it wrong yields a silent 400,
+  not a type error. The backend stays `POST`/`DELETE` — a toggle endpoint would be non-idempotent,
+  so a retry would flip the state back instead of being rejected.
+- **The optimistic like count is derived, not a third `useOptimistic`.**
+  `_count.likes + (isLikedOptimistic === isLikedByLoggedInUser ? 0 : isLikedOptimistic ? 1 : -1)`.
+  The delta is zero unless the UI is a click ahead of the server, so it drops to zero exactly as the
+  refetched base rises — no flicker. A separate optimistic count could drift from the boolean.
+- **The `isPending` guard only works across renders, and this was proven.** Three clicks in one tick
+  all read `isLiking === false` from the same closure and all fire; two of the resulting `DELETE`s
+  raced and returned 500 (the check-then-delete race listed as an open gap in history #8). At human
+  double-click speed (120ms) the guard does hold — the second click issued no request at all.
+- **The blocked second click still flips the UI.** The optimistic setter runs before the guard, so
+  the heart empties and then snaps back when the refetch lands. Spec'd behaviour, flagged twice, and
+  it reads as a bug. **Revisit if it bothers anyone.**
+- **The report menu is hidden for admins and on your own blogs.** `POST /api/reports/:blogSlug` is
+  `@Roles(['user'])` and the service rejects your own blog, so for those two the menu could only ever
+  produce an error toast. Publish/unpublish for admins was considered and rejected: the feed filters
+  `isPublished: true`, so the toggle could only ever be **Unpublish**, and the card would vanish on
+  click with no undo. Moderation stays on `/api/admin/blogs`.
+- **Self-likes are blocked in the service, not just hidden in the UI.** Hiding the button is not
+  enforcement — the endpoint still accepted it from curl. The UI keeps showing the author the like
+  *count*, just not a control the endpoint would reject.
+- **`router.refresh()`, not `revalidateTag`, refreshes the trending panel after a report.** Three
+  findings ruled the cache out, read from the Next 16.2 source rather than the docs: `next: { tags }`
+  alone stores nothing (`patch-fetch.js:553` needs a positive numeric `revalidate` before a cache key
+  is even generated); Next classes cookie-bearing fetches as uncacheable outright
+  (`patch-fetch.js:363`, `initHeaders.get('cookie')`); and headers land in the cache key
+  (`incremental-cache/index.js:239`), so forcing it would mean one entry per session.
+  `'use cache'` was also ruled out — enabling `cacheComponents: true` **fails the build** on
+  `/forgot-password` ("Uncached data was accessed outside of `<Suspense>`"). The underlying tension:
+  trending can be globally cached **or** filtered per user, not both.
+- **The trending panel deliberately still shows the caller's own blogs.** Trending is a leaderboard,
+  not a recommendation feed; filtering rows per viewer makes it lie about the top five. The rule
+  drawn: hide what the user explicitly asked to hide (a report), never what you assume they don't
+  want. The stale "excluding the caller's own" comments were corrected — that filter never shipped
+  (history #16).
+- **Avatars use `next/image`, not Base UI's `AvatarImage`.** Every invalidation presigns a fresh URL,
+  and Base UI's image effect keys on `src` — it sets status back to `'loading'` on every change, so
+  the fallback letter reappeared mid-refetch. `keepMounted` was tried and is **worse**: a second
+  effect still flips to `'loading'`, so the image stays mounted *and* the fallback renders, and both
+  being `size-full` siblings they sit side by side. The real fix is stable presigned URLs; this is a
+  workaround.
+
+**Fixed along the way**
+
+- **The feed reshuffled on every like.** `buildBlogQuery` returned a single-key `orderBy`, so rows
+  tying on `createdAt` or like count had no defined order and Postgres was free to return them
+  differently per execution. All three orderings now end on `id`. This is exactly the gap history #16
+  wrote down ("a third key on `id` would make it stable") and #2 fixed for the admin comment cursor.
+- **The dropdown stayed open behind the report dialog.** A `DialogTrigger` rendering a plain `Button`
+  inside the menu popup is not a `Menu.Item`, so nothing dismissed the menu. Now a
+  `DropdownMenuItem` opens the dialog through state — the menu closes itself, and there is no
+  `nativeButton` warning to suppress.
+- **Reporting took ~3 seconds** (measured 2967ms to the toast). `createReport` awaited
+  `sendReportConfirmation`, putting a mail round trip inside the request. Now `void` + `.catch()` —
+  the `catch` is required, an unhandled rejection would take the process down.
+- `DialogFooter`'s grey bar (`-mx-4 -mb-4 border-t bg-muted/50 p-4`) removed globally; the report
+  dialog was its only consumer.
+- `useSearchSuggestions` now sets `staleTime: 0`, overriding the 60s global, so the palette cannot
+  serve a cached list still containing a reported blog.
+
+**Verified**
+
+- `pnpm test` — 222 passing (211 before, 11 added); `nest build` green; web `check-types` and
+  `lint --max-warnings 0` clean.
+- **Live in Playwright, signed in as a non-admin.** Like on a zero-like card fills instantly and the
+  count appears; unlike reverses; bookmark and unbookmark both flip within 50ms and settle; the
+  report flow runs menu → dialog → disabled submit → label-click selects → "Reporting…" → toast →
+  dialog closes → **the blog disappears from both the feed and the trending panel with no reload**,
+  and the freed trending slot refills. Gating confirmed both ways: as admin no ••• renders anywhere;
+  on your own post no ••• and no like button.
+- Both `getErrorMessage` branches exercised against real 400s — a string (duplicate report) and an
+  array (bad enum).
+- Mobile 390px: `scrollWidth` 375 < viewport, cover reflows below, dialog buttons stack. Light and
+  dark both correct. `aria-pressed` tracks state on both toggles.
+
+**Known gaps**
+
+- **The double-click race still 500s.** Same-tick clicks bypass the guard; the fix belongs in the
+  service (check-then-insert/delete), not the UI. Open since history #8 for likes, bookmarks *and*
+  reports.
+- **Presigned URLs change on every read**, so each invalidation is a cache miss for every avatar and
+  cover. Caching them server-side with a TTL under the signature expiry would fix the avatar
+  workaround, the cover re-downloads, and the LCP churn in one move.
+- `getTrendingBlogs` still aggregates the whole `like` table per request with no index (history #16).
+
+**Not included:** comments, the blog detail page's own actions, and any admin moderation from the
+feed.

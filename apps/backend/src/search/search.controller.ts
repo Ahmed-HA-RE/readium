@@ -1,5 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import {
+  AllowAnonymous,
+  Session,
+  type UserSession,
+} from '@thallesp/nestjs-better-auth';
 import { SearchService } from './search.service';
 import { SuggestionQueryDto } from './dto/suggestion-query-dto';
 
@@ -11,7 +15,11 @@ export class SearchController {
   // Description      Get the latest 3 users and 3 published blogs matching the search term
   @Get('suggestions')
   @AllowAnonymous()
-  getSuggestions(@Query() query: SuggestionQueryDto) {
-    return this.searchService.getSuggestions(query);
+  getSuggestions(
+    @Query() query: SuggestionQueryDto,
+    @Session() session: UserSession | undefined,
+  ) {
+    const userId = session?.user?.id;
+    return this.searchService.getSuggestions(query, userId);
   }
 }

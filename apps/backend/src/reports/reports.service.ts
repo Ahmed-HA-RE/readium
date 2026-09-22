@@ -78,14 +78,22 @@ export class ReportsService {
       },
     });
 
-    // Send an email notification to the reporter about the report creation.
-    await sendReportConfirmation({
+    // Fire and forget: the report is already stored, so awaiting the mail only
+    // delays the response. The `catch` is required — an unhandled rejection
+    // here would take the process down.
+    void sendReportConfirmation({
       createdAt: newReport.createdAt,
       reporterEmail: newReport.user.email,
       reporterName: newReport.user.name,
       referenceId: newReport.id,
       blogTitle: newReport.blog.title,
-    });
+    }).catch((error: unknown) =>
+      this.logger.warn(
+        `Failed to send the confirmation for report ${newReport.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ),
+    );
 
     const response: Report = {
       id: newReport.id,

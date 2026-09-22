@@ -141,8 +141,8 @@ export class BlogsService {
       : this.s3Service.getSignedUrl(image);
   }
 
-  // The five most-liked published blogs, excluding the caller's own. A tie on
-  // like count goes to the more recently created blog.
+  // The five most-liked published blogs, minus any the caller has reported. A
+  // tie on like count goes to the more recently created blog.
   async getTrendingBlogs(userId?: string): Promise<GetTrendingBlogsResponse[]> {
     this.logger.verbose(
       `Fetching trending blogs for ${userId ? `userId: ${userId}` : 'anonymous user'}`,
@@ -152,6 +152,9 @@ export class BlogsService {
       where: {
         isPublished: true,
         likes: { some: {} },
+        // Hidden from the reporter only, matching the feed and the search
+        // suggestions. A pending report must not pull a blog from everyone.
+        ...(userId ? { report: { none: { userId } } } : {}),
       },
       orderBy: [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }],
       take: 5,

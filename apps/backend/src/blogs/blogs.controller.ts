@@ -44,7 +44,7 @@ export class BlogsController {
   }
 
   // Method           GET /api/blogs/trending
-  // Description      Get the 5 most-liked blogs, excluding the caller's own
+  // Description      Get the 5 most-liked blogs, minus any the caller reported
 
   @Get('trending')
   @AllowAnonymous()
