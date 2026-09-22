@@ -9,7 +9,7 @@ import { Prisma } from '../generated/prisma/client';
 // the assertions below are actually checked.
 type BlogFindManyArgs = {
   where: Prisma.BlogWhereInput;
-  orderBy: Prisma.BlogOrderByWithRelationInput;
+  orderBy: Prisma.BlogOrderByWithRelationInput[];
   take: number;
   skip: number;
   include: Record<string, unknown>;
@@ -136,11 +136,16 @@ describe('BlogsService', () => {
     });
 
     describe('sorting', () => {
+      // Every ordering ends on `id`, or rows with an equal key come back in a
+      // different order each time and the feed reshuffles on a like.
       it.each([
-        [BlogSortOptions.NEWEST, { createdAt: 'desc' }],
-        [BlogSortOptions.OLDEST, { createdAt: 'asc' }],
-        [BlogSortOptions.MOST_LIKED, { likes: { _count: 'desc' } }],
-      ])('orders by %s', async (sort, expected) => {
+        [BlogSortOptions.NEWEST, [{ createdAt: 'desc' }, { id: 'desc' }]],
+        [BlogSortOptions.OLDEST, [{ createdAt: 'asc' }, { id: 'asc' }]],
+        [
+          BlogSortOptions.MOST_LIKED,
+          [{ likes: { _count: 'desc' } }, { id: 'desc' }],
+        ],
+      ])('orders by %s, with a total order', async (sort, expected) => {
         await service.getAllBlogs(query({ sort }));
 
         expect(findManyArgs().orderBy).toEqual(expected);
@@ -149,7 +154,10 @@ describe('BlogsService', () => {
       it('falls back to newest first when no sort is given', async () => {
         await service.getAllBlogs(query());
 
-        expect(findManyArgs().orderBy).toEqual({ createdAt: 'desc' });
+        expect(findManyArgs().orderBy).toEqual([
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ]);
       });
     });
 
@@ -284,6 +292,21 @@ describe('BlogsService', () => {
         await service.getTrendingBlogs(USER_ID);
 
         expect(trendingArgs().take).toBe(5);
+      });
+
+      // Same rule as the feed and the search suggestions.
+      it('never returns a blog the caller has reported', async () => {
+        await service.getTrendingBlogs(USER_ID);
+
+        expect(trendingArgs().where).toMatchObject({
+          report: { none: { userId: USER_ID } },
+        });
+      });
+
+      it('does not filter by report for anonymous callers', async () => {
+        await service.getTrendingBlogs();
+
+        expect(trendingArgs().where).not.toHaveProperty('report');
       });
 
       it('orders by like count, breaking ties on the newer blog', async () => {

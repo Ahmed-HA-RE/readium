@@ -19,7 +19,7 @@ type UserFindUniqueArgs = {
   select: Record<string, unknown> & {
     blogs: {
       where: Prisma.BlogWhereInput;
-      orderBy: Prisma.BlogOrderByWithRelationInput;
+      orderBy: Prisma.BlogOrderByWithRelationInput[];
       skip: number;
       take: number;
       select: Record<string, unknown> & {
@@ -51,7 +51,7 @@ type UserFindFirstArgs = {
 
 type BlogFindManyArgs = {
   where: Prisma.BlogWhereInput;
-  orderBy: Prisma.BlogOrderByWithRelationInput;
+  orderBy: Prisma.BlogOrderByWithRelationInput[];
   skip: number;
   take: number;
   select: Record<string, unknown> & {
@@ -365,7 +365,7 @@ describe('UsersService', () => {
       );
 
       const { blogs } = findUniqueArgs().select;
-      expect(blogs.orderBy).toEqual({ createdAt: 'asc' });
+      expect(blogs.orderBy).toEqual([{ createdAt: 'asc' }, { id: 'asc' }]);
       expect(blogs.take).toBe(5);
       expect(blogs.skip).toBe(10);
     });
@@ -376,7 +376,7 @@ describe('UsersService', () => {
       await service.getUserProfileWithBlogs('Ahmed', query());
 
       const { blogs } = findUniqueArgs().select;
-      expect(blogs.orderBy).toEqual({ createdAt: 'desc' });
+      expect(blogs.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
       expect(blogs.take).toBe(10);
       expect(blogs.skip).toBe(0);
     });
@@ -389,9 +389,10 @@ describe('UsersService', () => {
         query({ sort: BlogSortOptions.MOST_LIKED }),
       );
 
-      expect(findUniqueArgs().select.blogs.orderBy).toEqual({
-        likes: { _count: 'desc' },
-      });
+      expect(findUniqueArgs().select.blogs.orderBy).toEqual([
+        { likes: { _count: 'desc' } },
+        { id: 'desc' },
+      ]);
     });
 
     it('derives totalPages from the published blog count', async () => {
@@ -567,7 +568,7 @@ describe('UsersService', () => {
       await myBlogs({ sort: BlogSortOptions.OLDEST, page: 3, limit: 5 });
 
       const args = findManyArgs();
-      expect(args.orderBy).toEqual({ createdAt: 'asc' });
+      expect(args.orderBy).toEqual([{ createdAt: 'asc' }, { id: 'asc' }]);
       expect(args.take).toBe(5);
       expect(args.skip).toBe(10);
     });
@@ -576,7 +577,7 @@ describe('UsersService', () => {
       await myBlogs();
 
       const args = findManyArgs();
-      expect(args.orderBy).toEqual({ createdAt: 'desc' });
+      expect(args.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
       expect(args.take).toBe(10);
       expect(args.skip).toBe(0);
     });
@@ -584,7 +585,10 @@ describe('UsersService', () => {
     it('sorts by like count for the most_liked option', async () => {
       await myBlogs({ sort: BlogSortOptions.MOST_LIKED });
 
-      expect(findManyArgs().orderBy).toEqual({ likes: { _count: 'desc' } });
+      expect(findManyArgs().orderBy).toEqual([
+        { likes: { _count: 'desc' } },
+        { id: 'desc' },
+      ]);
     });
 
     it('does not select the comment list, only its count', async () => {

@@ -21,23 +21,14 @@ export const buildBlogQuery = (
       }
     : {};
 
-  // If sort query is provided, sort blogs by the specified option
-  const querySort: Prisma.BlogOrderByWithRelationInput = sort
-    ? sort === BlogSortOptions.NEWEST
-      ? {
-          createdAt: 'desc',
-        }
-      : sort === BlogSortOptions.OLDEST
-        ? {
-            createdAt: 'asc',
-          }
-        : {
-            likes: {
-              _count: 'desc',
-            },
-          }
-    : {
-        createdAt: 'desc',
-      };
+  // Neither `createdAt` nor the like count is unique, and rows that compare
+  // equal on every key have no defined order — so the feed reshuffles once a
+  // like changes the count. `id` last makes each ordering total.
+  const querySort: Prisma.BlogOrderByWithRelationInput[] =
+    sort === BlogSortOptions.OLDEST
+      ? [{ createdAt: 'asc' }, { id: 'asc' }]
+      : sort === BlogSortOptions.MOST_LIKED
+        ? [{ likes: { _count: 'desc' } }, { id: 'desc' }]
+        : [{ createdAt: 'desc' }, { id: 'desc' }];
   return { queryFilter, querySort, limitValue, pageValue };
 };

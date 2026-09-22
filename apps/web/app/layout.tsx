@@ -9,7 +9,7 @@ const roboto = Roboto({
   weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
 });
 
-const SITE_TITLE = `${SITE_NAME} — Read and publish ideas worth sharing`;
+const SITE_TITLE = `${SITE_NAME}`;
 const SITE_DESCRIPTION =
   'A publishing platform where developers and creators share practical knowledge. Discover stories worth reading, publish your own, and join the conversation.';
 

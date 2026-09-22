@@ -13,12 +13,23 @@ import BlogCardSkeleton from './blog-card-skeleton';
 // repaint immediately, instead of waiting on the `shallow: false` round-trip.
 // Both sides parse the same URL with the same parsers, so the query key still
 // matches what the server prefetched.
-const BlogFeed = () => {
+type BlogFeedProps = {
+  viewerId?: string;
+  isAdmin: boolean;
+};
+
+const BlogFeed = ({ viewerId, isAdmin }: BlogFeedProps) => {
   const [{ sort, page }, setFeedParams] = useQueryStates(blogFeedParsers, {
     shallow: false,
   });
 
   const { data, isPending, isError } = useAllBlogs({ sort, page });
+
+  // The largest paint is the first cover near the top of the feed, so only
+  // that one loads eagerly — the rest stay lazy rather than competing with it.
+  const priorityIndex = data?.blogs
+    .slice(0, 2)
+    .findIndex((blog) => blog.coverImage);
 
   return (
     <div className='flex flex-col'>
@@ -54,8 +65,14 @@ const BlogFeed = () => {
       ) : (
         <>
           <div className='divide-y'>
-            {data.blogs.map((blog) => (
-              <BlogCard key={blog.id} blog={blog} />
+            {data.blogs.map((blog, index) => (
+              <BlogCard
+                key={blog.id}
+                blog={blog}
+                viewerId={viewerId}
+                isAdmin={isAdmin}
+                priority={index === priorityIndex}
+              />
             ))}
           </div>
 

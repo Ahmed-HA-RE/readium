@@ -134,6 +134,22 @@ describe('SearchService', () => {
       expect(blogArgs().where.isPublished).toBe(true);
     });
 
+    // Same rule as the feed in `BlogsService`: hidden from the reporter, and
+    // from nobody else.
+    it('never suggests a blog the caller has reported', async () => {
+      await service.getSuggestions(query('nest'), 'user-1');
+
+      expect(blogArgs().where).toMatchObject({
+        report: { none: { userId: 'user-1' } },
+      });
+    });
+
+    it('does not filter by report for anonymous callers', async () => {
+      await service.getSuggestions(query('nest'));
+
+      expect(blogArgs().where).not.toHaveProperty('report');
+    });
+
     it('selects no email, role or moderation column for the anonymous caller', async () => {
       await service.getSuggestions(query());
 
