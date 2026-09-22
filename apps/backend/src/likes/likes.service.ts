@@ -68,13 +68,20 @@ export class LikesService {
       throw new BadRequestException(`You have already liked this blog`);
     }
 
-    // Like the blog
-    await this.prisma.like.create({
-      data: {
-        blogId: blogExists.id,
-        userId,
-      },
-    });
+    // One transaction, or `blog.likesCount` drifts from the rows it is
+    // denormalised from the moment either statement fails on its own.
+    await this.prisma.$transaction([
+      this.prisma.like.create({
+        data: {
+          blogId: blogExists.id,
+          userId,
+        },
+      }),
+      this.prisma.blog.update({
+        where: { id: blogExists.id },
+        data: { likesCount: { increment: 1 } },
+      }),
+    ]);
 
     return { isLiked: true };
   }
@@ -95,12 +102,18 @@ export class LikesService {
       throw new BadRequestException(`You have not liked this blog`);
     }
 
-    // Unlike the blog
-    await this.prisma.like.delete({
-      where: {
-        id: existingLike.id,
-      },
-    });
+    // Same transaction requirement as `likeBlog`.
+    await this.prisma.$transaction([
+      this.prisma.like.delete({
+        where: {
+          id: existingLike.id,
+        },
+      }),
+      this.prisma.blog.update({
+        where: { id: blog.id },
+        data: { likesCount: { decrement: 1 } },
+      }),
+    ]);
 
     return { isLiked: false };
   }

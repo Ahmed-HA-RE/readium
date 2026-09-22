@@ -81,9 +81,9 @@ export class CommentsService {
             },
           }
         : {}),
-      orderBy: {
-        createdAt: 'desc',
-      },
+      // `createdAt` alone while cursoring on `id` leaves ties ambiguous, so
+      // pages could skip or repeat a comment. Same fix as the admin feed.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         author: {
           select: {

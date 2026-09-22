@@ -151,12 +151,13 @@ export class BlogsService {
     const blogs = await this.prisma.blog.findMany({
       where: {
         isPublished: true,
-        likes: { some: {} },
+        likesCount: { gt: 0 },
         // Hidden from the reporter only, matching the feed and the search
         // suggestions. A pending report must not pull a blog from everyone.
         ...(userId ? { report: { none: { userId } } } : {}),
       },
-      orderBy: [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }],
+      // Served by `@@index([isPublished, likesCount])` — no aggregate, no sort.
+      orderBy: [{ likesCount: 'desc' }, { createdAt: 'desc' }],
       take: 5,
       select: {
         title: true,

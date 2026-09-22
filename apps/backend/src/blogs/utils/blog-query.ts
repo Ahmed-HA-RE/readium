@@ -28,7 +28,7 @@ export const buildBlogQuery = (
     sort === BlogSortOptions.OLDEST
       ? [{ createdAt: 'asc' }, { id: 'asc' }]
       : sort === BlogSortOptions.MOST_LIKED
-        ? [{ likes: { _count: 'desc' } }, { id: 'desc' }]
+        ? [{ likesCount: 'desc' }, { id: 'desc' }]
         : [{ createdAt: 'desc' }, { id: 'desc' }];
   return { queryFilter, querySort, limitValue, pageValue };
 };
