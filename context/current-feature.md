@@ -1,58 +1,22 @@
 <!-- Feature Title -->
 
-## Blog Actions Phase
+##
 
 <!-- Feature Description -->
 
 ## Description
 
-Wire up the blog card interactions in `apps/web`: toggling like, toggling bookmark, and reporting a
-blog. The UI and the backend endpoints already exist — only the frontend action layer is missing.
-Like and bookmark must reflect instantly through `useOptimistic()`, before the API call resolves.
-Report is a separate component built on shadcn's `DropdownMenu` + `Dialog` + `RadioGroup`, validated
-with `react-hook-form` and a zod schema over the existing `ReportReason` enum.
-
-Spec: `context/specs/frontend/blog-actions-phase.md`
-
 <!-- Feature Notes -->
 
 ## Notes
-
-- Actions live in `apps/web/lib/actions/blogs/` (like, bookmark) and `apps/web/lib/actions/report/`,
-  called via `axios`.
-- Optimistic pattern, exactly as specified: two `useOptimistic` setters
-  (`setIsLikedOptimistic`, `setIsBookmarkedOptimistic`) seeded from `isLikedByLoggedInUser` /
-  `isBookmarkedByLoggedInUser`; flip the boolean in `onClick` before the call; wrap in
-  `useTransition()` and `if (isPending) return` inside the transition so the mutation cannot
-  double-fire while one is in flight.
-- All three actions invalidate the same key on success:
-  `await queryClient.invalidateQueries({ queryKey: ['blogs'] })` — report included, since
-  `isReportedByLoggedInUser` is part of `GetAllBlogsResponse` (history #8).
-- Report must be its own component in its own file — not embedded in `BlogCard`. Trigger is
-  `<IoEllipsisHorizontal className='absolute top-8 right-0 z-10 size-5 text-muted-foreground' />`,
-  `variant='destructive'`; `DialogTrigger` takes a `render` attribute with `<VscReport />` + "Report".
-- Radio options reuse `ReportReason` from `packages/types/src/reports.ts` — do not redefine them.
-- Schema at `app/schema/report.ts`; submit stays disabled until `useWatch` on `reason` has a value.
-- Visual reference `@/context/screenshots/report-blog.png` is **not** a full match: keep the "Report"
-  heading and the radio options, drop the "Block" checkbox and the "Report a different issue /
-  submit a request / read our rules" block.
 
 <!-- Feature Goals-->
 
 ## Goals
 
-- Like and bookmark toggle instantly in the UI while the request is still in flight, with no
-  duplicate mutations on rapid clicks, and the `blogs` query refetched once the call succeeds.
-- A reusable, self-contained report component reachable from every blog card, backed by the shared
-  `ReportReason` enum and a validated form that cannot submit without a reason.
-- Three frontend actions wired to the existing backend endpoints, with error states surfaced to the
-  user rather than swallowed.
-
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
