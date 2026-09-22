@@ -390,7 +390,7 @@ describe('UsersService', () => {
       );
 
       expect(findUniqueArgs().select.blogs.orderBy).toEqual([
-        { likes: { _count: 'desc' } },
+        { likesCount: 'desc' },
         { id: 'desc' },
       ]);
     });
@@ -586,7 +586,7 @@ describe('UsersService', () => {
       await myBlogs({ sort: BlogSortOptions.MOST_LIKED });
 
       expect(findManyArgs().orderBy).toEqual([
-        { likes: { _count: 'desc' } },
+        { likesCount: 'desc' },
         { id: 'desc' },
       ]);
     });

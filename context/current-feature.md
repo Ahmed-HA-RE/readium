@@ -1,22 +1,34 @@
 <!-- Feature Title -->
 
-##
+## Blog Indexes & Like Count Denormalisation
 
 <!-- Feature Description -->
 
 ## Description
 
+Follow-up performance work on the blog queries, not a spec'd feature. Every join table (`Like`,
+`Bookmark`, `Report`, `Comment`) was sequentially scanned on `blogId`, and `getTrendingBlogs`
+aggregated the whole `like` table on every request with no index able to serve the sort.
+
 <!-- Feature Notes -->
 
 ## Notes
+
+Raised at the end of history #17, which closed with `getTrendingBlogs` still aggregating the whole
+`like` table per request with no index.
 
 <!-- Feature Goals-->
 
 ## Goals
 
+- Index every foreign key the queries actually filter on.
+- Remove the like-count aggregate from the trending query and the `most_liked` sort.
+
 <!-- Feature Status -->
 
 ## Status
+
+Completed
 
 <!-- History -->
 
@@ -1491,3 +1503,84 @@ this is the frontend action layer, plus five bugs the work surfaced.
 
 **Not included:** comments, the blog detail page's own actions, and any admin moderation from the
 feed.
+
+### 18. Blog Indexes & Like Count Denormalisation — completed 2026-09-22
+
+Not a feature. The last gap history #17 left open: `getTrendingBlogs` aggregated the whole `like`
+table on every request, and no join table could answer a lookup by `blogId`.
+
+**Implemented**
+
+- `@@index([blogId])` on `Like`, `Bookmark` and `Report`; `@@index([blogId, createdAt])` on
+  `Comment`; `@@index([isPublished, likesCount])` on `Blog`.
+- `Blog.likesCount Int @default(0)` — the like count denormalised into a real column.
+- `LikesService.likeBlog` / `unlikeBlog` now run the row write and the counter write together in a
+  `$transaction([...])`, `{ increment: 1 }` / `{ decrement: 1 }`.
+- `getTrendingBlogs` filters `likesCount: { gt: 0 }` and orders
+  `[{ likesCount: 'desc' }, { createdAt: 'desc' }]` — no `_count`, no aggregate.
+- `buildBlogQuery`'s `MOST_LIKED` branch orders on `likesCount` instead of `{ likes: { _count } }`.
+- Two migrations: `20260922103602_add_blog_likes_count_and_blog_id_indexes` (schema) and
+  `20260922103714_backfill_blog_likes_count` (hand-written `UPDATE ... FROM (SELECT ... GROUP BY)`).
+- 4 tests added (222 → 226), all in `likes.service.spec.ts`: the counter moves in the same
+  transaction both ways, and never moves when the like or unlike is rejected.
+
+**Decisions worth remembering**
+
+- **A composite index is usable left to right only.** Every join table already had
+  `@@unique([userId, blogId])`, which looks like it covers `blogId` and does not — the leftmost
+  column has to be constrained before the second one can be used. Postgres indexes the *primary*
+  key automatically but never a **foreign** key, so `where: { blogId }` was a sequential scan on
+  all four tables. The rule drawn: whenever a `where` filters on a relation's column, that column
+  needs its own index.
+- **`ORDER BY count()` cannot use an index at all.** An index is a pre-sorted copy of stored
+  values; a count is computed per query, so there is nothing to have sorted in advance. No index
+  on `like` could have fixed trending — the aggregate had to stop happening. That is the whole
+  reason for the denormalised column: it turns a computation into a stored value, which *can* be
+  indexed.
+- **`@@index([isPublished, likesCount])` in that order.** The equality filter goes first, the sort
+  key second: Postgres seeks to the `isPublished = true` block and the rows inside it are already
+  in `likesCount` order, so the top five are read straight off without a sort step.
+- **The two writes must share a transaction.** A counter that can be written without its row, or
+  a row without its counter, drifts — and the drift is invisible until the leaderboard is wrong.
+  Two of the four new tests exist only to pin that the counter never moves on a rejected call.
+- **The backfill is a migration, not a script.** Without it every existing blog reads `0`, the
+  `likesCount: { gt: 0 }` filter matches nothing and the trending panel renders empty. As a
+  migration it also runs on a fresh database rather than being a step someone has to remember.
+- **`Comment` got `[blogId, createdAt]`, not `[blogId]`.** The feed filters on one and orders by
+  the other, so a single index serves both and the sort step disappears. The query reads
+  `where: { blog: { slug } }`, which *looks* like it only touches `slug` — but Prisma resolves the
+  relation to the blog's id and filters `comment.blogId` with it, so the index applies.
+
+**Fixed along the way**
+
+- **The public comment feed could skip or repeat a comment.** It ordered by `createdAt` alone while
+  cursoring on `id`, so ties had no defined order. Now `[{ createdAt: 'desc' }, { id: 'desc' }]` —
+  the same fix history #2 applied to the admin feed and #17 applied to the blog feed. That is three
+  occurrences of one bug; **check every cursor-paginated query for a total order.**
+
+**Verified**
+
+- `pnpm test` — 226 passing (222 before, 4 added); `nest build` green; web `check-types` and `lint`
+  clean.
+- Both migrations applied to the Neon **development** branch. The backfill was checked against the
+  real rows: all 11 blogs matched their true like counts.
+- A full like → unlike cycle was run through the browser, then a drift query
+  (`likesCount` vs `COUNT(like)`) returned **0 blogs with drift** across the table.
+- `EXPLAIN ANALYZE` on the trending query shows `Seq Scan` + `Sort`, **which is correct** — at 11
+  rows in one page a scan is cheaper than an index, and the planner switches on its own as the
+  table grows. What did change unconditionally is that the `like` table is no longer read at all.
+
+**Known gaps**
+
+- **The Neon `production` branch does not have these migrations.** `.env` points at `development`,
+  so that is where they applied; `production` has no `likesCount` column and every trending query
+  will fail against it until `prisma migrate deploy` runs there.
+- **`likesCount` has no reconciliation path.** Nothing recomputes it if a `like` row is ever
+  deleted outside `LikesService` — a cascade from a user deletion does exactly that. The backfill
+  migration's `UPDATE` is the repair query if drift ever appears.
+- `Blog._count.likes` is still selected in `getAllBlogs` and `getBlogBySlug`, so the card count and
+  the sort key now come from two different sources. They agree today; the aggregate could be
+  dropped in favour of `likesCount` in a follow-up.
+
+**Not included:** indexes on anything outside the blog relations, the check-then-insert races still
+open since history #8, and the presigned-URL caching flagged in #17.

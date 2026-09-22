@@ -118,6 +118,7 @@ model Blog {
   author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  likesCount  Int      @default(0)
 
   // Relations
   comments  Comment[]
@@ -127,6 +128,7 @@ model Blog {
 
   @@index([authorId])
   @@index([isPublished])
+  @@index([isPublished, likesCount])
   @@map("blog")
 }
 
@@ -143,6 +145,8 @@ model Comment {
   blog   Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
 
   @@index([authorId, blogId])
+
+  @@index([blogId, createdAt])
   @@map("comment")
 }
 
@@ -158,6 +162,7 @@ model Like {
   blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
 
   @@unique([userId, blogId])
+  @@index([blogId])
   @@map("like")
 }
 
@@ -173,6 +178,7 @@ model Bookmark {
   blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
 
   @@unique([userId, blogId])
+  @@index([blogId])
   @@map("bookmark")
 }
 
@@ -190,5 +196,6 @@ model Report {
   blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
 
   @@unique([userId, blogId])
+  @@index([blogId])
   @@map("report")
 }

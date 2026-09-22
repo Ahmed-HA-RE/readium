@@ -143,7 +143,7 @@ describe('BlogsService', () => {
         [BlogSortOptions.OLDEST, [{ createdAt: 'asc' }, { id: 'asc' }]],
         [
           BlogSortOptions.MOST_LIKED,
-          [{ likes: { _count: 'desc' } }, { id: 'desc' }],
+          [{ likesCount: 'desc' }, { id: 'desc' }],
         ],
       ])('orders by %s, with a total order', async (sort, expected) => {
         await service.getAllBlogs(query({ sort }));
@@ -282,10 +282,14 @@ describe('BlogsService', () => {
 
       // Regression: `orderBy` sorts but does not filter, so without this a
       // zero-like blog fills a slot and the panel degrades into "5 newest".
+      // Asked of the denormalised column, not the `like` table — same question,
+      // answered from an index.
       it('returns only blogs that have at least one like', async () => {
         await service.getTrendingBlogs(USER_ID);
 
-        expect(trendingArgs().where).toMatchObject({ likes: { some: {} } });
+        expect(trendingArgs().where).toMatchObject({
+          likesCount: { gt: 0 },
+        });
       });
 
       it('takes five', async () => {
@@ -313,7 +317,7 @@ describe('BlogsService', () => {
         await service.getTrendingBlogs(USER_ID);
 
         expect(trendingArgs().orderBy).toEqual([
-          { likes: { _count: 'desc' } },
+          { likesCount: 'desc' },
           { createdAt: 'desc' },
         ]);
       });
