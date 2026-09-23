@@ -1,69 +1,22 @@
 <!-- Feature Title -->
 
-## Blog Page
+##
 
 <!-- Feature Description -->
 
 ## Description
 
-A single blog/story page at `app/[blogSlug]/`, open to both signed-in and anonymous visitors. Anonymous
-visitors see the full page, not the marketing page, so a shared blog link renders properly for
-someone who isn't logged in. This phase covers the blog content and the comments section. Posting a
-comment requires sign-in. The social share dialog is a later phase.
-
-Spec: `context/specs/frontend/blog-page.md`. Visual reference: `context/screenshots/medium-story-page.png`.
-
 <!-- Feature Notes -->
 
 ## Notes
-
-- **Routing:** a missing `blogSlug` or a `getBlogBySlug` miss both `redirect('/')`, handled in one
-  OR check rather than two separate redirects.
-- **Excluded from the screenshot:** the Follow button (next to the author) and the Listen button. If
-  the screenshot shows anything else the backend doesn't return, **flag it and ask** before building
-  UI for it.
-- **Refactor comes first, before any new UI:**
-  - Extract Like and Bookmark out of `components/shared/blog-card.tsx` into their own components in
-    `components/shared/`. Their `toggleLike` / `toggleBookmark` handlers and `useOptimistic` hooks
-    move with them. They take `isLikedByLoggedInUser` / `isBookmarkedByLoggedInUser` as props.
-  - Rename `report-blog.tsx` (the ellipsis dropdown) to a general actions-dropdown name and update
-    every import.
-  - Add a static Share placeholder: `<IoShareOutline />` followed by the label "Share", with no
-    behaviour yet.
-- **Content is rendered as HTML** with `dangerouslySetInnerHTML`, ready for TipTap output.
-  **Flag for the user:** the seed data must store `content` as HTML, and the seed CLI must be re-run
-  afterwards. `prisma/seed.ts` is gitignored (history #2), so that change only exists locally.
-- **Comments** go at the end of the content and use infinite scroll: `useInfiniteQuery` plus a
-  `react-intersection-observer` sentinel `<div>`.
-  - Empty: "There are no comments for this blog yet. Be the first to share your opinion."
-  - Pending: a loading spinner.
-  - Error: shadcn/studio **Alert 30** (fetch it from the MCP server) with the description slot
-    removed, showing only the icon and the backend's error message.
-- **Comment card:** avatar on the left. On the right, the author name with a `formatPublishedAt`
-  timestamp underneath, then the content as a plain string, **not** `dangerouslySetInnerHTML`.
-- **Add-comment form:** submits through the existing `createComment` service. The signed-in user's
-  avatar and name sit on top, with a shadcn `InputGroup` wrapping a non-resizable `Textarea` and an
-  embedded "Respond" button underneath. Validated with `createCommentSchema`: content 3–500
-  characters, with the spec's error messages.
 
 <!-- Feature Goals-->
 
 ## Goals
 
-1. Extract Like and Bookmark into shared components that `blog-card.tsx` and the blog page both use,
-   so the optimistic-update logic isn't duplicated.
-2. Rename the report dropdown to a general actions dropdown, and add the Share placeholder.
-3. Build `app/[blogSlug]/` to match the Medium story layout: SSR, public, and redirecting to `/`
-   when the slug is missing or unknown.
-4. Render blog content as HTML.
-5. Build the comments section: an infinite-scroll list with empty, loading and error states, a
-   comment card, and an authenticated add-comment form with zod validation.
-
 <!-- Feature Status -->
 
 ## Status
-
-Completed
 
 <!-- History -->
 
