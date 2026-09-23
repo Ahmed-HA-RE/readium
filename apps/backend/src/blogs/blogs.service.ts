@@ -55,6 +55,8 @@ export class BlogsService {
       orderBy: querySort,
       take: limitValue,
       skip: (pageValue - 1) * limitValue,
+      // Cards render `shortDescription`, so the full body never ships in a list.
+      omit: { content: true },
       include: {
         author: {
           select: {
@@ -162,7 +164,7 @@ export class BlogsService {
       select: {
         title: true,
         slug: true,
-        content: true,
+        shortDescription: true,
         createdAt: true,
         author: {
           select: {
@@ -193,7 +195,12 @@ export class BlogsService {
     );
 
     const blog = await this.prisma.blog.findUnique({
-      where: { slug, isPublished: true },
+      where: {
+        slug,
+        isPublished: true,
+        // Hidden from the reporter only, matching the feed, trending and search.
+        ...(userId ? { report: { none: { userId } } } : {}),
+      },
       include: {
         _count: {
           select: {
@@ -206,6 +213,7 @@ export class BlogsService {
           select: {
             id: true,
             name: true,
+            image: true,
           },
         },
 
@@ -227,14 +235,6 @@ export class BlogsService {
                   userId: true,
                 },
               },
-              report: {
-                where: {
-                  userId,
-                },
-                select: {
-                  userId: true,
-                },
-              },
             }
           : {}),
       },
@@ -248,23 +248,23 @@ export class BlogsService {
     const isBookmarkedByLoggedInUser = userId
       ? blog.bookmarks.length > 0
       : false;
-    const isReportedByLoggedInUser = userId ? blog.report?.length > 0 : false;
 
-    const presignedUrl = blog.coverImage
-      ? await this.s3Service.getSignedUrl(blog.coverImage)
-      : null;
+    const [presignedUrl, authorImage] = await Promise.all([
+      blog.coverImage ? this.s3Service.getSignedUrl(blog.coverImage) : null,
+      this.resolveAuthorImage(blog.author.image),
+    ]);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { likes, bookmarks, report, ...blogData } = blog; // Purpose of this line is to remove the likes, bookmarks, and report properties from the blog object so that they don't get sent to the client. These properties are only used to determine if the logged in user has liked, bookmarked, or reported the blog.
+    const { likes, bookmarks, ...blogData } = blog; // Purpose of this line is to remove the likes and bookmarks properties from the blog object so that they don't get sent to the client. These properties are only used to determine if the logged in user has liked or bookmarked the blog.
 
     return {
       blog: {
         ...blogData,
+        author: { ...blogData.author, image: authorImage },
         coverImage: presignedUrl,
       },
       isLikedByLoggedInUser,
       isBookmarkedByLoggedInUser,
-      isReportedByLoggedInUser,
     };
   }
 
@@ -273,7 +273,7 @@ export class BlogsService {
     newBlogData: CreateBlogDto,
     userId: string,
   ): Promise<{ success: boolean; data: Omit<Blog, '_count'> }> {
-    const { title, content, tags, isPublished } = newBlogData;
+    const { title, shortDescription, content, tags, isPublished } = newBlogData;
 
     // Save the cover image to AWS S3 bucket and save the key in the database so that it can be retrieved later with presigned URL. The key will be in the format of `APP_NAME-userId-uuid-originalFileName` to ensure uniqueness and traceability.
     const imageKey = coverImage
@@ -290,6 +290,7 @@ export class BlogsService {
       data: {
         title,
         slug,
+        shortDescription,
         content,
         coverImage: imageKey,
         tags,
@@ -314,7 +315,8 @@ export class BlogsService {
     let imageKey: string | null = null;
     let updatedSlug: string | null = null;
 
-    const { title, content, tags, isPublished } = updateBlogData;
+    const { title, shortDescription, content, tags, isPublished } =
+      updateBlogData;
 
     const existingBlog = await this.prisma.blog.findUnique({
       where: { slug, authorId: userId },
@@ -344,6 +346,7 @@ export class BlogsService {
       where: { slug: existingBlog.slug, authorId: userId },
       data: {
         title,
+        shortDescription,
         content,
         tags,
         isPublished,

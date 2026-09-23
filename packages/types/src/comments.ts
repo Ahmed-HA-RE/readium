@@ -10,3 +10,8 @@ export interface Comment {
     image: string | null;
   };
 }
+
+export interface GetBlogCommentsResponse {
+  data: Comment[];
+  nextCursor: string | null;
+}

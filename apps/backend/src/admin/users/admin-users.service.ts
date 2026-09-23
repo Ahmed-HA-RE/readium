@@ -256,6 +256,7 @@ export class AdminUsersService {
               id: true,
               title: true,
               slug: true,
+              shortDescription: true,
               content: true,
               tags: true,
               isPublished: true,

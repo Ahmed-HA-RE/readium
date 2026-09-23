@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BlogsService } from './blogs.service';
 import { DatabaseService } from '../database/database.service';
@@ -12,16 +13,23 @@ type BlogFindManyArgs = {
   orderBy: Prisma.BlogOrderByWithRelationInput[];
   take: number;
   skip: number;
+  omit: Record<string, boolean>;
   include: Record<string, unknown>;
 };
 
 type BlogCountArgs = { where: Prisma.BlogWhereInput };
+
+type BlogFindUniqueArgs = {
+  where: Prisma.BlogWhereInput;
+  include: Record<string, unknown>;
+};
 
 // Typed so `mock.calls[0][0]` is `unknown` rather than `any`, which the
 // `no-unsafe-member-access` rule rejects.
 type PrismaMocks = {
   blog: {
     findMany: jest.Mock<Promise<unknown[]>, [unknown]>;
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
     count: jest.Mock<Promise<number>, [unknown]>;
   };
 };
@@ -36,7 +44,8 @@ const blogRow = (overrides: Record<string, unknown> = {}) => ({
   id: 'blog-1',
   title: 'A blog',
   slug: 'a-blog',
-  content: 'Body text',
+  shortDescription: 'A short preview',
+  content: '<p>Body text</p>',
   tags: ['nest'],
   coverImage: 'cover-key',
   isPublished: true,
@@ -58,6 +67,8 @@ describe('BlogsService', () => {
   const findManyArgs = () =>
     prisma.blog.findMany.mock.calls[0][0] as BlogFindManyArgs;
   const countArgs = () => prisma.blog.count.mock.calls[0][0] as BlogCountArgs;
+  const findUniqueArgs = () =>
+    prisma.blog.findUnique.mock.calls[0][0] as BlogFindUniqueArgs;
 
   beforeEach(async () => {
     prisma = {
@@ -65,6 +76,9 @@ describe('BlogsService', () => {
         findMany: jest
           .fn<Promise<unknown[]>, [unknown]>()
           .mockResolvedValue([]),
+        findUnique: jest
+          .fn<Promise<unknown>, [unknown]>()
+          .mockResolvedValue(null),
         count: jest.fn<Promise<number>, [unknown]>().mockResolvedValue(0),
       },
     };
@@ -141,10 +155,7 @@ describe('BlogsService', () => {
       it.each([
         [BlogSortOptions.NEWEST, [{ createdAt: 'desc' }, { id: 'desc' }]],
         [BlogSortOptions.OLDEST, [{ createdAt: 'asc' }, { id: 'asc' }]],
-        [
-          BlogSortOptions.MOST_LIKED,
-          [{ likesCount: 'desc' }, { id: 'desc' }],
-        ],
+        [BlogSortOptions.MOST_LIKED, [{ likesCount: 'desc' }, { id: 'desc' }]],
       ])('orders by %s, with a total order', async (sort, expected) => {
         await service.getAllBlogs(query({ sort }));
 
@@ -180,6 +191,14 @@ describe('BlogsService', () => {
     });
 
     describe('response shape', () => {
+      // Cards render `shortDescription`, so shipping every full body in a list
+      // is pure payload.
+      it('omits the full content from the query', async () => {
+        await service.getAllBlogs(query());
+
+        expect(findManyArgs().omit).toEqual({ content: true });
+      });
+
       it('signs the cover image and the author avatar', async () => {
         prisma.blog.findMany.mockResolvedValue([blogRow()]);
 
@@ -253,6 +272,145 @@ describe('BlogsService', () => {
     });
   });
 
+  describe('getBlogBySlug', () => {
+    describe('query', () => {
+      it('looks the blog up by slug, published only', async () => {
+        prisma.blog.findUnique.mockResolvedValue(blogRow());
+
+        await service.getBlogBySlug('a-blog', USER_ID);
+
+        expect(findUniqueArgs().where).toMatchObject({
+          slug: 'a-blog',
+          isPublished: true,
+        });
+      });
+
+      // Same rule as the feed, trending and search: a pending report must not
+      // pull the blog from anyone but the reporter.
+      it('hides a blog the caller has reported', async () => {
+        prisma.blog.findUnique.mockResolvedValue(blogRow());
+
+        await service.getBlogBySlug('a-blog', USER_ID);
+
+        expect(findUniqueArgs().where).toMatchObject({
+          report: { none: { userId: USER_ID } },
+        });
+      });
+
+      it('does not filter by report for anonymous callers', async () => {
+        prisma.blog.findUnique.mockResolvedValue(blogRow());
+
+        await service.getBlogBySlug('a-blog');
+
+        expect(findUniqueArgs().where).not.toHaveProperty('report');
+      });
+
+      it('selects the author avatar alongside the id and name', async () => {
+        prisma.blog.findUnique.mockResolvedValue(blogRow());
+
+        await service.getBlogBySlug('a-blog');
+
+        expect(findUniqueArgs().include.author).toEqual({
+          select: { id: true, name: true, image: true },
+        });
+      });
+
+      it('only loads the like and bookmark relations for a signed-in caller', async () => {
+        prisma.blog.findUnique.mockResolvedValue(blogRow());
+
+        await service.getBlogBySlug('a-blog');
+
+        expect(findUniqueArgs().include).not.toHaveProperty('likes');
+        expect(findUniqueArgs().include).not.toHaveProperty('bookmarks');
+      });
+    });
+
+    it('throws NotFoundException when no blog matches', async () => {
+      prisma.blog.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getBlogBySlug('missing', USER_ID),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    describe('response shape', () => {
+      it('signs the cover image and an S3 author avatar', async () => {
+        prisma.blog.findUnique.mockResolvedValue(blogRow());
+
+        const { blog } = await service.getBlogBySlug('a-blog', USER_ID);
+
+        expect(blog.coverImage).toBe('signed:cover-key');
+        expect(blog.author.image).toBe('signed:avatar-key');
+      });
+
+      // OAuth sign-ups store the provider URL, which must not be signed.
+      it('returns an external avatar URL unsigned', async () => {
+        const url = 'https://lh3.googleusercontent.com/a/photo.jpg';
+        prisma.blog.findUnique.mockResolvedValue(
+          blogRow({
+            coverImage: null,
+            author: { id: 'author-1', name: 'Ahmed', image: url },
+          }),
+        );
+
+        const { blog } = await service.getBlogBySlug('a-blog', USER_ID);
+
+        expect(blog.author.image).toBe(url);
+        expect(s3.getSignedUrl).not.toHaveBeenCalled();
+      });
+
+      it('leaves a missing cover image and avatar null', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          blogRow({
+            coverImage: null,
+            author: { id: 'author-1', name: 'Ahmed', image: null },
+          }),
+        );
+
+        const { blog } = await service.getBlogBySlug('a-blog', USER_ID);
+
+        expect(blog.coverImage).toBeNull();
+        expect(blog.author.image).toBeNull();
+        expect(s3.getSignedUrl).not.toHaveBeenCalled();
+      });
+
+      it('reports the caller liked and bookmarked state', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          blogRow({ likes: [{ userId: USER_ID }], bookmarks: [] }),
+        );
+
+        const result = await service.getBlogBySlug('a-blog', USER_ID);
+
+        expect(result.isLikedByLoggedInUser).toBe(true);
+        expect(result.isBookmarkedByLoggedInUser).toBe(false);
+      });
+
+      it('reports both flags false for anonymous callers', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          blogRow({ likes: undefined, bookmarks: undefined }),
+        );
+
+        const result = await service.getBlogBySlug('a-blog');
+
+        expect(result.isLikedByLoggedInUser).toBe(false);
+        expect(result.isBookmarkedByLoggedInUser).toBe(false);
+      });
+
+      it('strips the likes and bookmarks relations and keeps the body', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          blogRow({ likes: [{ userId: USER_ID }], bookmarks: [] }),
+        );
+
+        const { blog } = await service.getBlogBySlug('a-blog', USER_ID);
+
+        expect(blog).not.toHaveProperty('likes');
+        expect(blog).not.toHaveProperty('bookmarks');
+        expect(blog.content).toBe('<p>Body text</p>');
+        expect(blog.shortDescription).toBe('A short preview');
+      });
+    });
+  });
+
   describe('getTrendingBlogs', () => {
     // `orderBy` is an array here, unlike `getAllBlogs`, so it needs its own type.
     type TrendingFindManyArgs = {
@@ -268,7 +426,7 @@ describe('BlogsService', () => {
     const trendingRow = (image: string | null = 'avatar-key') => ({
       title: 'A blog',
       slug: 'a-blog',
-      content: 'Body text',
+      shortDescription: 'A short preview',
       createdAt: new Date('2026-09-01T00:00:00.000Z'),
       author: { name: 'Ahmed', image },
     });
@@ -334,6 +492,13 @@ describe('BlogsService', () => {
         await service.getTrendingBlogs(USER_ID);
 
         expect(trendingArgs().select).not.toHaveProperty('coverImage');
+      });
+
+      it('selects the short description, never the full content', async () => {
+        await service.getTrendingBlogs(USER_ID);
+
+        expect(trendingArgs().select).toMatchObject({ shortDescription: true });
+        expect(trendingArgs().select).not.toHaveProperty('content');
       });
     });
 

@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 const TrendingPanel = async () => {
   const blogs = await getTrendingBlogs();
 
-  return blogs.map(({ title, slug, content, createdAt, author }) => (
+  return blogs.map(({ title, slug, shortDescription, createdAt, author }) => (
     <article key={slug} className='group relative flex flex-col gap-2'>
       <div className='flex items-center gap-2'>
         <Avatar size='sm'>
@@ -25,7 +25,9 @@ const TrendingPanel = async () => {
           {title}
         </Link>
 
-        <p className='line-clamp-2 text-sm text-muted-foreground'>{content}</p>
+        <p className='line-clamp-2 text-sm text-muted-foreground'>
+          {shortDescription}
+        </p>
 
         <span className='text-xs text-muted-foreground'>
           {formatPublishedAt(createdAt)}

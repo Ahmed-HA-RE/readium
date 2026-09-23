@@ -108,9 +108,10 @@ describe.each([
     forbidNonWhitelisted: true,
   });
 
-  // CreateBlogDto requires all three; UpdateBlogDto accepts them as optional.
+  // CreateBlogDto requires all four; UpdateBlogDto accepts them as optional.
   const validBody = {
     title: 'A perfectly legitimate title',
+    shortDescription: 'A short preview shown under the title.',
     content: 'Body copy long enough to clear the twenty character minimum.',
     tags: ['nest'],
   };
@@ -143,5 +144,65 @@ describe.each([
     })) as { isPublished?: boolean };
 
     expect(dto.isPublished).toBeUndefined();
+  });
+});
+
+describe('shortDescription', () => {
+  const pipe = new ValidationPipe({
+    stopAtFirstError: true,
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  });
+
+  const validBody = {
+    title: 'A perfectly legitimate title',
+    shortDescription: 'A short preview shown under the title.',
+    content: 'Body copy long enough to clear the twenty character minimum.',
+    tags: ['nest'],
+  };
+
+  const validate =
+    (metatype: typeof CreateBlogDto | typeof UpdateBlogDto) =>
+    (body: Record<string, unknown>) =>
+      pipe.transform(body, { type: 'body', metatype });
+
+  it('is required when creating a blog', async () => {
+    const body: Record<string, unknown> = { ...validBody };
+    delete body.shortDescription;
+
+    await expect(validate(CreateBlogDto)(body)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('is optional when updating a blog', async () => {
+    await expect(
+      validate(UpdateBlogDto)({ title: validBody.title }),
+    ).resolves.toEqual({ title: validBody.title });
+  });
+
+  describe.each([
+    ['CreateBlogDto', CreateBlogDto],
+    ['UpdateBlogDto', UpdateBlogDto],
+  ])('%s', (_name, metatype) => {
+    it.each([
+      ['under 10 characters', 'Too short'],
+      ['over 200 characters', 'x'.repeat(201)],
+      ['empty', ''],
+    ])('rejects one %s', async (_label, shortDescription) => {
+      await expect(
+        validate(metatype)({ ...validBody, shortDescription }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it.each([
+      ['exactly 10 characters', 'x'.repeat(10)],
+      ['exactly 200 characters', 'x'.repeat(200)],
+    ])('accepts one %s', async (_label, shortDescription) => {
+      await expect(
+        validate(metatype)({ ...validBody, shortDescription }),
+      ).resolves.toMatchObject({ shortDescription });
+    });
   });
 });
