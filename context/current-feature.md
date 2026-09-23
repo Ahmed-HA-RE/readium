@@ -1,22 +1,69 @@
 <!-- Feature Title -->
 
-##
+## Blog Page
 
 <!-- Feature Description -->
 
 ## Description
 
+A single blog/story page at `app/[blogSlug]/`, open to both signed-in and anonymous visitors. Anonymous
+visitors see the full page, not the marketing page, so a shared blog link renders properly for
+someone who isn't logged in. This phase covers the blog content and the comments section. Posting a
+comment requires sign-in. The social share dialog is a later phase.
+
+Spec: `context/specs/frontend/blog-page.md`. Visual reference: `context/screenshots/medium-story-page.png`.
+
 <!-- Feature Notes -->
 
 ## Notes
+
+- **Routing:** a missing `blogSlug` or a `getBlogBySlug` miss both `redirect('/')`, handled in one
+  OR check rather than two separate redirects.
+- **Excluded from the screenshot:** the Follow button (next to the author) and the Listen button. If
+  the screenshot shows anything else the backend doesn't return, **flag it and ask** before building
+  UI for it.
+- **Refactor comes first, before any new UI:**
+  - Extract Like and Bookmark out of `components/shared/blog-card.tsx` into their own components in
+    `components/shared/`. Their `toggleLike` / `toggleBookmark` handlers and `useOptimistic` hooks
+    move with them. They take `isLikedByLoggedInUser` / `isBookmarkedByLoggedInUser` as props.
+  - Rename `report-blog.tsx` (the ellipsis dropdown) to a general actions-dropdown name and update
+    every import.
+  - Add a static Share placeholder: `<IoShareOutline />` followed by the label "Share", with no
+    behaviour yet.
+- **Content is rendered as HTML** with `dangerouslySetInnerHTML`, ready for TipTap output.
+  **Flag for the user:** the seed data must store `content` as HTML, and the seed CLI must be re-run
+  afterwards. `prisma/seed.ts` is gitignored (history #2), so that change only exists locally.
+- **Comments** go at the end of the content and use infinite scroll: `useInfiniteQuery` plus a
+  `react-intersection-observer` sentinel `<div>`.
+  - Empty: "There are no comments for this blog yet. Be the first to share your opinion."
+  - Pending: a loading spinner.
+  - Error: shadcn/studio **Alert 30** (fetch it from the MCP server) with the description slot
+    removed, showing only the icon and the backend's error message.
+- **Comment card:** avatar on the left. On the right, the author name with a `formatPublishedAt`
+  timestamp underneath, then the content as a plain string, **not** `dangerouslySetInnerHTML`.
+- **Add-comment form:** submits through the existing `createComment` service. The signed-in user's
+  avatar and name sit on top, with a shadcn `InputGroup` wrapping a non-resizable `Textarea` and an
+  embedded "Respond" button underneath. Validated with `createCommentSchema`: content 3–500
+  characters, with the spec's error messages.
 
 <!-- Feature Goals-->
 
 ## Goals
 
+1. Extract Like and Bookmark into shared components that `blog-card.tsx` and the blog page both use,
+   so the optimistic-update logic isn't duplicated.
+2. Rename the report dropdown to a general actions dropdown, and add the Share placeholder.
+3. Build `app/[blogSlug]/` to match the Medium story layout: SSR, public, and redirecting to `/`
+   when the slug is missing or unknown.
+4. Render blog content as HTML.
+5. Build the comments section: an infinite-scroll list with empty, loading and error states, a
+   comment card, and an authenticated add-comment form with zod validation.
+
 <!-- Feature Status -->
 
 ## Status
+
+Completed
 
 <!-- History -->
 
@@ -1572,3 +1619,147 @@ table on every request, and no join table could answer a lookup by `blogId`.
 
 **Not included:** indexes on anything outside the blog relations, the check-then-insert races still
 open since history #8, and the presigned-URL caching flagged in #17.
+
+### 19. Blog Page — completed 2026-09-23
+
+The first reader-facing story page. `/[blogSlug]` is public to anonymous and signed-in visitors and
+renders the blog as sanitised HTML, the like / bookmark / share / report actions, and an
+infinite-scroll comments section with an authenticated add-comment form.
+
+**Implemented**
+
+- `app/(main)/[blogSlug]/page.tsx` — `generateMetadata` (title, `shortDescription` as description,
+  keywords, canonical, `og:type=article` with published/modified time, author, tags and the cover
+  image, Twitter card) and a `<Suspense fallback={<BlogPageSkeleton />}>` around the article.
+  `params` is passed down unawaited, the same way the home page handles `searchParams`.
+- `_components/public-blog-content.tsx` — server component: `getBlogBySlug`, then
+  `if (!blogSlug || !data) redirect('/')`, then the session; renders the shared `BlogArticle`.
+- `components/shared/blog-article.tsx` — presentation only, with `actions` and optional `comments`
+  slots, so a future `AdminBlogContent` renders a blog identically. Cover, tags, `<h1>`, author row
+  (avatar + name link to `/users/{name}`, read time, date), and the content in
+  `@tailwindcss/typography` with Source Serif 4. Code blocks, inline code, list markers and
+  blockquotes follow `text-foreground` / `bg-muted`; the plugin's inline-code backticks are removed.
+- **Refactor:** `LikeButton` and `BookmarkButton` extracted from `blog-card.tsx` with their
+  `useOptimistic` handlers, plus `isSignedIn` (anonymous clicks go to `/login?callbackUrl=`) and
+  `refreshOnChange` props. `report-blog.tsx` renamed to `blog-actions-menu.tsx` (`BlogActionsMenu`,
+  trigger positioned by a `className` prop). A static Share placeholder in the action bar.
+- **Comments:** `CommentsSection` owns a client `useInfiniteQuery` (`hooks/comments.ts`) with a
+  `react-intersection-observer` sentinel; spinner, empty state and shadcn/studio Alert 30 (icon and
+  backend message only). `CommentCard` shows "Me" on the viewer's own comments. `AddCommentForm`
+  uses `InputGroup` + `Textarea`, `createCommentSchema` (`schema/comment.ts`) and a 0/500 counter.
+- `lib/actions/blogs/getBlogBySlug.ts` (returns `null` on 404, throws on anything else),
+  `lib/actions/comments/getBlogComments.ts` and `createComment.ts`.
+- `lib/sanitize-html.ts` — `sanitize-html` allowlist; `<h1>` becomes `<h2>` so the title stays the
+  page's only `<h1>`; links get `rel="nofollow ugc noopener noreferrer"` and `target="_blank"`.
+- `htmlToText` and `getReadingTime` (200 wpm, minimum 1) in `lib/utils.ts`.
+- **`Blog.shortDescription`** — required column (migration
+  `20260923105436_add_short_description_field_in_blogs`), 10–200 characters on `CreateBlogDto`,
+  optional on `UpdateBlogDto`, written by `createBlog` / `updateBlog`. `getAllBlogs` now
+  `omit: { content: true }`; trending selects `shortDescription`; the card and the trending panel
+  render it. `GetAllBlogsResponse` is `Omit<Blog, 'content'>`.
+- **`getBlogBySlug` (backend)** returns the author avatar through `resolveAuthorImage`, and filters
+  `report: { none: { userId } }`. `isReportedByLoggedInUser` is gone from the service and the type.
+- **`CommentsService`** passes OAuth avatar URLs through unsigned; `GetBlogCommentsResponse` added
+  to `packages/types`.
+- **Header:** the session check for the tint is gone. `MarketingHome`'s root carries
+  `data-marketing-page`, and the header tints through `[:root:has([data-marketing-page])_&]`.
+- `<html>` gets `scroll-smooth` + `data-scroll-behavior='smooth'`; the action bar's comments link is a
+  plain `<a href='#comments'>`.
+- `button.tsx`: default icon size inside buttons `size-4` → `size-4.5`, `gap-2` on the `icon` size.
+- Dependencies: `react-intersection-observer`, `sanitize-html` (+ `@types/sanitize-html`),
+  `@tailwindcss/typography`; shadcn `alert`.
+- 41 tests added (226 → 267): a `getBlogBySlug` suite and the `omit` / `shortDescription` checks in
+  `blogs.service.spec.ts`, a new `comments.service.spec.ts`, and `shortDescription` DTO rules.
+
+**Decisions worth remembering**
+
+- **Comments are client-owned; do not server-prefetch them.** They started with the feed's
+  `prefetchInfiniteQuery` + `HydrationBoundary`. `HydrationBoundary` hydrates on *every* server
+  render, not just the first, and `router.refresh()` is a server render — so each like or new
+  comment replaced the multi-page infinite list with the server's page 1. The sentinel then sat on
+  screen and `fetchNextPage` fired page after page, each with a spinner. Measured in Playwright: a
+  like dropped the list from 3 cards to 1. With no server copy, the refresh has nothing to overwrite
+  and a like now makes 0 comment requests. **The rule:** secondary, interactive lists are fetched
+  and owned by the client; a route where that list *is* the primary content may server-render its
+  first page, but then must not `router.refresh()` over it — use `initialData`, which only seeds an
+  empty cache.
+- **The blog itself is not in React Query.** It is read once on the server and passed down as
+  props. Like and bookmark take `refreshOnChange` so the page's `router.refresh()` updates the
+  server props before the transition ends; without it `useOptimistic` snaps the heart back. The feed
+  keeps plain invalidation, so a like there does not re-render the whole home page on the server.
+- **`router.refresh()` updates only server-rendered values** — the response count, like count and
+  bookmark state. It does not remount client components or touch the TanStack cache.
+- **After posting, `invalidateQueries`, not `setQueryData`.** Chosen for simplicity. It refetches
+  every *loaded* page in sequence (each cursor depends on the previous page) — one request at the
+  default page size of 10, more after deep scrolling. Inserting the returned comment into page 1
+  would cost zero requests and was tried and reverted.
+- **`sanitize-html` does not render HTML, it cleans it.** React still needs
+  `dangerouslySetInnerHTML` (or a parser) to turn the string into elements; sanitising first is
+  what makes it safe. It runs on the server so `sanitize-html` (which pulls in `htmlparser2` and
+  `postcss`) never ships to the browser. TipTap will produce HTML in the author's browser, but the API
+  accepts any string, so sanitising stays even then.
+- **`shortDescription` instead of stripping HTML for excerpts.** Card previews from `content` meant
+  shipping every full body in every list, and regex stripping mishandles entities and code. Authors
+  write the preview; lists never select `content`.
+- **Read time is computed at render, not stored.** It is derived from `content`, which is already in
+  the response, and the formula will change once TipTap adds images and code blocks. Store it only
+  if lists ever need to sort or filter by it.
+- **A reported blog is hidden from its reporter at the query**, matching the feed, trending and
+  search. The reporter gets a 404 and the page redirects home — including straight after reporting
+  from the page, since `BlogActionsMenu` refreshes the router. Everyone else still sees the blog.
+- **A layout cannot read the route, so the header tint is CSS.** The page that knows it is the
+  marketing page marks its own root; the header reacts through `:has()`. Put such a marker on the
+  outermost element of what it describes, never on an incidental child like the marquee.
+- **`<Link href='#comments'>` routes a hash through the App Router** and re-renders the page. In-page
+  anchors are plain `<a>`.
+- **Author links go to `/users/{name}`.** A bare `/{name}` would be caught by `[blogSlug]` and
+  redirect home.
+- **No `cache()` around `getBlogBySlug`**, by decision: `generateMetadata` and the page each call it,
+  so every view is two backend requests. React `cache` would dedupe them if that matters later.
+- **`PageProps<'/[blogSlug]'>` is for page files only.** Child components type
+  `params: Promise<{ blogSlug: string }>` explicitly, per the Next 16 docs.
+- **TanStack 5.102 deprecates `fetchQuery` / `prefetchQuery` / `prefetchInfiniteQuery`** in favour of
+  `query()` / `infiniteQuery()`. The new methods *throw* on error; `prefetch*` swallowed it.
+- **The route lives in `app/(main)/[blogSlug]/`**, not the spec's `app/[blogSlug]/`, to inherit the
+  header and sidebar. The URL is identical.
+
+**Verified**
+
+- `pnpm test` — 267 passing (226 before, 41 added); `eslint` clean on every changed backend file;
+  web `check-types`, `lint` and `next build` clean.
+- Live endpoints: unknown and unpublished slugs 404; anonymous comment and like 401; `limit=0` 400;
+  the comments cursor chains to `null`; a reporter gets 404 while an anonymous caller gets 200; the
+  feed carries no `content` and trending carries `shortDescription`.
+- **Playwright, signed in as a non-author:** posting a comment at 1920×1080 (appears at the top as
+  "Me", count updates, no list reset or spinner cascade); validation (empty and two-character
+  submits error without a POST, 500-character cap, no resize handle); like and bookmark toggle and
+  survive a reload, bookmark confirmed in `/api/users/me/bookmarks`; a like leaves the loaded
+  comments untouched; the comments link scrolls with 0 RSC requests; reporting redirects home, and
+  both a direct visit and a client-side `router.push` to the reported blog redirect home.
+- **Playwright, anonymous context:** like, bookmark and "Sign in to respond" go to
+  `/login?callbackUrl=%2F<slug>`; no report menu; unknown and unpublished slugs redirect home; the
+  server HTML carries the full article, no injected script, and every metadata field above.
+- Desktop 1440 and mobile 390: no horizontal overflow, one `<h1>`, no unlabelled controls, no image
+  without `alt`, 0 console errors or warnings; header tinted on the marketing page only.
+- The three Playwright test comments were deleted afterwards.
+
+**Known gaps**
+
+- **Comment pages end with an empty fetch** when the last page is exactly full, because
+  `nextCursor` is set whenever `comments.length === take`. Fetch `take + 1` rows and send a cursor
+  only when the extra row exists.
+- **Missing blogs `redirect('/')` (307)** as the spec asks, so crawlers get a redirect rather than a
+  404 for dead links. `notFound()` would be the SEO-correct response.
+- **`getBlogBySlug` is a `'use server'` file but is only called on the server**, which also exposes
+  it as a callable server action — the same situation as `getTrendingBlogs`.
+- `/users/{name}` 404s until the profile page exists; Share is a placeholder.
+- **The Neon `production` branch lacks the `shortDescription` migration** — the same gap as #18.
+- Other list reads (`/me/blogs`, the public profile, likes and bookmarks, admin lists) still select
+  `content` rather than `shortDescription`.
+- `admin-users.service.spec.ts` still has its `no-unsafe-*` lint errors from before history #3.
+- **Seed data is local only.** `seedData.ts` is gitignored: its `shortDescription` values and the
+  long HTML articles exist only on this machine.
+- Test residue: *Ahmed Test2* has a pending SPAM report on *Designing Better REST APIs*.
+
+**Not included:** the share dialog, follow / listen / repost / tag-follow UI (no backend data), the
+admin blog view that `BlogArticle` was split out for, and editing or deleting comments from the page.
