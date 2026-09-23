@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { IoEllipsisHorizontal } from 'react-icons/io5';
 import { VscReport } from 'react-icons/vsc';
 import { ReportReason } from '@repo/types';
-import { getErrorMessage } from '@/lib/utils';
+import { cn, getErrorMessage } from '@/lib/utils';
 import { reportBlog } from '@/lib/actions/report/reportBlog';
 import { reportBlogSchema, type ReportBlogFormData } from '@/schema/report';
 import { Button } from '@/components/ui/button';
@@ -39,11 +39,13 @@ const REPORT_REASONS = [
   { value: ReportReason.AI_GENERATED, label: 'AI-generated' },
 ];
 
-type ReportBlogProps = {
+type BlogActionsMenuProps = {
   slug: string;
+  // Positions the trigger, which differs between the card and the blog page.
+  className?: string;
 };
 
-const ReportBlog = ({ slug }: ReportBlogProps) => {
+const BlogActionsMenu = ({ slug, className }: BlogActionsMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -86,7 +88,7 @@ const ReportBlog = ({ slug }: ReportBlogProps) => {
               variant='ghost-plain'
               size='icon'
               aria-label='Blog actions'
-              className='absolute top-6 -right-1 z-10 text-muted-foreground'
+              className={cn('text-muted-foreground', className)}
             />
           }
         >
@@ -190,4 +192,4 @@ const ReportBlog = ({ slug }: ReportBlogProps) => {
   );
 };
 
-export default ReportBlog;
+export default BlogActionsMenu;

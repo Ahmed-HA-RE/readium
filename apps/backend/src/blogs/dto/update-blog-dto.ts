@@ -21,6 +21,17 @@ export class UpdateBlogDto {
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty({ message: 'Blog short description is required' })
+  @MinLength(10, {
+    message: 'Blog short description must be at least 10 characters long',
+  })
+  @MaxLength(200, {
+    message: 'Blog short description must not exceed 200 characters long',
+  })
+  shortDescription?: string;
+
+  @IsOptional()
+  @IsString()
   @IsNotEmpty({ message: 'Blog content is required' })
   @MinLength(20, {
     message: 'Blog content must be at least 20 characters long',

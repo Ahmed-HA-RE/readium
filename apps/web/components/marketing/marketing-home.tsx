@@ -9,7 +9,10 @@ import HeroHomePageIcon2 from '@/components/icons/hero-homepage-icon-2';
 import BrandMarquee from './brand-marquee';
 
 const MarketingHome = () => (
-  <div className='bg-app/10 flex min-h-[calc(100svh-3.75rem)] flex-col items-center justify-center px-4 py-20 sm:px-6 lg:px-8'>
+  <div
+    data-marketing-page
+    className='bg-app/10 flex min-h-[calc(100svh-3.75rem)] flex-col items-center justify-center px-4 py-20 sm:px-6 lg:px-8'
+  >
     <Badge
       variant='default'
       className='h-auto gap-2.5 rounded-full px-6 py-1.5 text-xs font-medium [&>svg]:size-5! bg-primary/20 text-foreground'

@@ -16,15 +16,8 @@ const logoStyle = { width: 36, height: 'auto' };
 const Header = async () => {
   const session = await getCurrentLoggedInUser();
 
-  // Signed out, the header sits on top of the marketing hero and shares its
-  // tint rather than cutting a white band across it.
   return (
-    <header
-      className={cn(
-        'sticky top-0 z-50 border-b',
-        session ? 'bg-background' : 'bg-app/10',
-      )}
-    >
+    <header className='sticky top-0 z-50 border-b bg-background [:root:has([data-marketing-page])_&]:bg-app/10'>
       <div className='flex h-15 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8'>
         <div className='flex items-center gap-2 lg:gap-2'>
           {/* Anonymous visitors get no sidebar, so there is nothing to toggle. */}

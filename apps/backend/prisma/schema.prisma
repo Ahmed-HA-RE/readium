@@ -107,18 +107,19 @@ model Verification {
 }
 
 model Blog {
-  id          String   @id @default(uuid())
-  title       String
-  slug        String   @unique
-  content     String
-  tags        String[]
-  coverImage  String?
-  isPublished Boolean  @default(false)
-  authorId    String
-  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  likesCount  Int      @default(0)
+  id               String   @id @default(uuid())
+  title            String
+  slug             String   @unique
+  shortDescription String
+  content          String
+  tags             String[]
+  coverImage       String?
+  isPublished      Boolean  @default(false)
+  authorId         String
+  author           User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  likesCount       Int      @default(0)
 
   // Relations
   comments  Comment[]
@@ -145,7 +146,6 @@ model Comment {
   blog   Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
 
   @@index([authorId, blogId])
-
   @@index([blogId, createdAt])
   @@map("comment")
 }

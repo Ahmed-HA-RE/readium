@@ -8,6 +8,7 @@ export interface Blog {
   id: string;
   title: string;
   slug: string;
+  shortDescription: string;
   content: string;
   tags: string[];
   coverImage: string | null;
@@ -36,8 +37,9 @@ export interface BlogAuthor {
   image: string | null;
 }
 
+// No `content`: cards render `shortDescription`, so the body is omitted.
 export interface GetAllBlogsResponse {
-  blogs: (Blog & {
+  blogs: (Omit<Blog, 'content'> & {
     author: BlogAuthor;
     isLikedByLoggedInUser: boolean;
     isBookmarkedByLoggedInUser: boolean;
@@ -45,15 +47,12 @@ export interface GetAllBlogsResponse {
   totalPages: number;
 }
 
-// No author avatar: the detail page does not render one, so the key is not
-// selected and never reaches the client as an unsigned S3 key.
 export interface GetBlogBySlugResponse {
   blog: Blog & {
-    author: Pick<BlogAuthor, 'id' | 'name'>;
+    author: BlogAuthor;
   };
   isLikedByLoggedInUser: boolean;
   isBookmarkedByLoggedInUser: boolean;
-  isReportedByLoggedInUser: boolean;
 }
 
 // The trending panel renders a title, an excerpt, the author and a date, so
@@ -61,7 +60,7 @@ export interface GetBlogBySlugResponse {
 export interface GetTrendingBlogsResponse {
   title: string;
   slug: string;
-  content: string;
+  shortDescription: string;
   createdAt: Date;
   author: Pick<BlogAuthor, 'name' | 'image'>;
 }

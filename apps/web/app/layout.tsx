@@ -69,7 +69,13 @@ const RootLayout = ({
   children: React.ReactNode;
 }>) => {
   return (
-    <html lang='en' suppressHydrationWarning>
+
+    <html
+      lang='en'
+      className='scroll-smooth'
+      data-scroll-behavior='smooth'
+      suppressHydrationWarning
+    >
       <body className={roboto.className}>
         <Providers>{children}</Providers>
       </body>

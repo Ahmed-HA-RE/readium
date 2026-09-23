@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { CommentQueryDto } from './dto/comment-query-dto';
 import { DatabaseService } from '../database/database.service';
-import { Comment } from '@repo/types';
+import { Comment, GetBlogCommentsResponse } from '@repo/types';
 import { CreateCommentDto } from './dto/create-comment-dto';
 import { UserSession } from '@thallesp/nestjs-better-auth';
 import { S3ServiceService } from '../s3-service/s3-service.service';
@@ -17,18 +17,22 @@ export class CommentsService {
     private readonly s3Service: S3ServiceService,
   ) {}
 
-  // `author.image` is stored as an S3 key, so every path that returns a comment
-  // signs it. Without this the client receives an unrenderable key.
+  // `author.image` is an S3 key, except for OAuth sign-ups where it is already
+  // the provider's URL and signing it would produce a broken link.
   private async presignAuthorImage<
     T extends { author: { image: string | null } },
   >(comment: T): Promise<T> {
-    if (!comment.author.image) return comment;
+    const { image } = comment.author;
+
+    if (!image || image.startsWith('http://') || image.startsWith('https://')) {
+      return comment;
+    }
 
     return {
       ...comment,
       author: {
         ...comment.author,
-        image: await this.s3Service.getSignedUrl(comment.author.image),
+        image: await this.s3Service.getSignedUrl(image),
       },
     };
   }
@@ -65,7 +69,7 @@ export class CommentsService {
   async getCommentsForBlog(
     query: CommentQueryDto,
     blogSlug: string,
-  ): Promise<{ data: Comment[]; nextCursor: string | null }> {
+  ): Promise<GetBlogCommentsResponse> {
     const { limit, cursor } = query;
 
     const take = limit ?? 10; // Default limit is 10 if not provided

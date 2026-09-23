@@ -1,24 +1,17 @@
 'use client';
 
-import { useOptimistic, useTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRightIcon } from 'lucide-react';
-import { FaBookmark, FaHeart, FaRegHeart } from 'react-icons/fa';
-import { LuBookmarkPlus } from 'react-icons/lu';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import type { GetAllBlogsResponse } from '@repo/types';
-import { cn, formatPublishedAt, getErrorMessage } from '@/lib/utils';
+import { formatPublishedAt } from '@/lib/utils';
 import { DEFAULT_AVATAR } from '@/lib/constants';
-import { likeBlog } from '@/lib/actions/blogs/likeBlog';
-import { unlikeBlog } from '@/lib/actions/blogs/unlikeBlog';
-import { bookmarkBlog } from '@/lib/actions/blogs/bookmarkBlog';
-import { unbookmarkBlog } from '@/lib/actions/blogs/unbookmarkBlog';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import ReportBlog from './report-blog';
+import BlogActionsMenu from './blog-actions-menu';
+import LikeButton from './like-button';
+import BookmarkButton from './bookmark-button';
 
 type BlogCardProps = {
   blog: GetAllBlogsResponse['blogs'][number];
@@ -32,7 +25,7 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
   const {
     title,
     slug,
-    content,
+    shortDescription,
     tags,
     coverImage,
     author,
@@ -48,65 +41,6 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
   // Reporting is `@Roles(['user'])` and the service rejects your own blog, so
   // for these two the menu could only ever produce an error toast.
   const canReport = !isAdmin && !isOwnBlog;
-
-  const queryClient = useQueryClient();
-
-  // Separate transitions, so a bookmark in flight never blocks a like.
-  const [isLiking, startLiking] = useTransition();
-  const [isBookmarking, startBookmarking] = useTransition();
-
-  const [isLikedOptimistic, setIsLikedOptimistic] = useOptimistic(
-    isLikedByLoggedInUser,
-  );
-  const [isBookmarkedOptimistic, setIsBookmarkedOptimistic] = useOptimistic(
-    isBookmarkedByLoggedInUser,
-  );
-
-  // Zero unless the UI is a click ahead of the server, which is the only case
-  // where `_count.likes` does not already account for the reader's own like.
-  const pendingLikeDelta =
-    isLikedOptimistic === isLikedByLoggedInUser
-      ? 0
-      : isLikedOptimistic
-        ? 1
-        : -1;
-  const likesCount = _count.likes + pendingLikeDelta;
-
-  const toggleLike = () => {
-    const nextIsLiked = !isLikedOptimistic;
-
-    startLiking(async () => {
-      setIsLikedOptimistic(nextIsLiked);
-
-      // The optimistic flip above still lands; only the request is skipped,
-      // because the endpoint 400s on a state it is already in.
-      if (isLiking) return;
-
-      try {
-        await (nextIsLiked ? likeBlog(slug) : unlikeBlog(slug));
-        await queryClient.invalidateQueries({ queryKey: ['blogs'] });
-      } catch (error) {
-        toast.error(getErrorMessage(error, 'Could not update your like'));
-      }
-    });
-  };
-
-  const toggleBookmark = () => {
-    const nextIsBookmarked = !isBookmarkedOptimistic;
-
-    startBookmarking(async () => {
-      setIsBookmarkedOptimistic(nextIsBookmarked);
-
-      if (isBookmarking) return;
-
-      try {
-        await (nextIsBookmarked ? bookmarkBlog(slug) : unbookmarkBlog(slug));
-        await queryClient.invalidateQueries({ queryKey: ['blogs'] });
-      } catch (error) {
-        toast.error(getErrorMessage(error, 'Could not update your bookmark'));
-      }
-    });
-  };
 
   // Sits under the cover image when there is one, otherwise at the bottom of
   // the text column.
@@ -164,7 +98,7 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
           {title}
         </Link>
 
-        <p className='line-clamp-2 text-muted-foreground'>{content}</p>
+        <p className='line-clamp-2 text-muted-foreground'>{shortDescription}</p>
 
         <div className='flex items-center gap-3'>
           <Avatar size='lg'>
@@ -187,64 +121,27 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
         <div className='mt-2 flex items-center gap-4'>
           {!coverImage && readMoreButton}
 
-          <div
-            className={cn(
-              'relative z-10 ml-auto flex items-center text-sm',
-              likesCount > 0 ? 'gap-2' : 'gap-0',
-            )}
-          >
-            <span className='flex items-center'>
-              {/* The author still sees the tally, just not a control the
-                  endpoint would reject. */}
-              {isOwnBlog ? (
-                <span className='flex size-8 items-center justify-center text-muted-foreground'>
-                  <FaRegHeart />
-                </span>
-              ) : (
-                <Button
-                  variant='ghost-plain'
-                  size='icon'
-                  onClick={toggleLike}
-                  aria-pressed={isLikedOptimistic}
-                  aria-label={isLikedOptimistic ? 'Unlike' : 'Like'}
-                  className={cn(
-                    !isLikedOptimistic &&
-                      'text-muted-foreground hover:text-red-600',
-                  )}
-                >
-                  {isLikedOptimistic ? (
-                    <FaHeart className='size-4 text-red-600' />
-                  ) : (
-                    <FaRegHeart />
-                  )}
-                </Button>
-              )}
-              {likesCount > 0 && (
-                <span className='text-muted-foreground'>{likesCount}</span>
-              )}
-            </span>
-
-            <Button
-              variant='ghost-plain'
-              size='icon'
-              onClick={toggleBookmark}
-              aria-pressed={isBookmarkedOptimistic}
-              aria-label={
-                isBookmarkedOptimistic ? 'Remove bookmark' : 'Bookmark'
-              }
-              className={cn(
-                isBookmarkedOptimistic
-                  ? 'text-blue-600 hover:text-blue-600'
-                  : 'text-muted-foreground hover:text-blue-600',
-              )}
-            >
-              {isBookmarkedOptimistic ? <FaBookmark /> : <LuBookmarkPlus />}
-            </Button>
+          <div className='relative z-10 ml-auto flex items-center'>
+            <LikeButton
+              slug={slug}
+              likesCount={_count.likes}
+              isLikedByLoggedInUser={isLikedByLoggedInUser}
+              isOwnBlog={isOwnBlog}
+            />
+            <BookmarkButton
+              slug={slug}
+              isBookmarkedByLoggedInUser={isBookmarkedByLoggedInUser}
+            />
           </div>
         </div>
       </div>
 
-      {canReport && <ReportBlog slug={slug} />}
+      {canReport && (
+        <BlogActionsMenu
+          slug={slug}
+          className='absolute top-6 -right-1 z-10'
+        />
+      )}
     </article>
   );
 };
