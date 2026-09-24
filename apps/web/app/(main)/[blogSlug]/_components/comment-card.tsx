@@ -1,15 +1,32 @@
+'use client';
+
+import { useState } from 'react';
 import type { Comment } from '@repo/types';
 import { formatPublishedAt } from '@/lib/utils';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import CommentActionsMenu from './comment-actions-menu';
+import EditCommentForm from './edit-comment-form';
 
 type CommentCardProps = {
+  slug: string;
   comment: Comment;
   isOwnComment: boolean;
+  canDelete: boolean;
 };
 
-const CommentCard = ({ comment, isOwnComment }: CommentCardProps) => {
-  const { author, content, createdAt } = comment;
+const CommentCard = ({
+  slug,
+  comment,
+  isOwnComment,
+  canDelete,
+}: CommentCardProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const { id, author, content, createdAt, updatedAt } = comment;
+
+  const isEdited =
+    new Date(updatedAt).getTime() !== new Date(createdAt).getTime();
+  const shownAt = isEdited ? updatedAt : createdAt;
 
   return (
     <article className='flex gap-3 py-6'>
@@ -19,19 +36,38 @@ const CommentCard = ({ comment, isOwnComment }: CommentCardProps) => {
       </Avatar>
 
       <div className='flex min-w-0 flex-1 flex-col gap-2'>
-        <div className='flex flex-col'>
-          <span className='truncate text-sm font-medium'>
-            {isOwnComment ? 'Me' : author.name}
-          </span>
-          <time
-            dateTime={new Date(createdAt).toISOString()}
-            className='text-xs text-muted-foreground'
-          >
-            {formatPublishedAt(createdAt)}
-          </time>
+        <div className='flex items-start justify-between gap-2'>
+          <div className='flex min-w-0 flex-col'>
+            <span className='truncate text-sm font-medium'>
+              {isOwnComment ? 'Me' : author.name}
+            </span>
+            <span className='text-xs text-muted-foreground'>
+              <time dateTime={new Date(shownAt).toISOString()}>
+                {formatPublishedAt(shownAt)}
+              </time>
+              {isEdited && ' (edited)'}
+            </span>
+          </div>
+
+          {canDelete && !isEditing && (
+            <CommentActionsMenu
+              slug={slug}
+              commentId={id}
+              onEdit={isOwnComment ? () => setIsEditing(true) : undefined}
+            />
+          )}
         </div>
 
-        <p className='text-sm break-words whitespace-pre-line'>{content}</p>
+        {isEditing ? (
+          <EditCommentForm
+            slug={slug}
+            commentId={id}
+            initialContent={content}
+            onClose={() => setIsEditing(false)}
+          />
+        ) : (
+          <p className='text-sm break-words whitespace-pre-line'>{content}</p>
+        )}
       </div>
     </article>
   );
