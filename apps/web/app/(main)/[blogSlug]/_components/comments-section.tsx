@@ -15,7 +15,12 @@ import CommentCard from './comment-card';
 type CommentsSectionProps = {
   slug: string;
   commentsCount: number;
-  viewer: { id: string; name: string; image: string | null } | null;
+  viewer: {
+    id: string;
+    name: string;
+    image: string | null;
+    role: string | string[] | undefined;
+  } | null;
 };
 
 const CommentsSection = ({
@@ -95,8 +100,12 @@ const CommentsSection = ({
               {comments.map((comment) => (
                 <CommentCard
                   key={comment.id}
+                  slug={slug}
                   comment={comment}
                   isOwnComment={comment.author.id === viewer?.id}
+                  canDelete={
+                    comment.author.id === viewer?.id || viewer?.role === 'admin'
+                  }
                 />
               ))}
             </div>

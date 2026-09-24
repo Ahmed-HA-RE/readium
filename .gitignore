@@ -39,5 +39,5 @@ yarn-error.log*
 
 
 
-# context screenshots
-context/screenshots
+# AI workflow docs, kept local
+context/

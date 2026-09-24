@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CommentsService } from './comments.service';
 import { DatabaseService } from '../database/database.service';
@@ -17,13 +17,21 @@ type CommentCreateArgs = {
   data: { content: string; blogId: string; authorId: string };
 };
 
+type CommentUpdateArgs = {
+  where: { id: string };
+  data: { content: string };
+};
+
 // Typed so `mock.calls[0][0]` is `unknown` rather than `any`, which the
 // `no-unsafe-member-access` rule rejects.
 type PrismaMocks = {
   blog: { findUnique: jest.Mock<Promise<unknown>, [unknown]> };
   comment: {
     findMany: jest.Mock<Promise<unknown[]>, [unknown]>;
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
     create: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
+    delete: jest.Mock<Promise<unknown>, [unknown]>;
   };
 };
 
@@ -58,12 +66,24 @@ describe('CommentsService', () => {
         findMany: jest
           .fn<Promise<unknown[]>, [unknown]>()
           .mockResolvedValue([]),
+        findUnique: jest
+          .fn<Promise<unknown>, [unknown]>()
+          .mockResolvedValue(commentRow('comment-1')),
+        delete: jest.fn<Promise<unknown>, [unknown]>().mockResolvedValue({}),
         create: jest
           .fn<Promise<unknown>, [unknown]>()
           .mockImplementation((args) =>
             Promise.resolve({
               ...commentRow('new-comment'),
               ...(args as CommentCreateArgs).data,
+            }),
+          ),
+        update: jest
+          .fn<Promise<unknown>, [unknown]>()
+          .mockImplementation((args) =>
+            Promise.resolve({
+              ...commentRow('comment-1'),
+              ...(args as CommentUpdateArgs).data,
             }),
           ),
       },
@@ -243,6 +263,112 @@ describe('CommentsService', () => {
         service.createComment({ content: 'Great read' }, 'missing', 'user-1'),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(prisma.comment.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateComment', () => {
+    const update = (authorId = 'user-1', slug = SLUG) =>
+      service.updateComment(
+        { content: 'Edited read' },
+        slug,
+        'comment-1',
+        authorId,
+      );
+
+    it('scopes the lookup to the blog and the caller as author', async () => {
+      await update();
+
+      expect(prisma.comment.findUnique).toHaveBeenCalledWith({
+        where: { id: 'comment-1', authorId: 'user-1', blogId: 'blog-1' },
+      });
+    });
+
+    it('saves only the new content on the found comment', async () => {
+      await update();
+
+      const { where, data } = prisma.comment.update.mock
+        .calls[0][0] as CommentUpdateArgs;
+      expect(where).toEqual({ id: 'comment-1' });
+      expect(data).toEqual({ content: 'Edited read' });
+    });
+
+    it('signs the author avatar in the response', async () => {
+      const comment = await update();
+
+      expect(comment.content).toBe('Edited read');
+      expect(comment.author.image).toBe('signed:avatar-key');
+    });
+
+    // The author-scoped lookup misses, so a non-author sees 404 rather than 403.
+    it('throws NotFoundException for a user who did not write it', async () => {
+      prisma.comment.findUnique.mockResolvedValue(null);
+
+      await expect(update('user-2')).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.comment.update).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for an unknown blog', async () => {
+      prisma.blog.findUnique.mockResolvedValue(null);
+
+      await expect(update('user-1', 'missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(prisma.comment.findUnique).not.toHaveBeenCalled();
+      expect(prisma.comment.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteComment', () => {
+    const owner = { id: 'user-1', role: 'user' };
+    const stranger = { id: 'user-2', role: 'user' };
+    const admin = { id: 'admin-1', role: 'admin' };
+
+    it('lets the comment author delete it', async () => {
+      await service.deleteComment(SLUG, 'comment-1', owner);
+
+      expect(prisma.comment.delete).toHaveBeenCalledWith({
+        where: { id: 'comment-1' },
+      });
+    });
+
+    it('scopes the lookup to the blog, so an id from another blog misses', async () => {
+      await service.deleteComment(SLUG, 'comment-1', owner);
+
+      expect(prisma.comment.findUnique).toHaveBeenCalledWith({
+        where: { id: 'comment-1', blogId: 'blog-1' },
+      });
+    });
+
+    it('lets an admin delete any comment', async () => {
+      await service.deleteComment(SLUG, 'comment-1', admin);
+
+      expect(prisma.comment.delete).toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException for a user who did not write it', async () => {
+      await expect(
+        service.deleteComment(SLUG, 'comment-1', stranger),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.comment.delete).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for an unknown comment', async () => {
+      prisma.comment.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deleteComment(SLUG, 'missing', owner),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.comment.delete).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for an unknown blog', async () => {
+      prisma.blog.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deleteComment('missing', 'comment-1', owner),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.comment.findUnique).not.toHaveBeenCalled();
+      expect(prisma.comment.delete).not.toHaveBeenCalled();
     });
   });
 });
