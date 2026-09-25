@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { Source_Serif_4 } from 'next/font/google';
 import type { Blog, BlogAuthor } from '@repo/types';
 import { cn, formatPublishedAt, getReadingTime } from '@/lib/utils';
+import { highlightCodeBlocks } from '@/lib/highlight-code-blocks';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -86,9 +87,9 @@ const BlogArticle = ({ blog, html, actions, comments }: BlogArticleProps) => {
         <div
           className={cn(
             serif.className,
-            'prose prose-lg max-w-none dark:prose-invert prose-headings:tracking-tight prose-a:underline-offset-4 prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-blockquote:border-foreground prose-blockquote:text-foreground marker:text-foreground',
+            'prose prose-lg max-w-none dark:prose-invert prose-headings:tracking-tight prose-a:underline-offset-4 prose-pre:rounded-lg prose-pre:bg-transparent prose-pre:p-0 prose-pre:text-foreground prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-blockquote:border-foreground prose-blockquote:text-foreground marker:text-foreground',
           )}
-          dangerouslySetInnerHTML={{ __html: html }}
+          dangerouslySetInnerHTML={{ __html: highlightCodeBlocks(html) }}
         />
 
         {comments}
