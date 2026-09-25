@@ -2,11 +2,9 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRightIcon } from 'lucide-react';
 import type { GetAllBlogsResponse } from '@repo/types';
-import { formatPublishedAt } from '@/lib/utils';
+import { formatPublishedAt, getBlogPath } from '@/lib/utils';
 import { DEFAULT_AVATAR } from '@/lib/constants';
-import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import BlogActionsMenu from './blog-actions-menu';
@@ -37,47 +35,30 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
   } = blog;
 
   const isOwnBlog = authorId === viewerId;
+  const href = getBlogPath(author.name, slug);
 
   // Reporting is `@Roles(['user'])` and the service rejects your own blog, so
   // for these two the menu could only ever produce an error toast.
   const canReport = !isAdmin && !isOwnBlog;
 
-  // Sits under the cover image when there is one, otherwise at the bottom of
-  // the text column.
-  const readMoreButton = (
-    <Button
-      className='group w-fit bg-primary/10 hover:bg-primary/20 focus-visible:ring-primary/20 dark:focus-visible:ring-primary/40'
-      size='lg'
-      nativeButton={false}
-      render={<Link href={`/${slug}`} />}
-    >
-      Read More
-      <ArrowRightIcon className='transition-transform duration-200 group-hover:translate-x-0.5' />
-    </Button>
-  );
-
   return (
     <article className='group relative flex gap-8 py-8 max-sm:flex-col'>
       {coverImage && (
-        <div className='flex shrink-0 flex-col gap-4 max-sm:order-last'>
-          <Link
-            href={`/${slug}`}
-            className='block h-41 w-49 overflow-hidden rounded-lg max-sm:w-full'
-            tabIndex={-1}
-            aria-hidden
-          >
-            <Image
-              src={coverImage}
-              alt={title}
-              width={196}
-              height={164}
-              priority={priority}
-              className='size-full object-cover transition-transform duration-300 group-hover:scale-105'
-            />
-          </Link>
-
-          {readMoreButton}
-        </div>
+        <Link
+          href={href}
+          className='block h-41 w-49 shrink-0 overflow-hidden rounded-lg max-sm:order-last max-sm:w-full'
+          tabIndex={-1}
+          aria-hidden
+        >
+          <Image
+            src={coverImage}
+            alt={title}
+            width={196}
+            height={164}
+            priority={priority}
+            className='size-full object-cover transition-transform duration-300 group-hover:scale-105'
+          />
+        </Link>
       )}
 
       <div className='flex min-w-0 flex-1 flex-col gap-3'>
@@ -92,7 +73,7 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
         )}
 
         <Link
-          href={`/${slug}`}
+          href={href}
           className='text-xl font-medium after:absolute after:inset-0'
         >
           {title}
@@ -100,28 +81,26 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
 
         <p className='line-clamp-2 text-muted-foreground'>{shortDescription}</p>
 
-        <div className='flex items-center gap-3'>
-          <Avatar size='lg'>
-            <Image
-              src={author.image ?? DEFAULT_AVATAR}
-              alt={author.name}
-              width={40}
-              height={40}
-              className='aspect-square size-full rounded-full object-cover'
-            />
-          </Avatar>
-          <div className='flex min-w-0 flex-col'>
-            <span className='truncate font-medium'>{author.name}</span>
-            <span className='text-sm text-muted-foreground'>
-              {formatPublishedAt(createdAt)}
-            </span>
+        <div className='flex items-center justify-between gap-4'>
+          <div className='flex min-w-0 items-center gap-3'>
+            <Avatar size='lg'>
+              <Image
+                src={author.image ?? DEFAULT_AVATAR}
+                alt={author.name}
+                width={40}
+                height={40}
+                className='aspect-square size-full rounded-full object-cover'
+              />
+            </Avatar>
+            <div className='flex min-w-0 flex-col'>
+              <span className='truncate font-medium'>{author.name}</span>
+              <span className='text-sm text-muted-foreground'>
+                {formatPublishedAt(createdAt)}
+              </span>
+            </div>
           </div>
-        </div>
 
-        <div className='mt-2 flex items-center gap-4'>
-          {!coverImage && readMoreButton}
-
-          <div className='relative z-10 ml-auto flex items-center'>
+          <div className='relative z-10 flex shrink-0 items-center'>
             <LikeButton
               slug={slug}
               likesCount={_count.likes}

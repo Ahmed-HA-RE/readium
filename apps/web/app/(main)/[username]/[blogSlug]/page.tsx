@@ -1,14 +1,17 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { SITE_NAME } from '@/lib/constants';
+import { getBlogPath } from '@/lib/utils';
 import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
-import PublicBlogContent from './_components/public-blog-content';
+import PublicBlogContent, {
+  type BlogPageParams,
+} from './_components/public-blog-content';
 import BlogPageSkeleton from './_components/blog-page-skeleton';
 
 export const generateMetadata = async ({
   params,
 }: {
-  params: Promise<{ blogSlug: string }>;
+  params: BlogPageParams;
 }): Promise<Metadata> => {
   const { blogSlug } = await params;
   const data = blogSlug ? await getBlogBySlug(blogSlug) : null;
@@ -26,7 +29,7 @@ export const generateMetadata = async ({
     updatedAt,
     author,
   } = data.blog;
-  const url = `/${slug}`;
+  const url = getBlogPath(author.name, slug);
   const images = coverImage ? [{ url: coverImage, alt: title }] : undefined;
 
   return {
@@ -58,7 +61,7 @@ export const generateMetadata = async ({
 
 // `params` is passed down rather than awaited here, so the skeleton renders
 // immediately and only the article suspends.
-const BlogPage = ({ params }: { params: Promise<{ blogSlug: string }> }) => (
+const BlogPage = ({ params }: { params: BlogPageParams }) => (
   <Suspense fallback={<BlogPageSkeleton />}>
     <PublicBlogContent params={params} />
   </Suspense>

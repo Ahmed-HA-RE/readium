@@ -21,6 +21,16 @@ export const htmlToText = (html: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+// Medium-style `/@username/slug`. Usernames are free-form, so they are encoded.
+export const getBlogPath = (authorName: string, slug: string) =>
+  `/@${encodeURIComponent(authorName)}/${encodeURIComponent(slug)}`;
+
+// Decimal units, matching the 5MB (5,000,000 byte) upload limit.
+export const formatFileSize = (bytes: number) =>
+  bytes < 1_000_000
+    ? `${Math.max(1, Math.round(bytes / 1000))} KB`
+    : `${(bytes / 1_000_000).toFixed(1)} MB`;
+
 const WORDS_PER_MINUTE = 200;
 
 export const getReadingTime = (html: string) => {

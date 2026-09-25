@@ -1,14 +1,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Source_Serif_4 } from 'next/font/google';
 import type { Blog, BlogAuthor } from '@repo/types';
-import { cn, formatPublishedAt, getReadingTime } from '@/lib/utils';
+import { formatPublishedAt, getReadingTime } from '@/lib/utils';
+import { blogProseClassName } from '@/lib/blog-prose';
 import { highlightCodeBlocks } from '@/lib/highlight-code-blocks';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-
-const serif = Source_Serif_4({ subsets: ['latin'] });
 
 type BlogArticleProps = {
   blog: Pick<Blog, 'title' | 'tags' | 'coverImage' | 'createdAt'> & {
@@ -85,10 +83,7 @@ const BlogArticle = ({ blog, html, actions, comments }: BlogArticleProps) => {
         </header>
 
         <div
-          className={cn(
-            serif.className,
-            'prose prose-lg max-w-none dark:prose-invert prose-headings:tracking-tight prose-a:underline-offset-4 prose-pre:rounded-lg prose-pre:bg-transparent prose-pre:p-0 prose-pre:text-foreground prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-blockquote:border-foreground prose-blockquote:text-foreground marker:text-foreground',
-          )}
+          className={blogProseClassName}
           dangerouslySetInnerHTML={{ __html: highlightCodeBlocks(html) }}
         />
 
