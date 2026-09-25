@@ -65,6 +65,12 @@ export interface GetTrendingBlogsResponse {
   author: Pick<BlogAuthor, 'name' | 'image'>;
 }
 
+// The one remaining `{ success, data }` envelope, alongside `PUT /api/blogs/:slug`.
+export interface CreateBlogResponse {
+  success: boolean;
+  data: Omit<Blog, '_count'>;
+}
+
 export interface GetAllBlogsForAdmin {
   blogs: (Pick<
     Blog,

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { getBlogPath } from '@/lib/utils';
 import { sanitizeBlogHtml } from '@/lib/sanitize-html';
 import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
@@ -6,15 +7,23 @@ import BlogArticle from '@/components/shared/blog-article';
 import BlogActionBar from './blog-action-bar';
 import CommentsSection from './comments-section';
 
+export type BlogPageParams = Promise<{ username: string; blogSlug: string }>;
+
 type PublicBlogContentProps = {
-  params: Promise<{ blogSlug: string }>;
+  params: BlogPageParams;
 };
 
 const PublicBlogContent = async ({ params }: PublicBlogContentProps) => {
-  const { blogSlug } = await params;
+  const { username, blogSlug } = await params;
   const data = await getBlogBySlug(blogSlug);
 
   if (!blogSlug || !data) redirect('/');
+
+  // A wrong or missing `@username` still finds the blog, so send it to the
+  // canonical URL rather than serving duplicates.
+  if (decodeURIComponent(username) !== `@${data.blog.author.name}`) {
+    redirect(getBlogPath(data.blog.author.name, blogSlug));
+  }
 
   const session = await getCurrentLoggedInUser();
 

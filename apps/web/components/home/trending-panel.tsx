@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { formatPublishedAt } from '@/lib/utils';
+import { formatPublishedAt, getBlogPath } from '@/lib/utils';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { getTrendingBlogs } from '@/lib/actions/blogs/getTrendingBlogs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,7 +19,7 @@ const TrendingPanel = async () => {
 
       <div className='space-y-2'>
         <Link
-          href={`/${slug}`}
+          href={getBlogPath(author.name, slug)}
           className='line-clamp-2 leading-snug font-bold after:absolute after:inset-0'
         >
           {title}

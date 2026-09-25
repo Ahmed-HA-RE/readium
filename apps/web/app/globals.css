@@ -173,3 +173,13 @@
     @apply font-sans;
   }
 }
+
+/* The editor never stores the `hljs` class, so its code blocks copy the
+   github-dark theme's box. Unlayered like the theme, or typography's `pre code` reset wins. */
+.tiptap pre > code {
+  display: block;
+  overflow-x: auto;
+  padding: 1em;
+  color: #c9d1d9;
+  background: #0d1117;
+}
