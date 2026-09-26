@@ -1,5 +1,5 @@
 import type { CreateBlogResponse } from '@repo/types';
-import type { CreateBlogValues } from '@/schema/blog';
+import type { BlogValues } from '@/schema/blog';
 import { api } from '@/lib/axios';
 
 // `tags` is sent as JSON because `CreateBlogDto` parses it back into an array.
@@ -10,7 +10,7 @@ export const createBlog = async ({
   coverImage,
   tags,
   isPublished = false,
-}: CreateBlogValues): Promise<CreateBlogResponse['data']> => {
+}: BlogValues): Promise<CreateBlogResponse['data']> => {
   const formData = new FormData();
 
   formData.append('title', title);

@@ -1,15 +1,17 @@
 'use client';
 
 import { useId, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { IoEllipsisHorizontal } from 'react-icons/io5';
+import { GoPencil } from 'react-icons/go';
 import { VscReport } from 'react-icons/vsc';
 import { ReportReason } from '@repo/types';
-import { cn, getErrorMessage } from '@/lib/utils';
+import { cn, getBlogEditPath, getErrorMessage } from '@/lib/utils';
 import { reportBlog } from '@/lib/actions/report/reportBlog';
 import { reportBlogSchema, type ReportBlogFormData } from '@/schema/report';
 import { Button } from '@/components/ui/button';
@@ -41,11 +43,45 @@ const REPORT_REASONS = [
 
 type BlogActionsMenuProps = {
   slug: string;
+  isOwnBlog: boolean;
   // Positions the trigger, which differs between the card and the blog page.
   className?: string;
 };
 
-const BlogActionsMenu = ({ slug, className }: BlogActionsMenuProps) => {
+type MenuProps = Omit<BlogActionsMenuProps, 'isOwnBlog'>;
+
+const MenuTrigger = ({ className }: { className?: string }) => (
+  <DropdownMenuTrigger
+    render={
+      <Button
+        variant='ghost-plain'
+        size='icon'
+        aria-label='Blog actions'
+        className={cn('text-muted-foreground', className)}
+      />
+    }
+  >
+    <IoEllipsisHorizontal className='size-5' />
+  </DropdownMenuTrigger>
+);
+
+const OwnerMenu = ({ slug, className }: MenuProps) => (
+  <DropdownMenu>
+    <MenuTrigger className={className} />
+
+    <DropdownMenuContent align='end' className='w-56 px-2'>
+      <DropdownMenuItem
+        variant='ghost-plain'
+        render={<Link href={getBlogEditPath(slug)} />}
+      >
+        <GoPencil />
+        Edit story
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
+
+const ReportMenu = ({ slug, className }: MenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -82,18 +118,7 @@ const BlogActionsMenu = ({ slug, className }: BlogActionsMenuProps) => {
       }}
     >
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant='ghost-plain'
-              size='icon'
-              aria-label='Blog actions'
-              className={cn('text-muted-foreground', className)}
-            />
-          }
-        >
-          <IoEllipsisHorizontal className='size-5' />
-        </DropdownMenuTrigger>
+        <MenuTrigger className={className} />
 
         <DropdownMenuContent align='end' className='w-56 px-2'>
           <DropdownMenuItem
@@ -191,5 +216,9 @@ const BlogActionsMenu = ({ slug, className }: BlogActionsMenuProps) => {
     </Dialog>
   );
 };
+
+// The owner only edits, so their menu skips the report form entirely.
+const BlogActionsMenu = ({ isOwnBlog, ...props }: BlogActionsMenuProps) =>
+  isOwnBlog ? <OwnerMenu {...props} /> : <ReportMenu {...props} />;
 
 export default BlogActionsMenu;

@@ -25,6 +25,9 @@ export const htmlToText = (html: string) =>
 export const getBlogPath = (authorName: string, slug: string) =>
   `/@${encodeURIComponent(authorName)}/${encodeURIComponent(slug)}`;
 
+export const getBlogEditPath = (slug: string) =>
+  `/me/stories/${encodeURIComponent(slug)}/edit`;
+
 // Decimal units, matching the 5MB (5,000,000 byte) upload limit.
 export const formatFileSize = (bytes: number) =>
   bytes < 1_000_000

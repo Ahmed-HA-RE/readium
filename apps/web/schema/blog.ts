@@ -11,7 +11,8 @@ export const COVER_IMAGE_MAX_SIZE = 5_000_000; // 5MB, in bytes
 
 const fileSchema = z.file({ error: 'Cover image must be a file' });
 
-export const createBlogSchema = z.object({
+// Shared by create and edit. An omitted `coverImage` on edit keeps the current one.
+export const blogSchema = z.object({
   title: z
     .string({ error: 'Blog title is required' })
     .min(5, 'Blog title must be at least 5 characters long')
@@ -66,5 +67,5 @@ export const createBlogSchema = z.object({
 });
 
 // Fields hold the input shape; `onSubmit` receives the output, where `tags` is an array.
-export type CreateBlogFormData = z.input<typeof createBlogSchema>;
-export type CreateBlogValues = z.output<typeof createBlogSchema>;
+export type BlogFormData = z.input<typeof blogSchema>;
+export type BlogValues = z.output<typeof blogSchema>;

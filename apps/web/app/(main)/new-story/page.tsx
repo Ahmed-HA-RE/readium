@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
-import CreateBlogForm from './_components/create-blog-form';
+import BlogForm from '@/components/shared/blog-form';
 
 export const metadata: Metadata = {
   title: 'Write a story',
@@ -15,7 +15,7 @@ const NewStoryPage = async () => {
 
   return (
     <div className='mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 lg:px-8'>
-      <CreateBlogForm />
+      <BlogForm authorName={session.user.name} />
     </div>
   );
 };
