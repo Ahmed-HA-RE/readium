@@ -115,9 +115,10 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
         </div>
       </div>
 
-      {canReport && (
+      {(isOwnBlog || canReport) && (
         <BlogActionsMenu
           slug={slug}
+          isOwnBlog={isOwnBlog}
           className='absolute top-6 -right-1 z-10'
         />
       )}

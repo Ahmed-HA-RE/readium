@@ -7,7 +7,7 @@ import { useDropzone } from 'react-dropzone';
 import { FaXmark } from 'react-icons/fa6';
 import { LuImageUp } from 'react-icons/lu';
 import { cn, formatFileSize } from '@/lib/utils';
-import type { CreateBlogFormData, CreateBlogValues } from '@/schema/blog';
+import type { BlogFormData, BlogValues } from '@/schema/blog';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import {
   Attachment,
@@ -32,11 +32,17 @@ const getExtension = (file: File) =>
   ).toUpperCase();
 
 type CoverImageFieldProps = {
-  control: Control<CreateBlogFormData, unknown, CreateBlogValues>;
+  control: Control<BlogFormData, unknown, BlogValues>;
+  // The saved cover's URL when editing, shown until a new file replaces it.
+  currentCover?: string | null;
   disabled?: boolean;
 };
 
-const CoverImageField = ({ control, disabled }: CoverImageFieldProps) => {
+const CoverImageField = ({
+  control,
+  currentCover,
+  disabled,
+}: CoverImageFieldProps) => {
   const labelId = useId();
   const titleId = useId();
   const { field, fieldState } = useController({ control, name: 'coverImage' });
@@ -120,6 +126,24 @@ const CoverImageField = ({ control, disabled }: CoverImageFieldProps) => {
               <FaXmark />
             </AttachmentAction>
           </AttachmentActions>
+        </Attachment>
+      ) : currentCover ? (
+        // No remove action: the backend can replace a cover but not clear it.
+        <Attachment className='w-full'>
+          <AttachmentMedia variant='image'>
+            <Image
+              src={currentCover}
+              alt='Current cover image'
+              width={40}
+              height={40}
+            />
+          </AttachmentMedia>
+          <AttachmentContent>
+            <AttachmentTitle>Current cover</AttachmentTitle>
+            <AttachmentDescription>
+              Upload a new image to replace it
+            </AttachmentDescription>
+          </AttachmentContent>
         </Attachment>
       ) : null}
 

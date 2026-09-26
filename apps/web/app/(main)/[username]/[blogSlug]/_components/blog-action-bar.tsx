@@ -70,7 +70,9 @@ const BlogActionBar = ({
         Share
       </Button>
 
-      {canReport && <BlogActionsMenu slug={slug} />}
+      {(isOwnBlog || canReport) && (
+        <BlogActionsMenu slug={slug} isOwnBlog={isOwnBlog} />
+      )}
     </div>
   </div>
 );

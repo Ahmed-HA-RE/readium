@@ -6,6 +6,7 @@ import {
   GetAllBlogsResponse,
   GetBlogBySlugResponse,
   GetTrendingBlogsResponse,
+  UpdateMyBlogResponse,
 } from '@repo/types';
 import { CreateBlogDto } from './dto/create-blog-dto';
 import { S3ServiceService } from '../s3-service/s3-service.service';
@@ -311,7 +312,7 @@ export class BlogsService {
     coverImage: Express.Multer.File | undefined,
     updateBlogData: UpdateBlogDto,
     userId: string,
-  ): Promise<{ success: boolean; data: Omit<Blog, '_count'> }> {
+  ): Promise<UpdateMyBlogResponse> {
     let imageKey: string | null = null;
     let updatedSlug: string | null = null;
 

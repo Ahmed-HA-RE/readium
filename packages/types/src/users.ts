@@ -80,6 +80,7 @@ export interface GetMyBlogs {
     | 'title'
     | 'slug'
     | 'content'
+    | 'shortDescription'
     | 'tags'
     | 'coverImage'
     | 'isPublished'
@@ -111,8 +112,10 @@ export interface GetMyComments {
  * `isPublished`: unpublished blogs are filtered out server-side, so every row
  * here is safe to link to.
  */
-export interface LikesAndBookmarksBlogCard
-  extends Pick<Blog, 'id' | 'title' | 'slug' | 'tags' | 'coverImage'> {
+export interface LikesAndBookmarksBlogCard extends Pick<
+  Blog,
+  'id' | 'title' | 'slug' | 'tags' | 'coverImage'
+> {
   author: Pick<BlogAuthor, 'name' | 'image'>;
 }
 

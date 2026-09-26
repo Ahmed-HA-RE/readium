@@ -71,6 +71,9 @@ export interface CreateBlogResponse {
   data: Omit<Blog, '_count'>;
 }
 
+// `data.slug` is new when the title changed.
+export type UpdateMyBlogResponse = CreateBlogResponse;
+
 export interface GetAllBlogsForAdmin {
   blogs: (Pick<
     Blog,
