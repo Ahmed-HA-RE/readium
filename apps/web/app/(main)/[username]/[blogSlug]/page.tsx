@@ -3,9 +3,7 @@ import type { Metadata } from 'next';
 import { SITE_NAME } from '@/lib/constants';
 import { getBlogPath } from '@/lib/utils';
 import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
-import PublicBlogContent, {
-  type BlogPageParams,
-} from './_components/public-blog-content';
+import BlogContent, { type BlogPageParams } from './_components/blog-content';
 import BlogPageSkeleton from './_components/blog-page-skeleton';
 
 export const generateMetadata = async ({
@@ -63,7 +61,7 @@ export const generateMetadata = async ({
 // immediately and only the article suspends.
 const BlogPage = ({ params }: { params: BlogPageParams }) => (
   <Suspense fallback={<BlogPageSkeleton />}>
-    <PublicBlogContent params={params} />
+    <BlogContent params={params} />
   </Suspense>
 );
 

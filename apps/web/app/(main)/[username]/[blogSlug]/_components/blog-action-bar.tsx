@@ -1,15 +1,19 @@
 'use client';
 
 import { FaRegCommentDots } from 'react-icons/fa';
-import { IoShareOutline } from 'react-icons/io5';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import LikeButton from '@/components/shared/like-button';
 import BookmarkButton from '@/components/shared/bookmark-button';
 import BlogActionsMenu from '@/components/shared/blog-actions-menu';
 import { cn } from 'cn';
+import ShareBlogDialog from './share-blog-dialog';
 
 type BlogActionBarProps = {
   slug: string;
+  shareUrl: string;
+  title: string;
+  shortDescription: string;
+  authorName: string;
   likesCount: number;
   commentsCount: number;
   isLikedByLoggedInUser: boolean;
@@ -23,6 +27,10 @@ type BlogActionBarProps = {
 // after a change rather than relying on a client query.
 const BlogActionBar = ({
   slug,
+  shareUrl,
+  title,
+  shortDescription,
+  authorName,
   likesCount,
   commentsCount,
   isLikedByLoggedInUser,
@@ -42,7 +50,6 @@ const BlogActionBar = ({
         refreshOnChange
       />
 
-    
       <a
         href='#comments'
         aria-label={`${commentsCount} responses`}
@@ -64,11 +71,12 @@ const BlogActionBar = ({
         refreshOnChange
       />
 
-      {/* Placeholder until the share dialog ships. */}
-      <Button variant='ghost-plain' className='text-muted-foreground'>
-        <IoShareOutline />
-        Share
-      </Button>
+      <ShareBlogDialog
+        url={shareUrl}
+        title={title}
+        shortDescription={shortDescription}
+        authorName={authorName}
+      />
 
       {(isOwnBlog || canReport) && (
         <BlogActionsMenu slug={slug} isOwnBlog={isOwnBlog} />

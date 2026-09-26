@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { SITE_URL } from '@/lib/constants';
 import { getBlogPath } from '@/lib/utils';
 import { sanitizeBlogHtml } from '@/lib/sanitize-html';
 import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
@@ -9,11 +10,12 @@ import CommentsSection from './comments-section';
 
 export type BlogPageParams = Promise<{ username: string; blogSlug: string }>;
 
-type PublicBlogContentProps = {
+type BlogContentProps = {
   params: BlogPageParams;
 };
 
-const PublicBlogContent = async ({ params }: PublicBlogContentProps) => {
+// Serves the author and every reader; `isOwnBlog` decides which actions show.
+const BlogContent = async ({ params }: BlogContentProps) => {
   const { username, blogSlug } = await params;
   const data = await getBlogBySlug(blogSlug);
 
@@ -49,6 +51,14 @@ const PublicBlogContent = async ({ params }: PublicBlogContentProps) => {
       actions={
         <BlogActionBar
           slug={blogSlug}
+          // From `SITE_URL`, so it is localhost in development and the public domain in production.
+          shareUrl={new URL(
+            getBlogPath(blog.author.name, blogSlug),
+            SITE_URL,
+          ).toString()}
+          title={blog.title}
+          shortDescription={blog.shortDescription}
+          authorName={blog.author.name}
           likesCount={blog._count.likes}
           commentsCount={blog._count.comments}
           isLikedByLoggedInUser={isLikedByLoggedInUser}
@@ -73,4 +83,4 @@ const PublicBlogContent = async ({ params }: PublicBlogContentProps) => {
   );
 };
 
-export default PublicBlogContent;
+export default BlogContent;
