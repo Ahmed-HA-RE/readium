@@ -7,5 +7,6 @@ import { S3ServiceModule } from '../s3-service/s3-service.module';
   controllers: [BlogsController],
   providers: [BlogsService],
   imports: [S3ServiceModule],
+  exports: [BlogsService],
 })
 export class BlogsModule {}

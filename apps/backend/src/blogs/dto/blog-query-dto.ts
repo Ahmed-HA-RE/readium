@@ -17,7 +17,6 @@ export enum BlogSortOptions {
 
 export class BlogQueryDto {
   @IsOptional()
-  @IsNotEmpty()
   @IsString()
   search: string;
 

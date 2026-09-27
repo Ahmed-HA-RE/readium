@@ -5,6 +5,7 @@ import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { BlogQueryDto, BlogSortOptions } from '../blogs/dto/blog-query-dto';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
+import { MyBlogsQueryDto, MyBlogsStatus } from './dto/my-blogs-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
 // `import type`: the DTO extends `OmitType` from the ESM-only
@@ -30,6 +31,14 @@ type UserFindUniqueArgs = {
 };
 
 type BlogCountArgs = { where: Prisma.BlogWhereInput };
+
+type BlogGroupByArgs = {
+  by: string[];
+  where: Prisma.BlogWhereInput;
+  _count: { _all: true };
+};
+
+type StatusGroup = { isPublished: boolean; _count: { _all: number } };
 
 // `updateUserProfile` reads the row by id, so `user.findUnique` is called with
 // two different shapes across the suite.
@@ -107,6 +116,7 @@ type PrismaMocks = {
     count: jest.Mock<Promise<number>, [BlogCountArgs]>;
     findMany: jest.Mock<Promise<unknown[]>, [BlogFindManyArgs]>;
     findUnique: jest.Mock<Promise<unknown>, [BlogFindUniqueArgs]>;
+    groupBy: jest.Mock<Promise<StatusGroup[]>, [BlogGroupByArgs]>;
   };
   comment: {
     findMany: jest.Mock<Promise<unknown[]>, [CommentFindManyArgs]>;
@@ -169,6 +179,15 @@ const commentRow = {
   id: 'comment-1',
   content: 'Great write-up',
   createdAt: new Date('2026-09-02T00:00:00.000Z'),
+  blog: {
+    id: 'blog-1',
+    title: 'A published blog',
+    slug: 'a-published-blog',
+    coverImage: 'cover-key',
+    isPublished: true,
+    shortDescription: 'A short description',
+    author: { name: 'Sara' },
+  },
 };
 
 // A like or bookmark row as its query returns it: the join row is projected
@@ -252,6 +271,12 @@ describe('UsersService', () => {
         findUnique: jest
           .fn<Promise<unknown>, [BlogFindUniqueArgs]>()
           .mockResolvedValue({ ...myBlogRow }),
+        groupBy: jest
+          .fn<Promise<StatusGroup[]>, [BlogGroupByArgs]>()
+          .mockResolvedValue([
+            { isPublished: true, _count: { _all: 4 } },
+            { isPublished: false, _count: { _all: 2 } },
+          ]),
       },
       comment: {
         findMany: jest
@@ -509,8 +534,11 @@ describe('UsersService', () => {
   describe('getMyBlogs', () => {
     const findManyArgs = () => prisma.blog.findMany.mock.calls[0][0];
 
-    const myBlogs = (partial: Partial<BlogQueryDto> = {}) =>
-      service.getMyBlogs(session().user, query(partial));
+    const myBlogs = (partial: Partial<MyBlogsQueryDto> = {}) =>
+      service.getMyBlogs(session().user, {
+        status: MyBlogsStatus.PUBLISHED,
+        ...partial,
+      } as MyBlogsQueryDto);
 
     // The whole point of the endpoint: the author comes from the session, so
     // no caller-supplied identifier can widen the result set.
@@ -532,12 +560,25 @@ describe('UsersService', () => {
       expect(countArgs().where).toEqual(findManyArgs().where);
     });
 
-    // Unlike the public profile: these are the owner's own blogs, so drafts
-    // belong in the list.
-    it('includes drafts', async () => {
+    // One tab per status: the Published and Drafts tabs never mix.
+    it('returns only published blogs for the published status', async () => {
+      await myBlogs({ status: MyBlogsStatus.PUBLISHED });
+
+      expect(findManyArgs().where.isPublished).toBe(true);
+      expect(countArgs().where.isPublished).toBe(true);
+    });
+
+    it('returns only drafts for the draft status', async () => {
+      await myBlogs({ status: MyBlogsStatus.DRAFT });
+
+      expect(findManyArgs().where.isPublished).toBe(false);
+      expect(countArgs().where.isPublished).toBe(false);
+    });
+
+    it('does not select the blog body', async () => {
       await myBlogs();
 
-      expect(findManyArgs().where.isPublished).toBeUndefined();
+      expect(findManyArgs().select.content).toBeUndefined();
     });
 
     it('returns isPublished so the UI can flag drafts', async () => {
@@ -561,7 +602,10 @@ describe('UsersService', () => {
     it('applies no search filter when no search term is given', async () => {
       await myBlogs();
 
-      expect(findManyArgs().where).toEqual({ authorId: 'user-1' });
+      expect(findManyArgs().where).toEqual({
+        authorId: 'user-1',
+        isPublished: true,
+      });
     });
 
     it('reuses the sort, limit and page values from buildBlogQuery', async () => {
@@ -607,6 +651,33 @@ describe('UsersService', () => {
       expect(result.totalPages).toBe(5);
     });
 
+    it('returns the published and draft totals for the tab badges', async () => {
+      const result = await myBlogs();
+
+      expect(result.counts).toEqual({ published: 4, draft: 2 });
+    });
+
+    // The badges are totals: a search narrows the list, not the tab counts.
+    it('counts per status for the author only, ignoring search', async () => {
+      await myBlogs({ search: 'nest', status: MyBlogsStatus.DRAFT });
+
+      expect(prisma.blog.groupBy.mock.calls[0][0]).toEqual({
+        by: ['isPublished'],
+        where: { authorId: 'user-1' },
+        _count: { _all: true },
+      });
+    });
+
+    it('reports 0 for a status the author has no blogs in', async () => {
+      prisma.blog.groupBy.mockResolvedValue([
+        { isPublished: true, _count: { _all: 3 } },
+      ]);
+
+      const result = await myBlogs();
+
+      expect(result.counts).toEqual({ published: 3, draft: 0 });
+    });
+
     it('signs every cover image', async () => {
       const result = await myBlogs();
 
@@ -623,75 +694,6 @@ describe('UsersService', () => {
 
       expect(s3.getSignedUrl).not.toHaveBeenCalled();
       expect(result.blogs[0].coverImage).toBeNull();
-    });
-  });
-
-  describe('getMyBlogBySlug', () => {
-    const findUniqueBlogArgs = () => prisma.blog.findUnique.mock.calls[0][0];
-
-    const myBlog = (slug = 'a-published-blog') =>
-      service.getMyBlogBySlug(session().user, slug);
-
-    // The ownership guarantee: the author comes from the session, so the slug
-    // alone can never reach another user's blog.
-    it('scopes the lookup to the session user id', async () => {
-      await myBlog();
-
-      expect(findUniqueBlogArgs().where).toEqual({
-        slug: 'a-published-blog',
-        authorId: 'user-1',
-      });
-    });
-
-    // Another user's blog and a nonexistent one are indistinguishable, so the
-    // endpoint cannot be used to probe which slugs exist.
-    it('throws NotFound when the blog is not the caller’s', async () => {
-      prisma.blog.findUnique.mockResolvedValue(null);
-
-      await expect(myBlog('someone-elses-blog')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-
-    it('returns a draft', async () => {
-      const result = await myBlog();
-
-      expect(findUniqueBlogArgs().select.isPublished).toBe(true);
-      expect(result.blog.isPublished).toBe(false);
-    });
-
-    it('selects the fields the editor needs to repopulate the form', async () => {
-      await myBlog();
-
-      const { select } = findUniqueBlogArgs();
-      expect(select.title).toBe(true);
-      expect(select.content).toBe(true);
-      expect(select.tags).toBe(true);
-      expect(select.coverImage).toBe(true);
-      expect(select._count.select).toEqual({
-        comments: true,
-        likes: true,
-        bookmarks: true,
-      });
-    });
-
-    it('signs the cover image', async () => {
-      const result = await myBlog();
-
-      expect(s3.getSignedUrl).toHaveBeenCalledWith('cover-key');
-      expect(result.blog.coverImage).toBe('https://signed/url');
-    });
-
-    it('leaves a missing cover image as null', async () => {
-      prisma.blog.findUnique.mockResolvedValue({
-        ...myBlogRow,
-        coverImage: null,
-      });
-
-      const result = await myBlog();
-
-      expect(s3.getSignedUrl).not.toHaveBeenCalled();
-      expect(result.blog.coverImage).toBeNull();
     });
   });
 
@@ -774,20 +776,37 @@ describe('UsersService', () => {
       expect(result.nextCursor).toBeNull();
     });
 
-    it('returns only the content, createdAt and id of each comment', async () => {
+    it('returns the content, createdAt and id of each comment with its blog', async () => {
       const result = await myComments();
 
-      expect(findManyArgs().select).toEqual({
+      expect(findManyArgs().select).toMatchObject({
         id: true,
         content: true,
         createdAt: true,
       });
       expect(Object.keys(result.data[0]).sort()).toEqual([
         'author',
+        'blog',
         'content',
         'createdAt',
         'id',
       ]);
+    });
+
+    // The card links to `/@<author>/<slug>`, which needs the blog's author.
+    it('selects the blog author name to build the link', async () => {
+      await myComments();
+
+      expect(findManyArgs().select).toMatchObject({
+        blog: { select: { author: { select: { name: true } } } },
+      });
+    });
+
+    it('signs the blog cover image', async () => {
+      const result = await myComments();
+
+      expect(s3.getSignedUrl).toHaveBeenCalledWith('cover-key');
+      expect(result.data[0].blog.coverImage).toBe('https://signed/url');
     });
 
     it('attaches the session user name and signed avatar to each comment', async () => {
@@ -816,10 +835,19 @@ describe('UsersService', () => {
 
       await myComments();
 
-      expect(s3.getSignedUrl).toHaveBeenCalledTimes(1);
+      // Covers are signed per row; only the avatar calls are counted here.
+      const avatarCalls = s3.getSignedUrl.mock.calls.filter(
+        ([key]) => key === 'profile-key',
+      );
+      expect(avatarCalls).toHaveLength(1);
     });
 
     it('leaves a missing avatar as null', async () => {
+      // No cover either, so any signing call could only be for the avatar.
+      prisma.comment.findMany.mockResolvedValue([
+        { ...commentRow, blog: { ...commentRow.blog, coverImage: null } },
+      ]);
+
       const result = await service.getMyComments(
         session({ image: null }).user,
         {} as CommentQueryDto,

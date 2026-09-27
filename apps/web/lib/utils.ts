@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { differenceInDays, format, formatDistanceToNow } from 'date-fns';
+import type { MyBlogsStatus } from '@repo/types';
 
 export { cn } from 'cn';
 
@@ -21,12 +22,23 @@ export const htmlToText = (html: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-// Medium-style `/@username/slug`. Usernames are free-form, so they are encoded.
 export const getBlogPath = (authorName: string, slug: string) =>
   `/@${encodeURIComponent(authorName)}/${encodeURIComponent(slug)}`;
 
+export const ADMIN_MY_STORIES_PATH = '/admin/dashboard/me/stories';
+
+export const ADMIN_MY_LISTS_PATH = '/admin/dashboard/me/lists';
+
+export const ADMIN_PROFILE_PATH = '/admin/dashboard/profile';
+
+export const ADMIN_SETTINGS_PATH = '/admin/dashboard/settings';
+
 export const getBlogEditPath = (slug: string) =>
   `/me/stories/${encodeURIComponent(slug)}/edit`;
+
+// One tab of the author's stories dashboard.
+export const getMyStoriesPath = (status: MyBlogsStatus) =>
+  `/me/stories?status=${status}`;
 
 // Decimal units, matching the 5MB (5,000,000 byte) upload limit.
 export const formatFileSize = (bytes: number) =>

@@ -6,6 +6,7 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { S3ServiceModule } from '../s3-service/s3-service.module';
 import { UsersModule } from '../users/users.module';
+import { BlogsModule } from '../blogs/blogs.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { UsersModule } from '../users/users.module';
     AdminUsersModule,
     S3ServiceModule,
     UsersModule,
+    BlogsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

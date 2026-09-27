@@ -107,10 +107,13 @@ describe('CommentsService', () => {
       partial as CommentQueryDto;
 
     describe('query', () => {
-      it('scopes the comments to the blog slug', async () => {
+      // A draft has no comment thread, so its slug yields an empty list.
+      it('scopes the comments to the published blog with the slug', async () => {
         await service.getCommentsForBlog(query({ limit: 2 }), SLUG);
 
-        expect(findManyArgs().where).toEqual({ blog: { slug: SLUG } });
+        expect(findManyArgs().where).toEqual({
+          blog: { slug: SLUG, isPublished: true },
+        });
       });
 
       it('takes the requested limit', async () => {

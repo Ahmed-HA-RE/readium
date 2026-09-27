@@ -96,6 +96,15 @@ describe('LikesService', () => {
       );
     });
 
+    // Its author can open a draft, so the lookup must exclude drafts itself.
+    it('looks up published blogs only, so a draft is a 404', async () => {
+      await service.likeBlog(SLUG, READER_ID);
+
+      expect(prisma.blog.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { slug: SLUG, isPublished: true } }),
+      );
+    });
+
     // A self-like would inflate `_count.likes`, which drives the `most_liked`
     // sort and the trending panel.
     it('rejects the author liking their own blog', async () => {

@@ -15,8 +15,9 @@ export class LikesService {
   private async findBlogBySlug(
     blogSlug: string,
   ): Promise<{ id: string; authorId: string }> {
+    // A draft answers 404: only its author can see it, and it is not likeable.
     const blog = await this.prisma.blog.findUnique({
-      where: { slug: blogSlug },
+      where: { slug: blogSlug, isPublished: true },
       select: { id: true, authorId: true },
     });
 

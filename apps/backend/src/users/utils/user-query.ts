@@ -18,8 +18,11 @@ export const likesAndBookmarksSelect = {
   id: true,
   title: true,
   slug: true,
+  shortDescription: true,
   tags: true,
   coverImage: true,
+  createdAt: true,
+  authorId: true,
   author: {
     select: {
       name: true,

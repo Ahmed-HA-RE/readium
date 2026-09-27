@@ -21,6 +21,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { minutes, Throttle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
+import { MyBlogsQueryDto } from './dto/my-blogs-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile-dto';
@@ -43,25 +44,11 @@ export class UsersController {
   }
 
   // Method           GET /api/users/me/blogs
-  // Description      Get the signed-in user's own blogs, filtered, sorted, and paginated
+  // Description      Get the signed-in user's own published or draft blogs, filtered, sorted, and paginated
   @Get('me/blogs')
   @Roles(['user'])
-  getMyBlogs(
-    @Session() session: UserSession,
-    @Query() query: UserBlogsQueryDto,
-  ) {
+  getMyBlogs(@Session() session: UserSession, @Query() query: MyBlogsQueryDto) {
     return this.usersService.getMyBlogs(session.user, query);
-  }
-
-  // Method           GET /api/users/me/blogs/:slug
-  // Description      Get one of the signed-in user's own blogs, draft or published, for the editor
-  @Get('me/blogs/:slug')
-  @Roles(['user'])
-  getMyBlogBySlug(
-    @Session() session: UserSession,
-    @Param('slug') slug: string,
-  ) {
-    return this.usersService.getMyBlogBySlug(session.user, slug);
   }
 
   // Method           GET /api/users/me/comments

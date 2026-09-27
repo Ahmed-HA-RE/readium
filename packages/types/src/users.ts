@@ -72,14 +72,20 @@ export interface GetCurrentLoggedInUser {
   user: CurrentUser;
 }
 
-// `GET /api/users/me/blogs`. Includes drafts, so `isPublished` is returned.
+// The `status` of `GET /api/users/me/blogs`. Mirrors `MyBlogsStatus` in the
+// backend DTO, which is the source of truth.
+export enum MyBlogsStatus {
+  PUBLISHED = 'published',
+  DRAFT = 'draft',
+}
+
+// `GET /api/users/me/blogs?status=`. One side per request, published or draft.
 export interface GetMyBlogs {
   blogs: Pick<
     Blog,
     | 'id'
     | 'title'
     | 'slug'
-    | 'content'
     | 'shortDescription'
     | 'tags'
     | 'coverImage'
@@ -88,11 +94,7 @@ export interface GetMyBlogs {
     | '_count'
   >[];
   totalPages: number;
-}
-
-// `GET /api/users/me/blogs/:slug`. One of the caller's own blogs, draft or published.
-export interface GetMyBlogBySlug {
-  blog: GetMyBlogs['blogs'][number];
+  counts: Record<MyBlogsStatus, number>;
 }
 
 /**
@@ -103,6 +105,15 @@ export interface GetMyBlogBySlug {
 export interface GetMyComments {
   data: (Pick<Comment, 'id' | 'content' | 'createdAt'> & {
     author: Pick<BlogAuthor, 'name' | 'image'>;
+    blog: Pick<
+      Blog,
+      | 'id'
+      | 'title'
+      | 'slug'
+      | 'coverImage'
+      | 'isPublished'
+      | 'shortDescription'
+    > & { author: Pick<BlogAuthor, 'name'> };
   })[];
   nextCursor: string | null;
 }
@@ -114,7 +125,14 @@ export interface GetMyComments {
  */
 export interface LikesAndBookmarksBlogCard extends Pick<
   Blog,
-  'id' | 'title' | 'slug' | 'tags' | 'coverImage'
+  | 'id'
+  | 'title'
+  | 'slug'
+  | 'shortDescription'
+  | 'tags'
+  | 'coverImage'
+  | 'createdAt'
+  | 'authorId'
 > {
   author: Pick<BlogAuthor, 'name' | 'image'>;
 }

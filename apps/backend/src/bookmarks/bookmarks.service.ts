@@ -14,8 +14,10 @@ export class BookmarksService {
 
   private async findBlogBySlug(blogSlug: string): Promise<{ id: string }> {
     const blog = await this.prisma.blog.findUnique({
+      // A draft answers 404, like a blog that does not exist.
       where: {
         slug: blogSlug,
+        isPublished: true,
       },
       select: {
         id: true,

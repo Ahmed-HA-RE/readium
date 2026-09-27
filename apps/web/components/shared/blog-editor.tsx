@@ -335,9 +335,9 @@ const BlogEditor = ({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-lg border border-input transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30',
+        'overflow-hidden rounded-lg border border-input transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/50 dark:bg-input/30',
         invalid &&
-          'border-destructive ring-3 ring-destructive/20 dark:border-destructive/50 dark:ring-destructive/40',
+          'border-destructive ring-1 ring-destructive/20 dark:border-destructive/50 dark:ring-destructive/40',
       )}
     >
       {editor ? (

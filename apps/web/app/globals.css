@@ -183,3 +183,12 @@
   color: #c9d1d9;
   background: #0d1117;
 }
+
+@utility no-visible-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

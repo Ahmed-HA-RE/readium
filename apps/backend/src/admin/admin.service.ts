@@ -7,15 +7,18 @@ import { generateImageKey } from '../../lib/utils';
 import {
   AdminDashboardAnalytics,
   GetMyDataAsAdmin,
-  GetUserWithBlogsByUsernameAsAdmin,
+  GetMyBlogs,
   GetUserWithCommentsByUsernameAsAdmin,
   UpdateAdminSettings,
+  UpdateMyBlogResponse,
 } from '@repo/types';
 import { subDays } from 'date-fns';
 import { UpdateAdminDto } from './dto/update-admin-dto';
-import { BlogQueryDto } from '../blogs/dto/blog-query-dto';
+import { AdminMyBlogsQueryDto } from './dto/admin-my-blogs-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { UsersService } from '../users/users.service';
+import { BlogsService } from '../blogs/blogs.service';
+import { UpdateBlogDto } from '../blogs/dto/update-blog-dto';
 
 // A user counts as active when their last activity falls within this window.
 const ACTIVE_USER_WINDOW_IN_DAYS = 30;
@@ -31,6 +34,7 @@ export class AdminService {
     private readonly s3Service: S3ServiceService,
     private readonly AdminUsersService: AdminUsersService,
     private readonly usersService: UsersService,
+    private readonly blogsService: BlogsService,
   ) {}
 
   readonly logger = new Logger(AdminService.name);
@@ -99,12 +103,9 @@ export class AdminService {
 
   async getMyBlogsAsAdmin(
     user: UserSession['user'],
-    query: BlogQueryDto,
-  ): Promise<GetUserWithBlogsByUsernameAsAdmin> {
-    return this.AdminUsersService.getUserBlogsByUsernameAsAdmin(
-      user.name,
-      query,
-    );
+    query: AdminMyBlogsQueryDto,
+  ): Promise<GetMyBlogs> {
+    return this.usersService.getMyBlogs(user, query);
   }
 
   async getMyCommentsAsAdmin(
@@ -115,6 +116,27 @@ export class AdminService {
       user.name,
       query,
     );
+  }
+
+  async updateMyBlogAsAdmin(
+    user: UserSession['user'],
+    slug: string,
+    coverImage: Express.Multer.File | undefined,
+    updateBlogDto: UpdateBlogDto,
+  ): Promise<UpdateMyBlogResponse> {
+    return this.blogsService.updateBlog(
+      slug,
+      coverImage,
+      updateBlogDto,
+      user.id,
+    );
+  }
+
+  async deleteMyBlogAsAdmin(
+    user: UserSession['user'],
+    slug: string,
+  ): Promise<void> {
+    return this.blogsService.deleteBlog(slug, user.id);
   }
 
   async getDashboardAnalytics(): Promise<AdminDashboardAnalytics> {

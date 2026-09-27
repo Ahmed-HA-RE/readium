@@ -2,11 +2,18 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
+import type { IconType } from 'react-icons';
 import { IoHome, IoNewspaperOutline } from 'react-icons/io5';
-import { MdLibraryBooks } from 'react-icons/md';
+import { MdAdminPanelSettings, MdLibraryBooks } from 'react-icons/md';
 import { FaRegHeart, FaRegUser } from 'react-icons/fa';
 import { APP_LOGO } from '@repo/assets';
+import {
+  ADMIN_MY_LISTS_PATH,
+  ADMIN_MY_STORIES_PATH,
+  ADMIN_PROFILE_PATH,
+} from '@/lib/utils';
+import type { ListsTab } from '@/lib/search-params';
 import {
   Sidebar,
   SidebarContent,
@@ -21,23 +28,83 @@ import {
 
 const logoStyle = { width: 36, height: 'auto' };
 
-// `exact` keeps `/` and `/me` from matching every route nested under them.
-const navItems = [
-  { href: '/', label: 'Home', Icon: IoHome, exact: true },
-  { href: '/me/stories', label: 'Stories', Icon: IoNewspaperOutline },
-  { href: '/me/lists/bookmarks', label: 'Library', Icon: MdLibraryBooks },
-  { href: '/me/lists/likes', label: 'Likes', Icon: FaRegHeart },
-  { href: '/me', label: 'Profile', Icon: FaRegUser, exact: true },
+type NavItem = {
+  path: string;
+  tab?: ListsTab;
+  label: string;
+  Icon: IconType;
+  // Keeps `/`, `/me` and `/admin/dashboard` from matching every route nested under them.
+  exact?: boolean;
+};
+
+const getNavItems = (isAdmin: boolean): NavItem[] => [
+  { path: '/', label: 'Home', Icon: IoHome, exact: true },
+  {
+    path: isAdmin ? ADMIN_MY_STORIES_PATH : '/me/stories',
+    label: 'Stories',
+    Icon: IoNewspaperOutline,
+  },
+  {
+    path: isAdmin ? ADMIN_MY_LISTS_PATH : '/me/lists',
+    label: 'Library',
+    Icon: MdLibraryBooks,
+  },
+  ...(isAdmin
+    ? []
+    : [
+        {
+          path: '/me/lists',
+          tab: 'likes' as const,
+          label: 'Likes',
+          Icon: FaRegHeart,
+        },
+      ]),
+  {
+    path: isAdmin ? ADMIN_PROFILE_PATH : '/me',
+    label: 'Profile',
+    Icon: FaRegUser,
+    exact: true,
+  },
+  ...(isAdmin
+    ? [
+        {
+          path: '/admin/dashboard',
+          label: 'Dashboard',
+          Icon: MdAdminPanelSettings,
+          exact: true,
+        },
+      ]
+    : []),
 ];
 
-const isActiveRoute = (pathname: string, href: string, exact?: boolean) =>
-  exact
-    ? pathname === href
-    : pathname === href || pathname.startsWith(`${href}/`);
+const getHref = ({ path, tab }: NavItem) => (tab ? `${path}?tab=${tab}` : path);
 
-const HomeSidebar = () => {
+// A tabless item on a shared path is active unless a sibling claims the current tab.
+const isActiveItem = (
+  item: NavItem,
+  items: NavItem[],
+  pathname: string,
+  tab: string | null,
+) => {
+  const isOnPath = item.exact
+    ? pathname === item.path
+    : pathname === item.path || pathname.startsWith(`${item.path}/`);
+
+  if (!isOnPath) return false;
+  if (item.tab) return item.tab === tab;
+
+  return !items.some((other) => other.path === item.path && other.tab === tab);
+};
+
+type HomeSidebarProps = {
+  isAdmin: boolean;
+};
+
+const HomeSidebar = ({ isAdmin }: HomeSidebarProps) => {
   const pathname = usePathname();
+  const tab = useSearchParams().get('tab');
   const { setOpenMobile } = useSidebar();
+  const navItems = getNavItems(isAdmin);
 
   return (
     <Sidebar
@@ -75,22 +142,27 @@ const HomeSidebar = () => {
         <SidebarGroup className='px-1 py-2 md:pt-8'>
           <SidebarGroupContent>
             <SidebarMenu className='gap-1'>
-              {navItems.map(({ href, label, Icon, exact }) => (
-                <SidebarMenuItem key={href}>
-                  <SidebarMenuButton
-                    isActive={isActiveRoute(pathname, href, exact)}
-                    // The indicator is a pseudo-element rather than a border so
-                    // its height stays fixed as the row height changes.
-                    className='text-muted-foreground data-active:text-foreground data-active:before:bg-foreground relative h-11 gap-4 px-4 text-base before:absolute before:top-1/2 before:left-0 before:h-6 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-transparent data-active:bg-transparent [&_svg]:size-5'
-                    render={
-                      <Link href={href} onClick={() => setOpenMobile(false)}>
-                        <Icon />
-                        <span>{label}</span>
-                      </Link>
-                    }
-                  />
-                </SidebarMenuItem>
-              ))}
+              {navItems.map((item) => {
+                const { label, Icon } = item;
+                const href = getHref(item);
+
+                return (
+                  <SidebarMenuItem key={href}>
+                    <SidebarMenuButton
+                      isActive={isActiveItem(item, navItems, pathname, tab)}
+                      // The indicator is a pseudo-element rather than a border so
+                      // its height stays fixed as the row height changes.
+                      className='text-muted-foreground data-active:text-foreground data-active:before:bg-foreground relative h-11 gap-4 px-4 text-base before:absolute before:top-1/2 before:left-0 before:h-6 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-transparent data-active:bg-transparent [&_svg]:size-5'
+                      render={
+                        <Link href={href} onClick={() => setOpenMobile(false)}>
+                          <Icon />
+                          <span>{label}</span>
+                        </Link>
+                      }
+                    />
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { authClient } from '@/lib/auth-client';
 import { DEFAULT_AVATAR } from '@/lib/constants';
+import { ADMIN_PROFILE_PATH, ADMIN_SETTINGS_PATH } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ICON_CLASS = 'size-4';
@@ -30,17 +31,22 @@ const collapsedLinks = [
   { href: '/notifications', label: 'Notifications', Icon: GoBell },
 ];
 
-const accountLinks = [
-  { href: '/me/settings', label: 'Settings', Icon: GoGear },
+const getAccountLinks = (isAdmin: boolean) => [
+  {
+    href: isAdmin ? ADMIN_SETTINGS_PATH : '/me/settings',
+    label: 'Settings',
+    Icon: GoGear,
+  },
 ];
 
 interface UserMenuProps {
   name: string;
   image: string | null;
   isPro: boolean;
+  isAdmin: boolean;
 }
 
-const UserMenu = ({ name, image, isPro }: UserMenuProps) => {
+const UserMenu = ({ name, image, isPro, isAdmin }: UserMenuProps) => {
   const [isSigningOut, startSignOut] = useTransition();
   const { setTheme, resolvedTheme } = useTheme();
   const router = useRouter();
@@ -85,7 +91,10 @@ const UserMenu = ({ name, image, isPro }: UserMenuProps) => {
           </Avatar>
           <div className='flex min-w-0 flex-col leading-tight'>
             <span className='truncate font-medium'>{name}</span>
-            <Link href='/profile' className='text-muted-foreground w-fit'>
+            <Link
+              href={isAdmin ? ADMIN_PROFILE_PATH : '/me'}
+              className='text-muted-foreground w-fit'
+            >
               <small className='hover:text-foreground transition'>
                 View Profile
               </small>
@@ -116,7 +125,7 @@ const UserMenu = ({ name, image, isPro }: UserMenuProps) => {
 
         <DropdownMenuSeparator className='lg:hidden' />
 
-        {accountLinks.map(({ href, label, Icon }) => (
+        {getAccountLinks(isAdmin).map(({ href, label, Icon }) => (
           <DropdownMenuItem key={href} render={<Link href={href} />}>
             <Icon className={ICON_CLASS} />
             {label}

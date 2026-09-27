@@ -5,7 +5,11 @@ import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { AdminUsersService } from './users/admin-users.service';
 import { UsersService } from '../users/users.service';
+import { BlogsService } from '../blogs/blogs.service';
 import { UserSession } from '@thallesp/nestjs-better-auth';
+import { AdminMyBlogsQueryDto } from './dto/admin-my-blogs-query-dto';
+import { MyBlogsStatus } from '../users/dto/my-blogs-query-dto';
+import { UpdateBlogDto } from '../blogs/dto/update-blog-dto';
 
 // Frozen so the 30 day cutoff is deterministic across runs.
 const NOW = new Date('2026-09-06T12:00:00.000Z');
@@ -34,6 +38,8 @@ describe('AdminService', () => {
   let service: AdminService;
   let prisma: CountMocks;
   let adminUsers: AdminUsersMocks;
+  let users: { isUsernameTaken: jest.Mock; getMyBlogs: jest.Mock };
+  let blogs: { updateBlog: jest.Mock; deleteBlog: jest.Mock };
 
   beforeEach(async () => {
     jest.useFakeTimers().setSystemTime(NOW);
@@ -55,13 +61,28 @@ describe('AdminService', () => {
         .mockResolvedValue({ data: [], nextCursor: null }),
     };
 
+    users = {
+      isUsernameTaken: jest.fn(),
+      getMyBlogs: jest.fn().mockResolvedValue({
+        blogs: [],
+        totalPages: 0,
+        counts: { published: 0, draft: 0 },
+      }),
+    };
+
+    blogs = {
+      updateBlog: jest.fn().mockResolvedValue({ success: true, data: {} }),
+      deleteBlog: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminService,
         { provide: DatabaseService, useValue: prisma },
         { provide: S3ServiceService, useValue: {} },
         { provide: AdminUsersService, useValue: adminUsers },
-        { provide: UsersService, useValue: { isUsernameTaken: jest.fn() } },
+        { provide: UsersService, useValue: users },
+        { provide: BlogsService, useValue: blogs },
       ],
     }).compile();
 
@@ -73,8 +94,8 @@ describe('AdminService', () => {
     jest.clearAllMocks();
   });
 
-  // The /api/admin/me family delegates to AdminUsersService with the username
-  // off the session, so the subject can never be steered by a path param.
+  // The /api/admin/me family delegates to other services with the admin off
+  // the session, so the subject can never be steered by a path param.
   describe('the /api/admin/me endpoints', () => {
     it('reads the profile without the moderation columns', async () => {
       await service.getMyDataAsAdmin(SESSION_USER);
@@ -82,16 +103,41 @@ describe('AdminService', () => {
       expect(adminUsers.getUserByUsername).toHaveBeenCalledWith('Ahmed', false);
     });
 
-    it('passes the blog query through for the signed-in admin', async () => {
-      const query = { search: 'nest', page: '2', limit: '5' };
+    it('lists the signed-in admin’s blogs exactly as the user dashboard does', async () => {
+      const query = {
+        status: MyBlogsStatus.DRAFT,
+        search: 'nest',
+        page: 2,
+        limit: 5,
+      } as AdminMyBlogsQueryDto;
 
       const page = await service.getMyBlogsAsAdmin(SESSION_USER, query);
 
-      expect(adminUsers.getUserBlogsByUsernameAsAdmin).toHaveBeenCalledWith(
-        'Ahmed',
-        query,
+      expect(users.getMyBlogs).toHaveBeenCalledWith(SESSION_USER, query);
+      expect(page).toEqual({
+        blogs: [],
+        totalPages: 0,
+        counts: { published: 0, draft: 0 },
+      });
+    });
+
+    it('updates only the signed-in admin’s own blog', async () => {
+      const dto = { title: 'A new title' } as UpdateBlogDto;
+
+      await service.updateMyBlogAsAdmin(SESSION_USER, 'a-blog', undefined, dto);
+
+      expect(blogs.updateBlog).toHaveBeenCalledWith(
+        'a-blog',
+        undefined,
+        dto,
+        'admin-1',
       );
-      expect(page).toEqual({ blogs: [], totalPages: 0 });
+    });
+
+    it('deletes only the signed-in admin’s own blog', async () => {
+      await service.deleteMyBlogAsAdmin(SESSION_USER, 'a-blog');
+
+      expect(blogs.deleteBlog).toHaveBeenCalledWith('a-blog', 'admin-1');
     });
 
     it('passes the comment cursor through for the signed-in admin', async () => {
@@ -108,11 +154,14 @@ describe('AdminService', () => {
 
     it('never queries the database directly', async () => {
       await service.getMyDataAsAdmin(SESSION_USER);
-      await service.getMyBlogsAsAdmin(SESSION_USER, {});
+      await service.getMyBlogsAsAdmin(
+        SESSION_USER,
+        {} as AdminMyBlogsQueryDto,
+      );
       await service.getMyCommentsAsAdmin(SESSION_USER, {});
 
-      // Every /me read goes through AdminUsersService, so the two routes can
-      // never drift into returning different shapes for the same data.
+      // Every /me read reuses an existing service, so the admin and user routes
+      // can never drift into returning different shapes for the same data.
       expect(prisma.user.count).not.toHaveBeenCalled();
       expect(prisma.blog.count).not.toHaveBeenCalled();
     });

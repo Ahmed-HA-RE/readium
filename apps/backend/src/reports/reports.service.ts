@@ -20,9 +20,11 @@ export class ReportsService {
     blogSlug: string,
     userId: string,
   ): Promise<Report> {
+    // A draft answers 404: only its author can see it, and they cannot report it.
     const blog = await this.prisma.blog.findUnique({
       where: {
         slug: blogSlug,
+        isPublished: true,
       },
       select: {
         id: true,

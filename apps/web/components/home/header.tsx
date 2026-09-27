@@ -56,6 +56,7 @@ const Header = async () => {
                 name={session.user.name}
                 image={session.user.image}
                 isPro={session.user.isPro}
+                isAdmin={session.user.role === 'admin'}
               />
             </>
           ) : (

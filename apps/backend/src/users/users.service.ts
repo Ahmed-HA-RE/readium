@@ -5,7 +5,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  GetMyBlogBySlug,
   GetMyBlogs,
   GetMyComments,
   GetMyLikesAndBookmarks,
@@ -19,6 +18,7 @@ import { S3ServiceService } from '../s3-service/s3-service.service';
 import { Prisma } from '../generated/prisma/client';
 import { buildBlogQuery } from '../blogs/utils/blog-query';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
+import { MyBlogsQueryDto, MyBlogsStatus } from './dto/my-blogs-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile-dto';
@@ -174,19 +174,20 @@ export class UsersService {
   }
 
   /**
-   * The signed-in user's own blogs, drafts included, scoped to `user.id` from
-   * the session so no caller-supplied identifier reaches the `where` clause.
+   * The signed-in user's own published or draft blogs, per `status`, scoped to
+   * `user.id` from the session so no caller-supplied identifier reaches the
+   * `where` clause.
    *
    * `buildBlogQuery`'s `queryFilter` is deliberately unused: it also matches
    * `author.name`, which would return every blog on a self-username search.
    */
   async getMyBlogs(
     user: UserSession['user'],
-    query: UserBlogsQueryDto,
+    query: MyBlogsQueryDto,
   ): Promise<GetMyBlogs> {
-    const { search, sort, page, limit } = query;
+    const { status, search, sort, page, limit } = query;
 
-    this.logger.verbose(`Fetching the blogs of ${user.name}`, {
+    this.logger.verbose(`Fetching the ${status} blogs of ${user.name}`, {
       search,
       sort,
       page,
@@ -200,18 +201,19 @@ export class UsersService {
       limit,
     );
 
-    // Drafts are included: these are the caller's own blogs.
     const blogsWhere: Prisma.BlogWhereInput = {
       ...buildUserBlogsFilter(search),
       authorId: user.id,
+      isPublished: status === MyBlogsStatus.PUBLISHED,
     };
 
+    // No `content`: the dashboard card renders `shortDescription`, so a page
+    // of full bodies would be dead weight.
     const myBlogsSelect = {
       id: true,
       title: true,
       slug: true,
       shortDescription: true,
-      content: true,
       tags: true,
       coverImage: true,
       isPublished: true,
@@ -225,7 +227,7 @@ export class UsersService {
       },
     } satisfies Prisma.BlogSelect;
 
-    const [blogs, totalBlogs] = await Promise.all([
+    const [blogs, totalBlogs, statusGroups] = await Promise.all([
       this.prisma.blog.findMany({
         where: blogsWhere,
         orderBy: querySort,
@@ -234,7 +236,19 @@ export class UsersService {
         select: myBlogsSelect,
       }),
       this.prisma.blog.count({ where: blogsWhere }),
+      // Both tab badges in one query. Unfiltered by search: they are totals.
+      this.prisma.blog.groupBy({
+        by: ['isPublished'],
+        where: { authorId: user.id },
+        _count: { _all: true },
+      }),
     ]);
+
+    console.log(statusGroups);
+
+    const countFor = (isPublished: boolean) =>
+      statusGroups.find((group) => group.isPublished === isPublished)?._count
+        ._all ?? 0;
 
     const blogsWithPresignedUrls = await Promise.all(
       blogs.map(async (blog) => ({
@@ -248,52 +262,7 @@ export class UsersService {
     return {
       blogs: blogsWithPresignedUrls,
       totalPages: Math.ceil(totalBlogs / limitValue),
-    };
-  }
-
-  /**
-   * One of the caller's own blogs, draft or published, for the editor. A blog
-   * owned by someone else answers 404 exactly like one that does not exist.
-   */
-  async getMyBlogBySlug(
-    user: UserSession['user'],
-    slug: string,
-  ): Promise<GetMyBlogBySlug> {
-    this.logger.verbose(`Fetching the blog ${slug} of ${user.name}`);
-
-    const blog = await this.prisma.blog.findUnique({
-      where: { slug, authorId: user.id },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        shortDescription: true,
-        content: true,
-        tags: true,
-        coverImage: true,
-        isPublished: true,
-        createdAt: true,
-        _count: {
-          select: {
-            comments: true,
-            likes: true,
-            bookmarks: true,
-          },
-        },
-      },
-    });
-
-    if (!blog) {
-      throw new NotFoundException(`Blog with slug ${slug} not found`);
-    }
-
-    return {
-      blog: {
-        ...blog,
-        coverImage: blog.coverImage
-          ? await this.s3Service.getSignedUrl(blog.coverImage)
-          : null,
-      },
+      counts: { published: countFor(true), draft: countFor(false) },
     };
   }
 
@@ -325,6 +294,18 @@ export class UsersService {
         id: true,
         content: true,
         createdAt: true,
+        blog: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            coverImage: true,
+            isPublished: true,
+            shortDescription: true,
+            // The card links to `/@<author>/<slug>`, so the blog's author is needed.
+            author: { select: { name: true } },
+          },
+        },
       },
     });
 
@@ -336,7 +317,18 @@ export class UsersService {
     const author = { name: user.name, image };
 
     return {
-      data: comments.map((comment) => ({ ...comment, author })),
+      data: await Promise.all(
+        comments.map(async (comment) => ({
+          ...comment,
+          author,
+          blog: {
+            ...comment.blog,
+            coverImage: comment.blog.coverImage
+              ? await this.s3Service.getSignedUrl(comment.blog.coverImage)
+              : null,
+          },
+        })),
+      ),
       // A short page is the last page. The emptiness check guards the index —
       // `@Min(1)` on the DTO makes it redundant, but it stays as a backstop.
       nextCursor:

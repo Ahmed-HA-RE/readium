@@ -198,7 +198,8 @@ export class BlogsService {
     const blog = await this.prisma.blog.findUnique({
       where: {
         slug,
-        isPublished: true,
+        // A draft is visible to its author only; anyone else gets 404.
+        OR: [{ isPublished: true }, ...(userId ? [{ authorId: userId }] : [])],
         // Hidden from the reporter only, matching the feed, trending and search.
         ...(userId ? { report: { none: { userId } } } : {}),
       },

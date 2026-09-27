@@ -38,8 +38,9 @@ export class CommentsService {
   }
 
   private async findBlogBySlug(blogSlug: string) {
+    // A draft answers 404: it has no comment thread.
     const blog = await this.prisma.blog.findUnique({
-      where: { slug: blogSlug },
+      where: { slug: blogSlug, isPublished: true },
       select: { id: true },
     });
 
@@ -75,7 +76,7 @@ export class CommentsService {
     const take = limit ?? 10; // Default limit is 10 if not provided
 
     const comments = await this.prisma.comment.findMany({
-      where: { blog: { slug: blogSlug } },
+      where: { blog: { slug: blogSlug, isPublished: true } },
       take,
       ...(cursor
         ? {

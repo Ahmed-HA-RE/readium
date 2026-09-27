@@ -274,14 +274,27 @@ describe('BlogsService', () => {
 
   describe('getBlogBySlug', () => {
     describe('query', () => {
-      it('looks the blog up by slug, published only', async () => {
+      // A signed-in caller also matches their own drafts, so the author can
+      // open and edit one; no one else can.
+      it('looks the blog up by slug, published or the caller’s own', async () => {
         prisma.blog.findUnique.mockResolvedValue(blogRow());
 
         await service.getBlogBySlug('a-blog', USER_ID);
 
         expect(findUniqueArgs().where).toMatchObject({
           slug: 'a-blog',
-          isPublished: true,
+          OR: [{ isPublished: true }, { authorId: USER_ID }],
+        });
+      });
+
+      it('matches published blogs only for an anonymous caller', async () => {
+        prisma.blog.findUnique.mockResolvedValue(blogRow());
+
+        await service.getBlogBySlug('a-blog');
+
+        expect(findUniqueArgs().where).toMatchObject({
+          slug: 'a-blog',
+          OR: [{ isPublished: true }],
         });
       });
 

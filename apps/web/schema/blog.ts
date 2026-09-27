@@ -14,17 +14,20 @@ const fileSchema = z.file({ error: 'Cover image must be a file' });
 // Shared by create and edit. An omitted `coverImage` on edit keeps the current one.
 export const blogSchema = z.object({
   title: z
-    .string({ error: 'Blog title is required' })
+    .string()
+    .nonempty({ error: 'Blog title is required' })
     .min(5, 'Blog title must be at least 5 characters long')
     .max(100, 'Blog title must not exceed 100 characters long'),
 
   shortDescription: z
-    .string({ error: 'Blog short description is required' })
+    .string()
+    .nonempty({ error: 'Blog short description is required' })
     .min(10, 'Blog short description must be at least 10 characters long')
     .max(200, 'Blog short description must not exceed 200 characters long'),
 
   content: z
-    .string({ error: 'Please provide some content to the readers' })
+    .string()
+    .nonempty({ error: 'Please provide some content to the readers' })
     .min(20, 'Blog content must be at least 20 characters long'),
 
   coverImage: fileSchema
@@ -37,7 +40,8 @@ export const blogSchema = z.object({
 
   // Empty entries and duplicates are dropped, since the API rejects both.
   tags: z
-    .string({ error: 'Please add at least one tag' })
+    .string()
+    .nonempty({ error: 'Please add at least one tag' })
     .transform((value) => [
       ...new Set(
         value

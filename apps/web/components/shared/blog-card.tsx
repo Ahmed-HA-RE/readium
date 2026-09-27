@@ -11,6 +11,8 @@ import BlogActionsMenu from './blog-actions-menu';
 import LikeButton from './like-button';
 import BookmarkButton from './bookmark-button';
 
+const coverImageStyles = { width: '100%', height: '100%' };
+
 type BlogCardProps = {
   blog: GetAllBlogsResponse['blogs'][number];
   viewerId?: string;
@@ -57,6 +59,7 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
             height={164}
             priority={priority}
             className='size-full object-cover transition-transform duration-300 group-hover:scale-105'
+            style={coverImageStyles}
           />
         </Link>
       )}
