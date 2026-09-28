@@ -49,7 +49,8 @@ const AddCommentForm = ({ slug, viewer }: AddCommentFormProps) => {
       await createComment({ slug, content });
       form.reset();
 
-      await queryClient.invalidateQueries({ queryKey: ['comments', slug] });
+      // `['comments']` also marks the Library's comments tab stale.
+      await queryClient.invalidateQueries({ queryKey: ['comments'] });
 
       // Only the server-rendered response counts need the refresh.
       router.refresh();

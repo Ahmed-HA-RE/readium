@@ -5,7 +5,7 @@ import { MyBlogsStatus, type BlogAuthor } from '@repo/types';
 import { cn } from '@/lib/utils';
 import { myStoriesParsers } from '@/lib/search-params';
 import { useMyBlogs } from '@/hooks/blogs';
-import { Button } from '@/components/ui/button';
+import RetryError from '@/components/shared/retry-error';
 import SearchInput from '@/components/shared/search-input';
 import DashboardBlogCard from '@/components/shared/dashboard-blog-card';
 import BlogPagination from '@/components/shared/pagination';
@@ -47,14 +47,10 @@ const MyStoriesList = ({ author }: MyStoriesListProps) => {
       {isPending ? (
         <BlogCardSkeleton />
       ) : isError ? (
-        <div className='flex flex-col items-center gap-3 py-16'>
-          <p className='text-muted-foreground'>
-            Something went wrong loading your stories.
-          </p>
-          <Button variant='outline' size='lg' onClick={() => refetch()}>
-            Try again
-          </Button>
-        </div>
+        <RetryError
+          message='Something went wrong loading your stories.'
+          onRetry={() => refetch()}
+        />
       ) : data.blogs.length === 0 ? (
         <p className='py-16 text-center text-muted-foreground'>
           {emptyMessage}

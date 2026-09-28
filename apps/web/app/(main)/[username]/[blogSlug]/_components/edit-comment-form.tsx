@@ -63,7 +63,7 @@ const EditCommentForm = ({
       await updateComment({ slug, commentId, content });
 
       // The count is unchanged, so unlike create and delete no refresh is needed.
-      await queryClient.invalidateQueries({ queryKey: ['comments', slug] });
+      await queryClient.invalidateQueries({ queryKey: ['comments'] });
       onClose();
       toast.success('Comment updated successfully');
     } catch (error) {

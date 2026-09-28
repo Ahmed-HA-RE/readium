@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import DeleteCommentDialog from './delete-comment-dialog';
+import DeleteCommentDialog from '@/components/shared/delete-comment-dialog';
 
 type CommentActionsMenuProps = {
   slug: string;

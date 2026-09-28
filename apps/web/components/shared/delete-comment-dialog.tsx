@@ -63,9 +63,9 @@ const DeleteCommentDialog = ({
     try {
       await deleteComment({ slug, commentId });
 
-      // Only the server-rendered response counts need the refresh.
+      // Refreshes the blog page's server-rendered response count.
       router.refresh();
-      await queryClient.invalidateQueries({ queryKey: ['comments', slug] });
+      await queryClient.invalidateQueries({ queryKey: ['comments'] });
       toast.success('Comment deleted successfully');
       setOpen(!open);
     } catch (error) {
