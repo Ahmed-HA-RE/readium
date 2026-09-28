@@ -8,9 +8,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { IoEllipsisHorizontal } from 'react-icons/io5';
-import { GoPencil } from 'react-icons/go';
+import { GoPencil, GoTrash } from 'react-icons/go';
 import { VscReport } from 'react-icons/vsc';
-import { ReportReason } from '@repo/types';
+import { ReportReason, type Blog } from '@repo/types';
 import { cn, getBlogEditPath, getErrorMessage } from '@/lib/utils';
 import { reportBlog } from '@/lib/actions/report/reportBlog';
 import { reportBlogSchema, type ReportBlogFormData } from '@/schema/report';
@@ -32,6 +32,7 @@ import {
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Spinner } from '@/components/ui/spinner';
+import DeleteBlogDialog from './delete-blog-dialog';
 
 // Ordered as the design reference has them, which is not the enum's order.
 const REPORT_REASONS = [
@@ -43,7 +44,11 @@ const REPORT_REASONS = [
 
 type BlogActionsMenuProps = {
   slug: string;
+  title: string;
   isOwnBlog: boolean;
+  counts?: Blog['_count'];
+  // Set on the blog page, which no longer exists once the blog is deleted.
+  redirectOnDelete?: string;
   // Positions the trigger, which differs between the card and the blog page.
   className?: string;
 };
@@ -65,21 +70,51 @@ const MenuTrigger = ({ className }: { className?: string }) => (
   </DropdownMenuTrigger>
 );
 
-const OwnerMenu = ({ slug, className }: MenuProps) => (
-  <DropdownMenu>
-    <MenuTrigger className={className} />
+const OwnerMenu = ({
+  slug,
+  title,
+  counts,
+  redirectOnDelete,
+  className,
+}: MenuProps) => {
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-    <DropdownMenuContent align='end' className='w-56 px-2'>
-      <DropdownMenuItem
-        variant='ghost-plain'
-        render={<Link href={getBlogEditPath(slug)} />}
-      >
-        <GoPencil />
-        Edit story
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
-);
+  return (
+    <>
+      <DropdownMenu>
+        <MenuTrigger className={className} />
+
+        <DropdownMenuContent align='end' className='w-56 px-2 space-y-1'>
+          <DropdownMenuItem
+            variant='ghost-plain'
+            render={<Link href={getBlogEditPath(slug)} />}
+          >
+            <GoPencil />
+            Edit story
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            variant='destructive'
+            className='data-[variant=destructive]:hover:text-red-700 data-[variant=destructive]:focus:bg-transparent data-[variant=destructive]:dark:focus:bg-transparent data-[variant=destructive]:dark:hover:text-red-500'
+            onClick={() => setIsDeleteOpen(true)}
+          >
+            <GoTrash />
+            Delete story
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DeleteBlogDialog
+        slug={slug}
+        title={title}
+        counts={counts}
+        redirectTo={redirectOnDelete}
+        open={isDeleteOpen}
+        setOpen={setIsDeleteOpen}
+      />
+    </>
+  );
+};
 
 const ReportMenu = ({ slug, className }: MenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -217,7 +252,7 @@ const ReportMenu = ({ slug, className }: MenuProps) => {
   );
 };
 
-// The owner only edits, so their menu skips the report form entirely.
+// The owner edits or deletes, so their menu skips the report form entirely.
 const BlogActionsMenu = ({ isOwnBlog, ...props }: BlogActionsMenuProps) =>
   isOwnBlog ? <OwnerMenu {...props} /> : <ReportMenu {...props} />;
 

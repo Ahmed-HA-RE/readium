@@ -73,3 +73,18 @@ export const blogSchema = z.object({
 // Fields hold the input shape; `onSubmit` receives the output, where `tags` is an array.
 export type BlogFormData = z.input<typeof blogSchema>;
 export type BlogValues = z.output<typeof blogSchema>;
+
+// The confirmation is the blog's own title, so the schema is built per blog.
+export const createDeleteBlogSchema = (title: string) =>
+  z
+    .object({
+      confirmation: z.string(),
+    })
+    .refine((value) => value.confirmation === title, {
+      message: 'Type the story title exactly to confirm',
+      path: ['confirmation'],
+    });
+
+export type DeleteBlogFormData = z.infer<
+  ReturnType<typeof createDeleteBlogSchema>
+>;

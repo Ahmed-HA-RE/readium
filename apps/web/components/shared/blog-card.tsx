@@ -121,6 +121,8 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
       {(isOwnBlog || canReport) && (
         <BlogActionsMenu
           slug={slug}
+          title={title}
+          counts={_count}
           isOwnBlog={isOwnBlog}
           className='absolute top-6 -right-1 z-10'
         />

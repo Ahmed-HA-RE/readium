@@ -59,8 +59,7 @@ const BlogContent = async ({ params }: BlogContentProps) => {
           title={blog.title}
           shortDescription={blog.shortDescription}
           authorName={blog.author.name}
-          likesCount={blog._count.likes}
-          commentsCount={blog._count.comments}
+          counts={blog._count}
           isLikedByLoggedInUser={isLikedByLoggedInUser}
           isBookmarkedByLoggedInUser={isBookmarkedByLoggedInUser}
           isOwnBlog={isOwnBlog}

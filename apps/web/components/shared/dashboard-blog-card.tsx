@@ -10,10 +10,12 @@ import BlogActionsMenu from './blog-actions-menu';
 const coverImageStyles = { width: '100%', height: 'auto' };
 
 type DashboardBlogCardProps = {
+  // `_count` is absent on the likes and bookmarks lists.
   blog: Pick<
     Blog,
     'title' | 'slug' | 'shortDescription' | 'tags' | 'coverImage' | 'createdAt'
-  >;
+  > &
+    Partial<Pick<Blog, '_count'>>;
   author: Pick<BlogAuthor, 'name' | 'image'>;
   isOwnBlog: boolean;
   priority?: boolean;
@@ -25,7 +27,15 @@ const DashboardBlogCard = ({
   isOwnBlog,
   priority = false,
 }: DashboardBlogCardProps) => {
-  const { title, slug, shortDescription, tags, coverImage, createdAt } = blog;
+  const {
+    title,
+    slug,
+    shortDescription,
+    tags,
+    coverImage,
+    createdAt,
+    _count: counts,
+  } = blog;
   const href = getBlogPath(author.name, slug);
 
   return (
@@ -90,6 +100,8 @@ const DashboardBlogCard = ({
 
       <BlogActionsMenu
         slug={slug}
+        title={title}
+        counts={counts}
         isOwnBlog={isOwnBlog}
         className='absolute top-6 -right-1 z-10'
       />

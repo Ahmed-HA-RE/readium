@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useQueryStates } from 'nuqs';
 import { MyBlogsStatus, type BlogAuthor } from '@repo/types';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,13 @@ const MyStoriesList = ({ author }: MyStoriesListProps) => {
 
   const { data, isPending, isError, isPlaceholderData, refetch } =
     useMyBlogs(params);
+
+  const totalPages = data?.totalPages;
+
+  // Deleting the only story on the last page leaves `page` past the end.
+  useEffect(() => {
+    if (totalPages && page > totalPages) setParams({ page: totalPages });
+  }, [page, totalPages, setParams]);
 
   const emptyMessage = search
     ? `No stories match "${search}".`

@@ -1,6 +1,7 @@
 'use client';
 
 import { FaRegCommentDots } from 'react-icons/fa';
+import type { Blog } from '@repo/types';
 import { buttonVariants } from '@/components/ui/button';
 import LikeButton from '@/components/shared/like-button';
 import BookmarkButton from '@/components/shared/bookmark-button';
@@ -14,8 +15,7 @@ type BlogActionBarProps = {
   title: string;
   shortDescription: string;
   authorName: string;
-  likesCount: number;
-  commentsCount: number;
+  counts: Blog['_count'];
   isLikedByLoggedInUser: boolean;
   isBookmarkedByLoggedInUser: boolean;
   isOwnBlog: boolean;
@@ -31,8 +31,7 @@ const BlogActionBar = ({
   title,
   shortDescription,
   authorName,
-  likesCount,
-  commentsCount,
+  counts,
   isLikedByLoggedInUser,
   isBookmarkedByLoggedInUser,
   isOwnBlog,
@@ -43,7 +42,7 @@ const BlogActionBar = ({
     <div className='flex items-center gap-4'>
       <LikeButton
         slug={slug}
-        likesCount={likesCount}
+        likesCount={counts.likes}
         isLikedByLoggedInUser={isLikedByLoggedInUser}
         isOwnBlog={isOwnBlog}
         isSignedIn={isSignedIn}
@@ -52,14 +51,14 @@ const BlogActionBar = ({
 
       <a
         href='#comments'
-        aria-label={`${commentsCount} responses`}
+        aria-label={`${counts.comments} responses`}
         className={cn(
           'text-muted-foreground hover:text-foreground',
           buttonVariants({ variant: 'ghost-plain', size: 'icon' }),
         )}
       >
         <FaRegCommentDots />
-        {commentsCount > 0 && commentsCount}
+        {counts.comments > 0 && counts.comments}
       </a>
     </div>
 
@@ -79,7 +78,13 @@ const BlogActionBar = ({
       />
 
       {(isOwnBlog || canReport) && (
-        <BlogActionsMenu slug={slug} isOwnBlog={isOwnBlog} />
+        <BlogActionsMenu
+          slug={slug}
+          title={title}
+          counts={counts}
+          isOwnBlog={isOwnBlog}
+          redirectOnDelete='/me/stories'
+        />
       )}
     </div>
   </div>
