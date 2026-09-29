@@ -154,10 +154,7 @@ describe('AdminService', () => {
 
     it('never queries the database directly', async () => {
       await service.getMyDataAsAdmin(SESSION_USER);
-      await service.getMyBlogsAsAdmin(
-        SESSION_USER,
-        {} as AdminMyBlogsQueryDto,
-      );
+      await service.getMyBlogsAsAdmin(SESSION_USER, {} as AdminMyBlogsQueryDto);
       await service.getMyCommentsAsAdmin(SESSION_USER, {});
 
       // Every /me read reuses an existing service, so the admin and user routes

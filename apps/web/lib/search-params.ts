@@ -31,7 +31,13 @@ export const myStoriesParsers = {
 
 export const loadMyStoriesSearchParams = createLoader(myStoriesParsers);
 
-export const LISTS_TABS = ['bookmarks', 'likes', 'comments'] as const;
+export const userBlogsParsers = {
+  search: parseAsString.withDefault(''),
+  sort: sortParser,
+  page: pageParser,
+};
+
+export const LISTS_TABS =['bookmarks', 'likes', 'comments'] as const;
 
 export type ListsTab = (typeof LISTS_TABS)[number];
 

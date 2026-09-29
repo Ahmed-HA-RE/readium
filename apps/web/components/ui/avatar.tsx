@@ -9,14 +9,14 @@ function Avatar({
   size = 'default',
   ...props
 }: AvatarPrimitive.Root.Props & {
-  size?: 'default' | 'sm' | 'lg';
+  size?: 'default' | 'sm' | 'lg' | 'xl';
 }) {
   return (
     <AvatarPrimitive.Root
       data-slot='avatar'
       data-size={size}
       className={cn(
-        'group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full  after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten',
+        'group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:mix-blend-darken data-[size=lg]:size-10 data-[size=xl]:size-32 data-[size=sm]:size-6 dark:after:mix-blend-lighten',
         className,
       )}
       {...props}
@@ -45,7 +45,7 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot='avatar-fallback'
       className={cn(
-        'flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs',
+        'flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs group-data-[size=xl]/avatar:text-5xl',
         className,
       )}
       {...props}

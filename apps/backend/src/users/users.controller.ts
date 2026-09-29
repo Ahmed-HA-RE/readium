@@ -126,13 +126,22 @@ export class UsersController {
   }
 
   // Method           GET /api/users/:username
-  // Description      Get a user's public profile with their published blogs, filtered, sorted, and paginated
+  // Description      Get a user's public profile and counts, without their blogs
   @Get(':username')
   @AllowAnonymous()
-  getUserProfileWithBlogs(
+  getPublicUserProfile(@Param('username') username: string) {
+    return this.usersService.getPublicUserProfile(username);
+  }
+
+  // Method           GET /api/users/:username/blogs
+  // Description      Get a user's published blogs, filtered, sorted, and paginated, minus any the caller reported
+  @Get(':username/blogs')
+  @AllowAnonymous()
+  getUserBlogs(
     @Param('username') username: string,
     @Query() query: UserBlogsQueryDto,
+    @Session() session: UserSession | undefined,
   ) {
-    return this.usersService.getUserProfileWithBlogs(username, query);
+    return this.usersService.getUserBlogs(username, query, session?.user?.id);
   }
 }

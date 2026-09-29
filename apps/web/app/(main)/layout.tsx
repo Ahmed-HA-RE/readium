@@ -29,7 +29,12 @@ const MainLayout = async ({ children }: { children: React.ReactNode }) => {
         {/* The header spans the full width, so the sidebar and the content
             share a row below it rather than sitting beside the header. */}
         <div className='flex flex-1'>
-          {session && <HomeSidebar isAdmin={session.user.role === 'admin'} />}
+          {session && (
+            <HomeSidebar
+              username={session.user.name}
+              isAdmin={session.user.role === 'admin'}
+            />
+          )}
           <main className='min-w-0 flex-1'>{children}</main>
         </div>
       </div>

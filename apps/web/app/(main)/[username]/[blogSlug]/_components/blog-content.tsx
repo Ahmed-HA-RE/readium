@@ -1,32 +1,20 @@
-import { redirect } from 'next/navigation';
+import type { GetBlogBySlugResponse } from '@repo/types';
 import { SITE_URL } from '@/lib/constants';
 import { getBlogPath } from '@/lib/utils';
 import { sanitizeBlogHtml } from '@/lib/sanitize-html';
-import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import BlogArticle from '@/components/shared/blog-article';
 import BlogActionBar from './blog-action-bar';
 import CommentsSection from './comments-section';
 
-export type BlogPageParams = Promise<{ username: string; blogSlug: string }>;
-
 type BlogContentProps = {
-  params: BlogPageParams;
+  data: GetBlogBySlugResponse;
+  blogSlug: string;
 };
 
 // Serves the author and every reader; `isOwnBlog` decides which actions show.
-const BlogContent = async ({ params }: BlogContentProps) => {
-  const { username, blogSlug } = await params;
-  const data = await getBlogBySlug(blogSlug);
-
-  if (!blogSlug || !data) redirect('/');
-
-  // A wrong or missing `@username` still finds the blog, so send it to the
-  // canonical URL rather than serving duplicates.
-  if (decodeURIComponent(username) !== `@${data.blog.author.name}`) {
-    redirect(getBlogPath(data.blog.author.name, blogSlug));
-  }
-
+// The page has already fetched the blog and handled both redirects.
+const BlogContent = async ({ data, blogSlug }: BlogContentProps) => {
   const session = await getCurrentLoggedInUser();
 
   const { blog, isLikedByLoggedInUser, isBookmarkedByLoggedInUser } = data;

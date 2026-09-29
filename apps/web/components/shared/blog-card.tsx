@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { GetAllBlogsResponse } from '@repo/types';
-import { formatPublishedAt, getBlogPath } from '@/lib/utils';
+import { formatPublishedAt, getBlogPath, getProfilePath } from '@/lib/utils';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,7 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
 
   const isOwnBlog = authorId === viewerId;
   const href = getBlogPath(author.name, slug);
+  const profileHref = getProfilePath(author.name);
 
   // Reporting is `@Roles(['user'])` and the service rejects your own blog, so
   // for these two the menu could only ever produce an error toast.
@@ -85,18 +86,31 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
         <p className='line-clamp-2 text-muted-foreground'>{shortDescription}</p>
 
         <div className='flex items-center justify-between gap-4'>
+       
           <div className='flex min-w-0 items-center gap-3'>
-            <Avatar size='lg'>
-              <Image
-                src={author.image ?? DEFAULT_AVATAR}
-                alt={author.name}
-                width={40}
-                height={40}
-                className='aspect-square size-full rounded-full object-cover'
-              />
-            </Avatar>
+            <Link
+              href={profileHref}
+              className='relative z-10 shrink-0'
+              tabIndex={-1}
+              aria-hidden
+            >
+              <Avatar size='lg'>
+                <Image
+                  src={author.image ?? DEFAULT_AVATAR}
+                  alt={author.name}
+                  width={40}
+                  height={40}
+                  className='aspect-square size-full rounded-full object-cover'
+                />
+              </Avatar>
+            </Link>
             <div className='flex min-w-0 flex-col'>
-              <span className='truncate font-medium'>{author.name}</span>
+              <Link
+                href={profileHref}
+                className='relative z-10 truncate font-medium hover:underline'
+              >
+                {author.name}
+              </Link>
               <span className='text-sm text-muted-foreground'>
                 {formatPublishedAt(createdAt)}
               </span>

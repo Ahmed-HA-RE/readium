@@ -1,10 +1,11 @@
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { SITE_NAME } from '@/lib/constants';
 import { getBlogPath } from '@/lib/utils';
 import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
-import BlogContent, { type BlogPageParams } from './_components/blog-content';
-import BlogPageSkeleton from './_components/blog-page-skeleton';
+import BlogContent from './_components/blog-content';
+
+type BlogPageParams = Promise<{ username: string; blogSlug: string }>;
 
 export const generateMetadata = async ({
   params,
@@ -57,12 +58,20 @@ export const generateMetadata = async ({
   };
 };
 
-// `params` is passed down rather than awaited here, so the skeleton renders
-// immediately and only the article suspends.
-const BlogPage = ({ params }: { params: BlogPageParams }) => (
-  <Suspense fallback={<BlogPageSkeleton />}>
-    <BlogContent params={params} />
-  </Suspense>
-);
+const BlogPage = async ({ params }: { params: BlogPageParams }) => {
+  const { username, blogSlug } = await params;
+  // Shared with `generateMetadata` through `cache`, so this is not a second fetch.
+  const data = blogSlug ? await getBlogBySlug(blogSlug) : null;
+
+  if (!data) redirect('/');
+
+  // A wrong or missing `@username` still finds the blog, so send it to the
+  // canonical URL rather than serving duplicates.
+  if (decodeURIComponent(username) !== `@${data.blog.author.name}`) {
+    redirect(getBlogPath(data.blog.author.name, blogSlug));
+  }
+
+  return <BlogContent data={data} blogSlug={blogSlug} />;
+};
 
 export default BlogPage;
