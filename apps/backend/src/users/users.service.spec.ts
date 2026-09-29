@@ -3,6 +3,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
+import { BlogsService } from '../blogs/blogs.service';
 import { BlogQueryDto, BlogSortOptions } from '../blogs/dto/blog-query-dto';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
 import { MyBlogsQueryDto, MyBlogsStatus } from './dto/my-blogs-query-dto';
@@ -15,19 +16,25 @@ import { Prisma } from '../generated/prisma/client';
 
 // The arguments the service hands to Prisma. The mocks below are typed with
 // these so `mock.calls` is not an `any[]` and the assertions stay checked.
-type UserFindUniqueArgs = {
-  where: { name: string };
-  select: Record<string, unknown> & {
-    blogs: {
-      where: Prisma.BlogWhereInput;
-      orderBy: Prisma.BlogOrderByWithRelationInput[];
-      skip: number;
-      take: number;
-      select: Record<string, unknown> & {
-        _count: { select: Record<string, boolean> };
-      };
-    };
+// `user.findFirst` serves both the case-insensitive name lookups and
+// `isUsernameTaken`; only the public profile selects `_count`.
+type UserFindFirstArgs = {
+  where: { name: { equals: string; mode: string } };
+  select: Record<string, unknown>;
+};
+
+type ProfileLookupArgs = UserFindFirstArgs & {
+  select: {
+    _count: { select: Record<string, { where: Record<string, unknown> }> };
   };
+};
+
+// `findBlogCards` reads with `include`/`omit`, unlike the dashboard's `select`.
+type BlogCardsFindManyArgs = {
+  where: Prisma.BlogWhereInput;
+  orderBy: Prisma.BlogOrderByWithRelationInput[];
+  skip: number;
+  take: number;
 };
 
 type BlogCountArgs = { where: Prisma.BlogWhereInput };
@@ -40,8 +47,7 @@ type BlogGroupByArgs = {
 
 type StatusGroup = { isPublished: boolean; _count: { _all: number } };
 
-// `updateUserProfile` reads the row by id, so `user.findUnique` is called with
-// two different shapes across the suite.
+// `updateUserProfile` reads the row by id.
 type ProfileFindUniqueArgs = {
   where: { id: string };
   select: Record<string, boolean>;
@@ -50,11 +56,6 @@ type ProfileFindUniqueArgs = {
 type UserUpdateArgs = {
   where: { id: string };
   data: Prisma.UserUpdateInput;
-  select: Record<string, boolean>;
-};
-
-type UserFindFirstArgs = {
-  where: { name: { equals: string; mode: string } };
   select: Record<string, boolean>;
 };
 
@@ -105,10 +106,7 @@ type LikesAndBookmarksMocks = {
 
 type PrismaMocks = {
   user: {
-    findUnique: jest.Mock<
-      Promise<unknown>,
-      [UserFindUniqueArgs | ProfileFindUniqueArgs]
-    >;
+    findUnique: jest.Mock<Promise<unknown>, [ProfileFindUniqueArgs]>;
     findFirst: jest.Mock<Promise<unknown>, [UserFindFirstArgs]>;
     update: jest.Mock<Promise<unknown>, [UserUpdateArgs]>;
   };
@@ -142,12 +140,23 @@ const blogRow = {
 };
 
 const userRow = {
+  id: 'user-1',
   name: 'Ahmed',
+  image: 'profile-key',
   bio: 'Writes about backends',
   website: 'https://example.com',
-  image: 'profile-key',
   banned: false,
-  blogs: [blogRow],
+  _count: { blogs: 3, likes: 7, bookmarks: 2 },
+};
+
+// A feed card row as `findBlogCards` reads it, before the relations are stripped.
+const blogCardRow = {
+  ...blogRow,
+  shortDescription: 'A short description',
+  authorId: 'user-1',
+  author: { id: 'user-1', name: 'Ahmed', image: 'profile-key' },
+  likes: [{ userId: 'viewer-1' }],
+  bookmarks: [],
 };
 
 // The owner's own view carries `isPublished`, because drafts are listed too.
@@ -233,8 +242,14 @@ describe('UsersService', () => {
     deleteFile: jest.Mock;
   };
 
-  const findUniqueArgs = () =>
-    prisma.user.findUnique.mock.calls[0][0] as UserFindUniqueArgs;
+  const findUniqueArgs = () => prisma.user.findUnique.mock.calls[0][0];
+
+  const lookupArgs = () =>
+    prisma.user.findFirst.mock.calls[0][0] as ProfileLookupArgs;
+
+  const byName = (name: string) => ({
+    name: { equals: name, mode: 'insensitive' },
+  });
 
   const updateArgs = () => prisma.user.update.mock.calls[0][0];
 
@@ -252,10 +267,7 @@ describe('UsersService', () => {
 
     prisma = {
       user: {
-        findUnique: jest.fn<
-          Promise<unknown>,
-          [UserFindUniqueArgs | ProfileFindUniqueArgs]
-        >(),
+        findUnique: jest.fn<Promise<unknown>, [ProfileFindUniqueArgs]>(),
         findFirst: jest
           .fn<Promise<unknown>, [UserFindFirstArgs]>()
           .mockResolvedValue(null),
@@ -295,6 +307,8 @@ describe('UsersService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
+        // The real service, so the blog-card query it builds is asserted too.
+        BlogsService,
         { provide: DatabaseService, useValue: prisma },
         { provide: S3ServiceService, useValue: s3 },
       ],
@@ -305,172 +319,195 @@ describe('UsersService', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  describe('getUserProfileWithBlogs', () => {
-    it('returns only published blogs', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
+  describe('getPublicUserProfile', () => {
+    // `/@ahmed` must find `Ahmed`; the web page redirects to the stored casing.
+    it('looks the user up by name, ignoring case', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...userRow });
 
-      await service.getUserProfileWithBlogs('Ahmed', query());
+      await service.getPublicUserProfile('ahmed');
 
-      const { where, select } = findUniqueArgs();
-      expect(where).toEqual({ name: 'Ahmed' });
-      expect(select.blogs.where.isPublished).toBe(true);
-      expect(countArgs().where.isPublished).toBe(true);
+      expect(lookupArgs().where).toEqual(byName('ahmed'));
     });
 
-    it('counts only the blogs of the requested author', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
+    it('returns the profile and its counts without banned', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...userRow });
 
-      await service.getUserProfileWithBlogs('Ahmed', query());
+      const result = await service.getPublicUserProfile('Ahmed');
 
-      expect(countArgs().where.author).toEqual({ name: 'Ahmed' });
+      expect(result).toEqual({
+        id: 'user-1',
+        name: 'Ahmed',
+        image: 'https://signed/url',
+        bio: 'Writes about backends',
+        website: 'https://example.com',
+        _count: { blogs: 3, likes: 7, bookmarks: 2 },
+      });
+      expect('banned' in result).toBe(false);
     });
 
-    it('searches the title and the content only, never the author', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
+    it('counts published blogs only, and likes and bookmarks on them', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...userRow });
 
-      await service.getUserProfileWithBlogs('Ahmed', query({ search: 'nest' }));
+      await service.getPublicUserProfile('Ahmed');
 
-      expect(findUniqueArgs().select.blogs.where.OR).toEqual([
-        { title: { contains: 'nest', mode: 'insensitive' } },
-        { content: { contains: 'nest', mode: 'insensitive' } },
-      ]);
-    });
-
-    it('applies no search filter when no search term is given', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
-
-      await service.getUserProfileWithBlogs('Ahmed', query());
-
-      expect(findUniqueArgs().select.blogs.where).toEqual({
-        isPublished: true,
+      expect(lookupArgs().select._count.select).toEqual({
+        blogs: { where: { isPublished: true } },
+        likes: { where: { blog: { isPublished: true } } },
+        bookmarks: { where: { blog: { isPublished: true } } },
       });
     });
 
-    it('does not select the comment list, only its count', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
+    it('never selects the blogs themselves', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...userRow });
 
-      await service.getUserProfileWithBlogs('Ahmed', query());
+      await service.getPublicUserProfile('Ahmed');
 
-      const blogsSelect = findUniqueArgs().select.blogs.select;
-      expect(blogsSelect.comments).toBeUndefined();
-      expect(blogsSelect._count.select.comments).toBe(true);
+      expect(lookupArgs().select.blogs).toBeUndefined();
+      expect(prisma.blog.findMany).not.toHaveBeenCalled();
     });
 
     it('never selects email or any moderation column beyond banned', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
+      prisma.user.findFirst.mockResolvedValue({ ...userRow });
 
-      await service.getUserProfileWithBlogs('Ahmed', query());
+      await service.getPublicUserProfile('Ahmed');
 
-      const { select } = findUniqueArgs();
+      const { select } = lookupArgs();
       expect(select.email).toBeUndefined();
       expect(select.role).toBeUndefined();
       expect(select.banReason).toBeUndefined();
     });
 
-    it('strips banned from the returned profile', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
+    it('leaves a missing avatar as null', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...userRow, image: null });
 
-      const result = await service.getUserProfileWithBlogs('Ahmed', query());
-
-      expect(result.user).toEqual({
-        name: 'Ahmed',
-        bio: 'Writes about backends',
-        website: 'https://example.com',
-        image: 'https://signed/url',
-      });
-      expect('banned' in result.user).toBe(false);
-    });
-
-    it('reuses the sort, limit and page values from buildBlogQuery', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
-
-      await service.getUserProfileWithBlogs(
-        'Ahmed',
-        query({ sort: BlogSortOptions.OLDEST, page: 3, limit: 5 }),
-      );
-
-      const { blogs } = findUniqueArgs().select;
-      expect(blogs.orderBy).toEqual([{ createdAt: 'asc' }, { id: 'asc' }]);
-      expect(blogs.take).toBe(5);
-      expect(blogs.skip).toBe(10);
-    });
-
-    it('defaults to the newest 10 blogs on the first page', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
-
-      await service.getUserProfileWithBlogs('Ahmed', query());
-
-      const { blogs } = findUniqueArgs().select;
-      expect(blogs.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
-      expect(blogs.take).toBe(10);
-      expect(blogs.skip).toBe(0);
-    });
-
-    it('sorts by like count for the most_liked option', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
-
-      await service.getUserProfileWithBlogs(
-        'Ahmed',
-        query({ sort: BlogSortOptions.MOST_LIKED }),
-      );
-
-      expect(findUniqueArgs().select.blogs.orderBy).toEqual([
-        { likesCount: 'desc' },
-        { id: 'desc' },
-      ]);
-    });
-
-    it('derives totalPages from the published blog count', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
-      prisma.blog.count.mockResolvedValue(21);
-
-      const result = await service.getUserProfileWithBlogs(
-        'Ahmed',
-        query({ limit: 5 }),
-      );
-
-      expect(result.totalPages).toBe(5);
-    });
-
-    it('signs the avatar and every cover image', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
-
-      const result = await service.getUserProfileWithBlogs('Ahmed', query());
-
-      expect(s3.getSignedUrl).toHaveBeenCalledWith('profile-key');
-      expect(s3.getSignedUrl).toHaveBeenCalledWith('cover-key');
-      expect(result.blogs[0].coverImage).toBe('https://signed/url');
-    });
-
-    it('leaves a missing avatar or cover image as null', async () => {
-      prisma.user.findUnique.mockResolvedValue({
-        ...userRow,
-        image: null,
-        blogs: [{ ...blogRow, coverImage: null }],
-      });
-
-      const result = await service.getUserProfileWithBlogs('Ahmed', query());
+      const result = await service.getPublicUserProfile('Ahmed');
 
       expect(s3.getSignedUrl).not.toHaveBeenCalled();
-      expect(result.user.image).toBeNull();
-      expect(result.blogs[0].coverImage).toBeNull();
+      expect(result.image).toBeNull();
     });
 
     it('throws NotFoundException for an unknown username', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.getUserProfileWithBlogs('nobody', query()),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getPublicUserProfile('nobody')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     // A banned account must be indistinguishable from one that never existed.
     it('throws NotFoundException for a banned user', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow, banned: true });
+      prisma.user.findFirst.mockResolvedValue({ ...userRow, banned: true });
 
-      await expect(
-        service.getUserProfileWithBlogs('Ahmed', query()),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getPublicUserProfile('Ahmed')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('getUserBlogs', () => {
+    const blogCardsArgs = () =>
+      prisma.blog.findMany.mock.calls[0][0] as unknown as BlogCardsFindManyArgs;
+
+    beforeEach(() => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1', banned: false });
+      prisma.blog.findMany.mockResolvedValue([{ ...blogCardRow }]);
+    });
+
+    it('scopes the blogs to the author id and to published ones', async () => {
+      await service.getUserBlogs('ahmed', query());
+
+      expect(lookupArgs().where).toEqual(byName('ahmed'));
+      expect(blogCardsArgs().where).toEqual({
+        authorId: 'user-1',
+        isPublished: true,
+      });
+    });
+
+    it('hides the blogs the caller reported', async () => {
+      await service.getUserBlogs('Ahmed', query(), 'viewer-1');
+
+      expect(blogCardsArgs().where.report).toEqual({
+        none: { userId: 'viewer-1' },
+      });
+    });
+
+    it('counts with exactly the filter it queried with', async () => {
+      await service.getUserBlogs('Ahmed', query(), 'viewer-1');
+
+      expect(countArgs().where).toEqual(blogCardsArgs().where);
+    });
+
+    it('searches the title and the content only, never the author', async () => {
+      await service.getUserBlogs('Ahmed', query({ search: 'nest' }));
+
+      expect(blogCardsArgs().where.OR).toEqual([
+        { title: { contains: 'nest', mode: 'insensitive' } },
+        { content: { contains: 'nest', mode: 'insensitive' } },
+      ]);
+    });
+
+    it('reuses the sort, limit and page values from buildBlogQuery', async () => {
+      await service.getUserBlogs(
+        'Ahmed',
+        query({ sort: BlogSortOptions.OLDEST, page: 3, limit: 5 }),
+      );
+
+      const { orderBy, take, skip } = blogCardsArgs();
+      expect(orderBy).toEqual([{ createdAt: 'asc' }, { id: 'asc' }]);
+      expect(take).toBe(5);
+      expect(skip).toBe(10);
+    });
+
+    it('defaults to the newest 10 blogs on the first page', async () => {
+      await service.getUserBlogs('Ahmed', query());
+
+      const { orderBy, take, skip } = blogCardsArgs();
+      expect(orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
+      expect(take).toBe(10);
+      expect(skip).toBe(0);
+    });
+
+    it('derives totalPages from the scoped blog count', async () => {
+      prisma.blog.count.mockResolvedValue(21);
+
+      const result = await service.getUserBlogs('Ahmed', query({ limit: 5 }));
+
+      expect(result.totalPages).toBe(5);
+    });
+
+    it('returns feed cards with the caller like and bookmark flags', async () => {
+      const { blogs } = await service.getUserBlogs(
+        'Ahmed',
+        query(),
+        'viewer-1',
+      );
+
+      expect(blogs[0]).toMatchObject({
+        isLikedByLoggedInUser: true,
+        isBookmarkedByLoggedInUser: false,
+        coverImage: 'https://signed/url',
+        author: { name: 'Ahmed', image: 'https://signed/url' },
+      });
+      expect('likes' in blogs[0]).toBe(false);
+      expect('bookmarks' in blogs[0]).toBe(false);
+    });
+
+    it('throws NotFoundException for an unknown username', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.getUserBlogs('nobody', query())).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.blog.findMany).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for a banned user', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1', banned: true });
+
+      await expect(service.getUserBlogs('Ahmed', query())).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.blog.findMany).not.toHaveBeenCalled();
     });
   });
 

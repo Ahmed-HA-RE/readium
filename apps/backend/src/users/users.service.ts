@@ -8,13 +8,15 @@ import {
   GetMyBlogs,
   GetMyComments,
   GetMyLikesAndBookmarks,
-  GetUserProfileWithBlogs,
+  GetUserBlogs,
   LikesAndBookmarksBlogCard,
+  PublicUserProfile,
   UpdateUserProfile,
 } from '@repo/types';
 import { UserSession } from '@thallesp/nestjs-better-auth';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
+import { BlogsService } from '../blogs/blogs.service';
 import { Prisma } from '../generated/prisma/client';
 import { buildBlogQuery } from '../blogs/utils/blog-query';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
@@ -42,20 +44,86 @@ export class UsersService {
   constructor(
     private readonly prisma: DatabaseService,
     private readonly s3Service: S3ServiceService,
+    private readonly blogsService: BlogsService,
   ) {}
 
   private logger = new Logger(UsersService.name);
 
-  async getUserProfileWithBlogs(
+  async getPublicUserProfile(username: string): Promise<PublicUserProfile> {
+    this.logger.verbose(`Fetching the public profile of ${username}`);
+
+    const publishedBlog = { blog: { isPublished: true } };
+
+    // `banned` is selected only to answer 404 below; it never reaches the
+    // response, and `email`, `role` and `banReason` are never selected at all.
+    // Case-insensitive, like `isUsernameTaken`, so `/@ahmed` finds `Ahmed`; the
+    // web page then redirects to the canonical casing.
+    const user = await this.prisma.user.findFirst({
+      where: { name: { equals: username, mode: 'insensitive' } },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        bio: true,
+        website: true,
+        banned: true,
+        _count: {
+          select: {
+            blogs: { where: { isPublished: true } },
+            likes: { where: publishedBlog },
+            bookmarks: { where: publishedBlog },
+          },
+        },
+      },
+    });
+
+    // A banned user answers 404, so it is indistinguishable from one that
+    // never existed.
+    if (!user || user.banned) {
+      throw new NotFoundException(
+        `User with username ${username} does not exist`,
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { banned, ...profile } = user;
+
+    return {
+      ...profile,
+      image: profile.image
+        ? await this.s3Service.getSignedUrl(profile.image)
+        : null,
+    };
+  }
+
+  /**
+   * A user's published blogs as feed cards, filtered, sorted and paginated.
+   * Blogs the caller reported are hidden from the caller only, as in the feed.
+   */
+  async getUserBlogs(
     username: string,
     query: UserBlogsQueryDto,
-  ): Promise<GetUserProfileWithBlogs> {
+    userId?: string,
+  ): Promise<GetUserBlogs> {
     const { search, sort, page, limit } = query;
 
-    this.logger.verbose(
-      `Fetching the public profile of ${username} with query parameters`,
-      { search, sort, page, limit },
-    );
+    this.logger.verbose(`Fetching the blogs of ${username}`, {
+      search,
+      sort,
+      page,
+      limit,
+    });
+
+    const author = await this.prisma.user.findFirst({
+      where: { name: { equals: username, mode: 'insensitive' } },
+      select: { id: true, banned: true },
+    });
+
+    if (!author || author.banned) {
+      throw new NotFoundException(
+        `User with username ${username} does not exist`,
+      );
+    }
 
     // Sorting and pagination are shared with the blog feed; the filter is not,
     // since these blogs already belong to one author.
@@ -66,85 +134,20 @@ export class UsersService {
       limit,
     );
 
-    const blogsWhere: Prisma.BlogWhereInput = {
+    const where: Prisma.BlogWhereInput = {
       ...buildUserBlogsFilter(search),
+      authorId: author.id,
       isPublished: true,
+      ...(userId ? { report: { none: { userId } } } : {}),
     };
 
-    // `banned` is selected only to answer 404 below; it never reaches the
-    // response, and `email`, `role` and `banReason` are never selected at all.
-    const publicUserSelect = {
-      name: true,
-      bio: true,
-      website: true,
-      image: true,
-      banned: true,
-      blogs: {
-        where: blogsWhere,
-        orderBy: querySort,
-        skip: (pageValue - 1) * limitValue,
-        take: limitValue,
-        select: {
-          id: true,
-          title: true,
-          slug: true,
-          content: true,
-          tags: true,
-          coverImage: true,
-          createdAt: true,
-          _count: {
-            select: {
-              comments: true,
-              likes: true,
-              bookmarks: true,
-            },
-          },
-        },
-      },
-    } satisfies Prisma.UserSelect;
-
-    const [user, totalBlogs] = await Promise.all([
-      this.prisma.user.findUnique({
-        where: { name: username },
-        select: publicUserSelect,
-      }),
-      this.prisma.blog.count({
-        where: { ...blogsWhere, author: { name: username } },
-      }),
-    ]);
-
-    // A banned user answers 404, so it is indistinguishable from one that
-    // never existed.
-    if (!user || user.banned) {
-      throw new NotFoundException(
-        `User with username ${username} does not exist`,
-      );
-    }
-
-    const totalPages = Math.ceil(totalBlogs / limitValue);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { banned, blogs, ...profile } = user;
-
-    const blogsWithPresignedUrls = await Promise.all(
-      blogs.map(async (blog) => ({
-        ...blog,
-        coverImage: blog.coverImage
-          ? await this.s3Service.getSignedUrl(blog.coverImage)
-          : null,
-      })),
+    return this.blogsService.findBlogCards(
+      where,
+      querySort,
+      pageValue,
+      limitValue,
+      userId,
     );
-
-    return {
-      user: {
-        ...profile,
-        image: profile.image
-          ? await this.s3Service.getSignedUrl(profile.image)
-          : null,
-      },
-      blogs: blogsWithPresignedUrls,
-      totalPages,
-    };
   }
 
   /**

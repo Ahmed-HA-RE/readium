@@ -22,8 +22,11 @@ export const htmlToText = (html: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+export const getProfilePath = (name: string) =>
+  `/@${encodeURIComponent(name)}`;
+
 export const getBlogPath = (authorName: string, slug: string) =>
-  `/@${encodeURIComponent(authorName)}/${encodeURIComponent(slug)}`;
+  `${getProfilePath(authorName)}/${encodeURIComponent(slug)}`;
 
 export const ADMIN_MY_STORIES_PATH = '/admin/dashboard/me/stories';
 

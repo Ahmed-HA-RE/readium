@@ -1,31 +1,24 @@
-import { Blog, BlogAuthor } from './blogs';
+import { Blog, BlogAuthor, GetAllBlogsResponse } from './blogs';
 import { Comment } from './comments';
 
-// Served to anonymous callers, so `email`, `role`, `banned` and every other
-// moderation column are excluded — do not add one without a review.
+// `GET /api/users/:username`. Served to anonymous callers, so `email`, `role`,
+// `banned` and every other moderation column are excluded — do not add one
+// without a review. Every count is over published blogs only.
 export interface PublicUserProfile {
+  id: string;
   name: string;
+  image: string | null;
   bio: string | null;
   website: string | null;
-  image: string | null;
+  _count: {
+    blogs: number;
+    likes: number;
+    bookmarks: number;
+  };
 }
 
-export interface GetUserProfileWithBlogs {
-  user: PublicUserProfile;
-  // Published blogs only, with no comment list embedded.
-  blogs: Pick<
-    Blog,
-    | 'id'
-    | 'title'
-    | 'slug'
-    | 'content'
-    | 'tags'
-    | 'coverImage'
-    | 'createdAt'
-    | '_count'
-  >[];
-  totalPages: number;
-}
+// `GET /api/users/:username/blogs`. The feed's card shape, so `BlogCard` renders it as-is.
+export type GetUserBlogs = GetAllBlogsResponse;
 
 /**
  * The signed-in user, as `GET /api/users/me` returns them. Mirrors

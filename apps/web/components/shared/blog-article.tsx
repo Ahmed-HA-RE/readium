@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Blog, BlogAuthor } from '@repo/types';
-import { formatPublishedAt, getReadingTime } from '@/lib/utils';
+import {
+  formatPublishedAt,
+  getProfilePath,
+  getReadingTime,
+} from '@/lib/utils';
 import { blogProseClassName } from '@/lib/blog-prose';
 import { highlightCodeBlocks } from '@/lib/highlight-code-blocks';
 import { DEFAULT_AVATAR } from '@/lib/constants';
@@ -57,7 +61,7 @@ const BlogArticle = ({ blog, html, actions, comments }: BlogArticleProps) => {
 
           <div className='flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground'>
             <Link
-              href={`/users/${author.name}`}
+              href={getProfilePath(author.name)}
               className='flex items-center gap-3 font-medium text-foreground hover:underline'
             >
               <Avatar size='lg'>

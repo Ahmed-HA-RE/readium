@@ -20,7 +20,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { authClient } from '@/lib/auth-client';
 import { DEFAULT_AVATAR } from '@/lib/constants';
-import { ADMIN_PROFILE_PATH, ADMIN_SETTINGS_PATH } from '@/lib/utils';
+import {
+  ADMIN_PROFILE_PATH,
+  ADMIN_SETTINGS_PATH,
+  getProfilePath,
+} from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ICON_CLASS = 'size-4';
@@ -92,7 +96,7 @@ const UserMenu = ({ name, image, isPro, isAdmin }: UserMenuProps) => {
           <div className='flex min-w-0 flex-col leading-tight'>
             <span className='truncate font-medium'>{name}</span>
             <Link
-              href={isAdmin ? ADMIN_PROFILE_PATH : '/me'}
+              href={isAdmin ? ADMIN_PROFILE_PATH : getProfilePath(name)}
               className='text-muted-foreground w-fit'
             >
               <small className='hover:text-foreground transition'>

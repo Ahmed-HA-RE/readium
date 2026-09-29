@@ -12,6 +12,7 @@ import {
   ADMIN_MY_LISTS_PATH,
   ADMIN_MY_STORIES_PATH,
   ADMIN_PROFILE_PATH,
+  getProfilePath,
 } from '@/lib/utils';
 import type { ListsTab } from '@/lib/search-params';
 import {
@@ -33,11 +34,11 @@ type NavItem = {
   tab?: ListsTab;
   label: string;
   Icon: IconType;
-  // Keeps `/`, `/me` and `/admin/dashboard` from matching every route nested under them.
+  // Keeps `/`, `/@name` and `/admin/dashboard` from matching every route nested under them.
   exact?: boolean;
 };
 
-const getNavItems = (isAdmin: boolean): NavItem[] => [
+const getNavItems = (isAdmin: boolean, username: string): NavItem[] => [
   { path: '/', label: 'Home', Icon: IoHome, exact: true },
   {
     path: isAdmin ? ADMIN_MY_STORIES_PATH : '/me/stories',
@@ -60,7 +61,7 @@ const getNavItems = (isAdmin: boolean): NavItem[] => [
         },
       ]),
   {
-    path: isAdmin ? ADMIN_PROFILE_PATH : '/me',
+    path: isAdmin ? ADMIN_PROFILE_PATH : getProfilePath(username),
     label: 'Profile',
     Icon: FaRegUser,
     exact: true,
@@ -97,14 +98,15 @@ const isActiveItem = (
 };
 
 type HomeSidebarProps = {
+  username: string;
   isAdmin: boolean;
 };
 
-const HomeSidebar = ({ isAdmin }: HomeSidebarProps) => {
+const HomeSidebar = ({ username, isAdmin }: HomeSidebarProps) => {
   const pathname = usePathname();
   const tab = useSearchParams().get('tab');
   const { setOpenMobile } = useSidebar();
-  const navItems = getNavItems(isAdmin);
+  const navItems = getNavItems(isAdmin, username);
 
   return (
     <Sidebar

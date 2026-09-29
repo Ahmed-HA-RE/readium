@@ -42,7 +42,7 @@ export class AdminService {
   async updateAdmin(
     updateAdminDto: UpdateAdminDto,
     user: UserSession['user'],
-    profileImage: Express.Multer.File,
+    image: Express.Multer.File,
   ): Promise<UpdateAdminSettings> {
     const { name, bio, website } = updateAdminDto;
 
@@ -57,12 +57,12 @@ export class AdminService {
       }
     }
 
-    if (profileImage) {
+    if (image) {
       imageKey = generateImageKey({
         userId: user.id,
-        fileName: profileImage.originalname,
+        fileName: image.originalname,
       });
-      await this.s3Service.uploadFile(profileImage, imageKey);
+      await this.s3Service.uploadFile(image, imageKey);
     }
     const updatedUser = await this.prisma.user.update({
       where: { id: user.id },
@@ -84,7 +84,7 @@ export class AdminService {
       },
     });
 
-    if (user.image && profileImage) {
+    if (user.image && image) {
       await this.s3Service.deleteFile(user.image);
     }
 

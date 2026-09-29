@@ -110,7 +110,7 @@ export class AdminController {
   // Description     Update admin settings
   @Put('settings')
   @Roles(['admin'])
-  @UseInterceptors(FileInterceptor('profileImage'))
+  @UseInterceptors(FileInterceptor('image'))
   updateAdmin(
     @Body() updateAdminDto: UpdateAdminDto,
     @Session() session: UserSession,
@@ -126,9 +126,9 @@ export class AdminController {
         ],
       }),
     )
-    profileImage: Express.Multer.File,
+    image: Express.Multer.File,
   ) {
     const user = session.user;
-    return this.adminService.updateAdmin(updateAdminDto, user, profileImage);
+    return this.adminService.updateAdmin(updateAdminDto, user, image);
   }
 }

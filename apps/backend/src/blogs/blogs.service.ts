@@ -13,6 +13,7 @@ import { S3ServiceService } from '../s3-service/s3-service.service';
 import { UpdateBlogDto } from './dto/update-blog-dto';
 import { generateImageKey, generateSlug } from '../../lib/utils';
 import { buildBlogQuery } from './utils/blog-query';
+import { Prisma } from '../generated/prisma/client';
 
 @Injectable()
 export class BlogsService {
@@ -51,9 +52,21 @@ export class BlogsService {
       ...(userId ? { report: { none: { userId } } } : {}),
     };
 
+    return this.findBlogCards(where, querySort, pageValue, limitValue, userId);
+  }
+
+  // One page of feed cards. Shared with a profile's blog list, which only
+  // differs in its `where`.
+  async findBlogCards(
+    where: Prisma.BlogWhereInput,
+    orderBy: Prisma.BlogOrderByWithRelationInput[],
+    pageValue: number,
+    limitValue: number,
+    userId?: string,
+  ): Promise<GetAllBlogsResponse> {
     const blogs = await this.prisma.blog.findMany({
       where,
-      orderBy: querySort,
+      orderBy,
       take: limitValue,
       skip: (pageValue - 1) * limitValue,
       // Cards render `shortDescription`, so the full body never ships in a list.
