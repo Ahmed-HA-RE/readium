@@ -47,3 +47,14 @@ export const listsParsers = {
 };
 
 export const loadListsSearchParams = createLoader(listsParsers);
+
+// Later phases add their tabs here.
+export const SETTINGS_TABS = ['account'] as const;
+
+export type SettingsTab = (typeof SETTINGS_TABS)[number];
+
+export const settingsParsers = {
+  tab: parseAsStringLiteral(SETTINGS_TABS).withDefault('account'),
+};
+
+export const loadSettingsSearchParams = createLoader(settingsParsers);

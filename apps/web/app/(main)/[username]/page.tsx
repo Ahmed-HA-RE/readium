@@ -123,7 +123,7 @@ const ProfilePage = async ({ params }: { params: ProfilePageParams }) => {
         {isOwnProfile && (
           <div className='flex flex-wrap justify-center gap-2'>
             <Link
-              href={isAdmin ? ADMIN_SETTINGS_PATH : '/me/settings?tab=profile'}
+              href={isAdmin ? ADMIN_SETTINGS_PATH : '/me/settings?tab=account'}
               className={cn(
                 buttonVariants({ variant: 'default', size: 'lg' }),
                 'rounded-full px-4',
