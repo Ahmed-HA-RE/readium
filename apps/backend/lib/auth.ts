@@ -5,8 +5,22 @@ import { adapter } from './adapter';
 import { admin, lastLoginMethod, openAPI } from 'better-auth/plugins';
 import sendEmailVerification from '../mails/send-email-verification';
 import sendRequestPasswordReset from '../mails/send-request-password-reset';
+import sendChangeEmailConfirmation from '../mails/send-change-email-confirmation';
 
 const prisma = new PrismaClient({ adapter });
+
+// Only email-change tokens carry `updateTo`, so it tells the two verification emails apart.
+const isEmailChangeToken = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(
+      Buffer.from(token.split('.')[1], 'base64url').toString('utf8'),
+    ) as { updateTo?: unknown };
+
+    return typeof payload.updateTo === 'string';
+  } catch {
+    return false;
+  }
+};
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -25,11 +39,11 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: true,
     sendOnSignIn: true,
-    sendVerificationEmail: async ({ user, url }) => {
-      void sendEmailVerification(user.email, url);
+    sendVerificationEmail: async ({ user, url, token }) => {
+      void sendEmailVerification(user.email, url, isEmailChangeToken(token));
       return Promise.resolve();
     },
-    expiresIn: 1000 * 60 * 60, // 1 hour
+    expiresIn: 3600, // 1 hour
   },
 
   advanced: {
@@ -70,6 +84,14 @@ export const auth = betterAuth({
     additionalFields: {
       bio: { type: 'string', required: false },
       website: { type: 'string', required: false },
+    },
+    // The current address approves first, then the new one gets the verification link.
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
+        void sendChangeEmailConfirmation(user.email, newEmail, url);
+        return Promise.resolve();
+      },
     },
   },
 
