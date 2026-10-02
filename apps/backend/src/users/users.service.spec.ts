@@ -99,6 +99,12 @@ type LikesAndBookmarksCountArgs = {
   where: { userId: string; blog: { isPublished: boolean } };
 };
 
+type AccountFindManyArgs = {
+  where: { userId: string };
+  select: Record<string, boolean>;
+  orderBy: { createdAt: 'asc' | 'desc' };
+};
+
 type LikesAndBookmarksMocks = {
   findMany: jest.Mock<Promise<unknown[]>, [LikesAndBookmarksFindManyArgs]>;
   count: jest.Mock<Promise<number>, [LikesAndBookmarksCountArgs]>;
@@ -121,6 +127,9 @@ type PrismaMocks = {
   };
   like: LikesAndBookmarksMocks;
   bookmark: LikesAndBookmarksMocks;
+  account: {
+    findMany: jest.Mock<Promise<unknown[]>, [AccountFindManyArgs]>;
+  };
 };
 
 // Every property of BlogQueryDto is required, so a partial query needs one
@@ -297,6 +306,11 @@ describe('UsersService', () => {
       },
       like: likesAndBookmarksMocks(),
       bookmark: likesAndBookmarksMocks(),
+      account: {
+        findMany: jest
+          .fn<Promise<unknown[]>, [AccountFindManyArgs]>()
+          .mockResolvedValue([]),
+      },
     };
     s3 = {
       getSignedUrl: jest.fn().mockResolvedValue('https://signed/url'),
@@ -1215,6 +1229,53 @@ describe('UsersService', () => {
       expect(prisma.user.findFirst.mock.calls[0][0].select).toEqual({
         id: true,
       });
+    });
+  });
+
+  describe('getMyAccounts', () => {
+    const accountArgs = () => prisma.account.findMany.mock.calls[0][0];
+
+    it('returns the rows as Prisma reads them', async () => {
+      const rows = [
+        {
+          id: 'account-1',
+          providerId: 'credential',
+          createdAt: new Date('2026-09-01'),
+        },
+        {
+          id: 'account-2',
+          providerId: 'github',
+          createdAt: new Date('2026-09-02'),
+        },
+      ];
+      prisma.account.findMany.mockResolvedValue(rows);
+
+      await expect(service.getMyAccounts(session().user)).resolves.toEqual(
+        rows,
+      );
+    });
+
+    it('scopes the query to the session user', async () => {
+      await service.getMyAccounts(session().user);
+
+      expect(accountArgs().where).toEqual({ userId: 'user-1' });
+    });
+
+    // The account row also holds the password hash and every OAuth token.
+    it('selects only the row id, provider and creation date', async () => {
+      await service.getMyAccounts(session().user);
+
+      expect(accountArgs().select).toEqual({
+        id: true,
+        providerId: true,
+        createdAt: true,
+      });
+    });
+
+    it('orders by when each provider was linked', async () => {
+      await service.getMyAccounts(session().user);
+
+      expect(accountArgs().orderBy).toEqual({ createdAt: 'asc' });
     });
   });
 });

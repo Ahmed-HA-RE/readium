@@ -13,9 +13,9 @@ export const metadata: Metadata = {
 const ResetPasswordPage = async ({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; error?: string }>;
+  searchParams: Promise<{ token?: string; error?: string; mode?: string }>;
 }) => {
-  const { token, error } = await searchParams;
+  const { token, error, mode } = await searchParams;
   if (error || !token) redirect('/login');
 
   return (
@@ -24,7 +24,8 @@ const ResetPasswordPage = async ({
 
       <div className='flex flex-1 items-center justify-center py-12'>
         <div className='flex w-full max-w-md flex-col gap-8 rounded-2xl py-8 px-6 lg:rounded-none lg:p-0'>
-          <ResetPasswordForm token={token} />
+          {/* `mode` only changes the wording; the token alone decides what gets reset. */}
+          <ResetPasswordForm token={token} isSetup={mode === 'setup'} />
         </div>
       </div>
     </>

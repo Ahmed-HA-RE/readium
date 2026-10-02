@@ -28,7 +28,7 @@ const SignUpPage = async ({
       <AuthHeader mode='sign-up' callbackUrl={callbackUrl} />
 
       <div className='flex flex-1 items-center justify-center py-12'>
-        <div className='flex w-full max-w-md flex-col gap-8 rounded-2xl py-8 px-6'>
+        <div className='flex w-full max-w-lg flex-col gap-8 rounded-2xl py-8 px-6'>
           <div className='flex flex-col gap-1'>
             <h1 className='text-2xl lg:text-4xl font-medium tracking-tight capitalize'>
               Create your account

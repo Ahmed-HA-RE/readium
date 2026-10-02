@@ -1,19 +1,12 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { FaGithub } from 'react-icons/fa';
-import { FcGoogle } from 'react-icons/fc';
+import type { OAuthProvider } from '@repo/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
+import { OAUTH_PROVIDERS } from '@/lib/oauth-providers';
 import { Spinner } from '@/components/ui/spinner';
-
-type OAuthProvider = 'google' | 'github';
-
-const PROVIDERS = {
-  google: { label: 'Google', Icon: FcGoogle },
-  github: { label: 'GitHub', Icon: FaGithub },
-} as const;
 
 interface OAuthButtonProps {
   provider: OAuthProvider;
@@ -28,7 +21,7 @@ const OAuthButton = ({
 }: OAuthButtonProps) => {
   const [isPending, startTransition] = useTransition();
   const [isLastUsed, setIsLastUsed] = useState(false);
-  const { label, Icon } = PROVIDERS[provider];
+  const { label, Icon, iconClassName } = OAUTH_PROVIDERS[provider];
 
   // The cookie only exists in the browser, so this reads after mount to keep the
   // server and client renders identical.
@@ -45,7 +38,7 @@ const OAuthButton = ({
   return (
     <div className='relative'>
       {isLastUsed && (
-        <Badge className='absolute -top-2 right-0 z-10 bg-foreground text-background shadow-sm'>
+        <Badge className='absolute -top-3 right-0 z-10 bg-foreground text-background shadow-sm'>
           Last used
         </Badge>
       )}
@@ -61,7 +54,7 @@ const OAuthButton = ({
           <Spinner />
         ) : (
           <>
-            <Icon />
+            <Icon className={iconClassName} />
             {label}
           </>
         )}

@@ -4,10 +4,15 @@ import { PrismaClient } from '../src/generated/prisma/client';
 import { adapter } from './adapter';
 import { admin, lastLoginMethod, openAPI } from 'better-auth/plugins';
 import sendEmailVerification from '../mails/send-email-verification';
-import sendRequestPasswordReset from '../mails/send-request-password-reset';
+import sendSetPasswordEmail from '../mails/send-set-password-email';
 import sendChangeEmailConfirmation from '../mails/send-change-email-confirmation';
+import sendDeleteAccountConfirmation from '../mails/send-delete-account-confirmation';
+import { deleteS3Object } from './s3';
 
 const prisma = new PrismaClient({ adapter });
+
+// S3 keys read in `deleteUser.beforeDelete`, deleted in `afterDelete` once the rows are gone.
+const pendingS3Cleanup = new Map<string, string[]>();
 
 // Only email-change tokens carry `updateTo`, so it tells the two verification emails apart.
 const isEmailChangeToken = (token: string): boolean => {
@@ -31,9 +36,17 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     resetPasswordTokenExpiresIn: 1800, // 30 minutes
     revokeSessionsOnPasswordReset: true, // Revoke all sessions when a user resets their password
+    // Decided here, not by the client: a user without a password account gets the "create" email.
     sendResetPassword: async ({ user, url }) => {
-      void sendRequestPasswordReset(user.email, url);
-      return Promise.resolve();
+      const credential = await prisma.account.findFirst({
+        where: { userId: user.id, providerId: 'credential' },
+        select: { id: true },
+      });
+      void sendSetPasswordEmail(
+        user.email,
+        url,
+        credential ? 'reset' : 'setup',
+      );
     },
   },
   emailVerification: {
@@ -74,6 +87,10 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
       prompt: 'select_account',
     },
+    twitch: {
+      clientId: process.env.TWITCH_CLIENT_ID as string,
+      clientSecret: process.env.TWITCH_CLIENT_SECRET as string,
+    },
   },
 
   trustedOrigins: [process.env.APP_FRONTEND_URL as string],
@@ -93,6 +110,47 @@ export const auth = betterAuth({
         return Promise.resolve();
       },
     },
+    // Nothing is deleted until the emailed link is opened; the rows cascade from `User`.
+    deleteUser: {
+      enabled: true,
+      deleteTokenExpiresIn: 3600, // 1 hr
+      sendDeleteAccountVerification: async ({ user, url }) => {
+        void sendDeleteAccountConfirmation(user.email, url);
+        return Promise.resolve();
+      },
+      // The cascade removes the blog rows, so their keys are read here while they still exist.
+      beforeDelete: async (user) => {
+        const [row, blogs] = await Promise.all([
+          prisma.user.findUnique({
+            where: { id: user.id },
+            select: { image: true },
+          }),
+          prisma.blog.findMany({
+            where: { authorId: user.id, coverImage: { not: null } },
+            select: { coverImage: true },
+          }),
+        ]);
+
+        // OAuth sign-ups store the provider's avatar URL in `image`, which is not an S3 key.
+        const keys = [row?.image, ...blogs.map(({ coverImage }) => coverImage)];
+        pendingS3Cleanup.set(
+          user.id,
+          keys.filter(
+            (key): key is string => !!key && !/^https?:\/\//.test(key),
+          ),
+        );
+      },
+      // Only once the rows are gone, so a failed delete never strips a live account's images.
+      afterDelete: async (user) => {
+        const keys = pendingS3Cleanup.get(user.id) ?? [];
+        pendingS3Cleanup.delete(user.id);
+        await Promise.all(keys.map((key) => deleteS3Object(key)));
+      },
+    },
+  },
+
+  account: {
+    accountLinking: {},
   },
 
   databaseHooks: {
@@ -131,8 +189,10 @@ export const auth = betterAuth({
 
   rateLimit: {
     enabled: true,
-    max: 5,
+    max: 10,
     window: 60, // 60 seconds
+    // Read-only and already behind a fresh session, so the Security tab can refetch it freely.
+    customRules: { '/list-sessions': false },
   },
 
   plugins: [openAPI(), admin(), lastLoginMethod()],

@@ -84,6 +84,14 @@ export class UsersController {
     return this.usersService.getMyBookmarks(session.user, query);
   }
 
+  // Method           GET /api/users/me/accounts
+  // Description      Get the providers linked to the signed-in user, `credential` being the password
+  @Get('me/accounts')
+  @Roles(['user'])
+  getMyAccounts(@Session() session: UserSession) {
+    return this.usersService.getMyAccounts(session.user);
+  }
+
   // Method           PUT /api/users/me
   // Description      Update the signed-in user's own name, bio, website and avatar
   @Throttle({ default: { ttl: minutes(1), limit: 10 } })

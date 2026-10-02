@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -20,14 +19,11 @@ import { authClient } from '@/lib/auth-client';
 import { Spinner } from '@/components/ui/spinner';
 
 interface LoginFormProps {
-  // Where the user goes after signing in, relative so the router can soft-navigate.
-  callbackUrl: string;
-  // Absolute, because Better Auth puts it in the verification email it may send.
+  // `/login?callbackUrl=…`, absolute because Better Auth also puts it in the verification email.
   verifyRedirectUrl: string;
 }
 
-const LoginForm = ({ callbackUrl, verifyRedirectUrl }: LoginFormProps) => {
-  const router = useRouter();
+const LoginForm = ({ verifyRedirectUrl }: LoginFormProps) => {
   const [isLastUsed, setIsLastUsed] = useState(false);
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -37,13 +33,12 @@ const LoginForm = ({ callbackUrl, verifyRedirectUrl }: LoginFormProps) => {
   // Reads after mount because the cookie is browser-only, same as the OAuth buttons.
   useEffect(() => setIsLastUsed(authClient.isLastUsedLoginMethod('email')), []);
 
+  // On success Better Auth's client hard-navigates to `callbackURL`, and `/login` forwards the
+  // now signed-in user to their `callbackUrl`
   const onSubmit = async (values: LoginValues) => {
     await authClient.signIn.email(
       { ...values, callbackURL: verifyRedirectUrl },
       {
-        onSuccess: () => {
-          router.push(callbackUrl);
-        },
         onError: ({ error }) => {
           toast.error(error.message);
         },

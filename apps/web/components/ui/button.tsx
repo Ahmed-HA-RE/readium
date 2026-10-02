@@ -18,6 +18,10 @@ const buttonVariants = cva(
         'ghost-plain': 'hover:text-foreground aria-expanded:text-foreground',
         destructive:
           'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
+        warning:
+          'bg-yellow-400 text-yellow-950 hover:bg-yellow-300 focus-visible:border-yellow-500 focus-visible:ring-yellow-400/40 dark:bg-yellow-500 dark:hover:bg-yellow-400',
+        'destructive-outline':
+          'border-destructive bg-transparent text-foreground hover:border-red-600 hover:bg-red-600 hover:text-white focus-visible:border-destructive focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
