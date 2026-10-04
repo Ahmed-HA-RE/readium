@@ -24,15 +24,14 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 
 // Checked in order against the parsed name, so "Edge" wins before "Chrome" for Chromium forks.
-const BROWSER_ICONS: [string, React.ComponentType<{ className?: string }>][] =
-  [
-    ['Edge', Edge],
-    ['Brave', BraveBrowser],
-    ['Zen', ZenBrowser],
-    ['Chrome', Chrome],
-    ['Firefox', Firefox],
-    ['Safari', Safari],
-  ];
+const BROWSER_ICONS: [string, React.ComponentType<{ className?: string }>][] = [
+  ['Edge', Edge],
+  ['Brave', BraveBrowser],
+  ['Zen', ZenBrowser],
+  ['Chrome', Chrome],
+  ['Firefox', Firefox],
+  ['Safari', Safari],
+];
 
 const getBrowserIcon = (name?: string) =>
   BROWSER_ICONS.find(([match]) => name?.includes(match))?.[1] ??
@@ -74,7 +73,7 @@ const SessionCard = ({ session, isCurrent }: SessionCardProps) => {
   };
 
   return (
-    <div className='flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border p-4'>
+    <div className='flex flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-xl border p-4'>
       <div className='flex min-w-0 items-center gap-3'>
         <BrowserIcon aria-hidden className='size-8 shrink-0' />
         <div className='flex min-w-0 flex-col gap-1'>
@@ -98,7 +97,7 @@ const SessionCard = ({ session, isCurrent }: SessionCardProps) => {
       {!isCurrent && (
         <Button
           variant='destructive-outline'
-          className='rounded-full px-4'
+          className='ml-auto rounded-full px-4'
           disabled={isPending}
           onClick={revoke}
         >

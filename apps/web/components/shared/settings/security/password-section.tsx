@@ -2,6 +2,8 @@ import SecuritySection from './security-section';
 import ChangePasswordForm from './change-password-form';
 import SetUpPasswordAlert from './set-up-password-alert';
 
+export const SET_UP_PASSWORD_ANCHOR = 'set-up-password';
+
 type PasswordSectionProps = {
   hasPassword: boolean;
   email: string;
@@ -17,7 +19,8 @@ const PasswordSection = ({ hasPassword, email }: PasswordSectionProps) =>
     </SecuritySection>
   ) : (
     // Wrapped so the tab's row padding sits around the alert, not inside its border.
-    <div>
+    // `id` is the target of the 2FA section's "Set up a password" link.
+    <div id={SET_UP_PASSWORD_ANCHOR} className='scroll-mt-24'>
       <SetUpPasswordAlert email={email} />
     </div>
   );

@@ -29,6 +29,7 @@ const SettingsPage = async () => {
             email={user.email}
             accounts={accounts}
             currentSessionId={session.session.id}
+            isTwoFactorEnabled={!!user.twoFactorEnabled}
           />
         ),
       }}

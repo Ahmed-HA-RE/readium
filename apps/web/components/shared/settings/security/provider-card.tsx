@@ -64,7 +64,7 @@ const ProviderCard = ({ provider, account, canUnlink }: ProviderCardProps) => {
   };
 
   return (
-    <div className='flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border p-4'>
+    <div className='flex flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-xl border p-4'>
       <div className='flex min-w-0 items-center gap-3'>
         <Icon aria-hidden className={cn('size-7 shrink-0', iconClassName)} />
         <div className='flex min-w-0 flex-col gap-0.5'>
@@ -80,7 +80,7 @@ const ProviderCard = ({ provider, account, canUnlink }: ProviderCardProps) => {
       {account ? (
         <Button
           variant='destructive-outline'
-          className='rounded-full px-4'
+          className='ml-auto rounded-full px-4'
           disabled={!canUnlink || isPending}
           onClick={() => unlink(account.id)}
         >
@@ -89,7 +89,7 @@ const ProviderCard = ({ provider, account, canUnlink }: ProviderCardProps) => {
       ) : (
         <Button
           variant='outline'
-          className='rounded-full px-4'
+          className='ml-auto rounded-full px-4'
           disabled={isPending}
           onClick={link}
         >

@@ -100,7 +100,7 @@ const ChangePasswordForm = ({ email }: { email: string }) => {
                   required
                   aria-invalid={fieldState.invalid}
                   disabled={isPending}
-                  className='h-10'
+                  large
                 />
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />

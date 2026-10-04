@@ -2,11 +2,19 @@ import { APIError, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { adapter } from './adapter';
-import { admin, lastLoginMethod, openAPI } from 'better-auth/plugins';
+import {
+  admin,
+  lastLoginMethod,
+  openAPI,
+  twoFactor,
+} from 'better-auth/plugins';
+import { generateRandomString } from 'better-auth/crypto';
+import { APP_NAME } from '@repo/constants';
 import sendEmailVerification from '../mails/send-email-verification';
 import sendSetPasswordEmail from '../mails/send-set-password-email';
 import sendChangeEmailConfirmation from '../mails/send-change-email-confirmation';
 import sendDeleteAccountConfirmation from '../mails/send-delete-account-confirmation';
+import sendTwoFactorCode from '../mails/send-two-factor-code';
 import { deleteS3Object } from './s3';
 
 const prisma = new PrismaClient({ adapter });
@@ -195,5 +203,25 @@ export const auth = betterAuth({
     customRules: { '/list-sessions': false },
   },
 
-  plugins: [openAPI(), admin(), lastLoginMethod()],
+  plugins: [
+    openAPI(),
+    admin(),
+    lastLoginMethod(),
+    twoFactor({
+      issuer: APP_NAME,
+      otpOptions: {
+        period: 60, // 1 hour
+        sendOTP: async ({ user, otp }) => {
+          void sendTwoFactorCode(user.email, otp);
+          return Promise.resolve();
+        },
+      },
+      backupCodeOptions: {
+        customBackupCodesGenerate: () =>
+          Array.from({ length: 6 }, () =>
+            generateRandomString(6, 'a-z', '0-9'),
+          ),
+      },
+    }),
+  ],
 });
