@@ -1,8 +1,18 @@
 import axios from 'axios';
 import { differenceInDays, format, formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 import type { MyBlogsStatus } from '@repo/types';
 
 export { cn } from 'cn';
+
+export const copyToClipboard = async (text: string, message: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(message);
+  } catch {
+    toast.error('Could not copy to the clipboard');
+  }
+};
 
 export const getErrorMessage = (error: unknown, fallback: string) => {
   if (!axios.isAxiosError<{ message?: string | string[] }>(error)) {
@@ -22,8 +32,7 @@ export const htmlToText = (html: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-export const getProfilePath = (name: string) =>
-  `/@${encodeURIComponent(name)}`;
+export const getProfilePath = (name: string) => `/@${encodeURIComponent(name)}`;
 
 export const getBlogPath = (authorName: string, slug: string) =>
   `${getProfilePath(authorName)}/${encodeURIComponent(slug)}`;

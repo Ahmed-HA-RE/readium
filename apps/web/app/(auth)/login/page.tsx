@@ -17,18 +17,19 @@ const LoginPage = async ({
 }: {
   searchParams: Promise<{ callbackUrl?: string }>;
 }) => {
-  const session = await getCurrentLoggedInUser();
-  if (session) redirect('/');
-
   const { callbackUrl: rawCallbackUrl = '/' } = await searchParams;
   const callbackUrl = toSafeCallbackUrl(rawCallbackUrl);
 
+  // Also where a successful sign-in lands, via the client's redirect to `verifyRedirectUrl` below.
+  const session = await getCurrentLoggedInUser();
+  if (session) redirect(callbackUrl);
+
   return (
     <>
-      <AuthHeader mode='login' callbackUrl={callbackUrl} />
+      <AuthHeader linkTo='sign-up' callbackUrl={callbackUrl} />
 
       <div className='flex flex-1 items-center justify-center py-12'>
-        <div className='flex w-full max-w-md flex-col gap-8 rounded-2xl py-8 px-6 lg:rounded-none'>
+        <div className='flex w-full max-w-lg flex-col gap-8 rounded-2xl py-8 px-6 lg:rounded-none'>
           <div className='flex flex-col gap-1'>
             <h1 className='text-2xl lg:text-4xl font-medium tracking-tight capitalize'>
               Welcome back
@@ -38,10 +39,14 @@ const LoginPage = async ({
             </p>
           </div>
 
-          <OAuthProviders callbackUrl={toAbsoluteUrl(callbackUrl)} showLastUsed />
+          <OAuthProviders
+            callbackUrl={toAbsoluteUrl(callbackUrl)}
+            showLastUsed
+          />
           <LoginForm
-            callbackUrl={callbackUrl}
-            verifyRedirectUrl={toAbsoluteUrl('/login')}
+            verifyRedirectUrl={toAbsoluteUrl(
+              `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`,
+            )}
           />
         </div>
       </div>

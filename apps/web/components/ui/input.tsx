@@ -15,11 +15,17 @@ const inputVariants = cva(
         default: '',
         large: '',
       },
+      // The 40px height used by the auth and settings forms.
+      large: {
+        true: 'h-10',
+        false: '',
+      },
     },
     compoundVariants: [{ file: true, fileSize: 'large', className: 'h-9' }],
     defaultVariants: {
       file: false,
       fileSize: 'default',
+      large: false,
     },
   },
 );
@@ -28,15 +34,16 @@ function Input({
   className,
   type,
   fileSize = 'default',
+  large = false,
   ...props
 }: React.ComponentProps<'input'> &
-  Pick<VariantProps<typeof inputVariants>, 'fileSize'>) {
+  Pick<VariantProps<typeof inputVariants>, 'fileSize' | 'large'>) {
   return (
     <InputPrimitive
       type={type}
       data-slot='input'
       className={cn(
-        inputVariants({ file: type === 'file', fileSize }),
+        inputVariants({ file: type === 'file', fileSize, large }),
         className,
       )}
       {...props}

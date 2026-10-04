@@ -1,3 +1,4 @@
+import { OAuthProvider } from '@repo/types';
 import { Marker, MarkerContent } from '@/components/ui/marker';
 import OAuthButton from './oauth-button';
 
@@ -13,17 +14,15 @@ const OAuthProviders = ({
 }: OAuthProvidersProps) => {
   return (
     <div className='flex flex-col gap-5'>
-      <div className='grid grid-cols-2 gap-3'>
-        <OAuthButton
-          provider='google'
-          callbackUrl={callbackUrl}
-          showLastUsed={showLastUsed}
-        />
-        <OAuthButton
-          provider='github'
-          callbackUrl={callbackUrl}
-          showLastUsed={showLastUsed}
-        />
+      <div className='grid lg:grid-cols-3 gap-3'>
+        {Object.values(OAuthProvider).map((provider) => (
+          <OAuthButton
+            key={provider}
+            provider={provider}
+            callbackUrl={callbackUrl}
+            showLastUsed={showLastUsed}
+          />
+        ))}
       </div>
       <Marker variant='separator'>
         <MarkerContent>OR</MarkerContent>

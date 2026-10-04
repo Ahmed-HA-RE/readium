@@ -16,11 +16,30 @@ import EmailButton from './components/email-button';
 import EmailFooter from './components/email-footer';
 import ExpireToken from './components/expire-token';
 
-interface ForgotPasswordProps {
+export type PasswordEmailMode = 'reset' | 'setup';
+
+interface SetPasswordProps {
   url: string;
+  // `setup` when the user has no password yet, i.e. signed up with a social account.
+  mode: PasswordEmailMode;
 }
 
-const ForgotPassword = ({ url }: ForgotPasswordProps): React.ReactNode => (
+const COPY = {
+  reset: {
+    preview: `Reset your ${APP_NAME} password securely.`,
+    heading: 'Reset your password',
+    body: `We received a request to reset your ${APP_NAME} password. Click the button below to choose a new password.`,
+    button: 'Reset Password',
+  },
+  setup: {
+    preview: `Create a password for your ${APP_NAME} account.`,
+    heading: 'Create your password',
+    body: `You signed up for ${APP_NAME} with a social account, so you don't have a password yet. Click the button below to create one.`,
+    button: 'Create Password',
+  },
+} satisfies Record<PasswordEmailMode, Record<string, string>>;
+
+const SetPassword = ({ url, mode }: SetPasswordProps): React.ReactNode => (
   <Tailwind
     config={{
       presets: [pixelBasedPreset],
@@ -40,7 +59,7 @@ const ForgotPassword = ({ url }: ForgotPasswordProps): React.ReactNode => (
       </Head>
 
       <Body className="bg-bg-2 m-0 p-0">
-        <Preview>Reset your {APP_NAME} password securely.</Preview>
+        <Preview>{COPY[mode].preview}</Preview>
 
         <Container className="mx-auto w-full max-w-[640px]">
           <Section className="bg-gray-50 px-0 pt-14 text-center">
@@ -56,19 +75,18 @@ const ForgotPassword = ({ url }: ForgotPasswordProps): React.ReactNode => (
 
               <Section className="mx-auto mb-8 max-w-[500px]">
                 <Text className="m-0 text-4xl font-medium">
-                  Reset your password
+                  {COPY[mode].heading}
                 </Text>
 
                 <Text className="m-0 mt-6 text-gray-500">
-                  We received a request to reset your {APP_NAME} password.
+                  {COPY[mode].body}
                   <br />
-                  Click the button below to choose a new password. If you
-                  didn&apos;t make this request, you can safely ignore this
-                  email.
+                  If you didn&apos;t make this request, you can safely ignore
+                  this email.
                 </Text>
               </Section>
 
-              <EmailButton content="Reset Password" url={url} />
+              <EmailButton content={COPY[mode].button} url={url} />
               <ExpireToken content="This link expires in 30 minutes." />
             </Section>
           </Section>
@@ -80,8 +98,9 @@ const ForgotPassword = ({ url }: ForgotPasswordProps): React.ReactNode => (
   </Tailwind>
 );
 
-ForgotPassword.PreviewProps = {
+SetPassword.PreviewProps = {
   url: 'https://example.com/',
-} satisfies ForgotPasswordProps;
+  mode: 'setup',
+} satisfies SetPasswordProps;
 
-export default ForgotPassword;
+export default SetPassword;

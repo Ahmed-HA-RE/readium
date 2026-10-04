@@ -10,6 +10,7 @@ import {
   GetMyLikesAndBookmarks,
   GetUserBlogs,
   LikesAndBookmarksBlogCard,
+  LinkedAccount,
   PublicUserProfile,
   UpdateUserProfile,
 } from '@repo/types';
@@ -496,6 +497,17 @@ export class UsersService {
       select: { id: true },
     });
     return !!user;
+  }
+
+  // The providers linked to the signed-in user. Selects no password or OAuth token.
+  async getMyAccounts(user: UserSession['user']): Promise<LinkedAccount[]> {
+    this.logger.verbose(`Fetching the linked accounts of ${user.name}`);
+
+    return this.prisma.account.findMany({
+      where: { userId: user.id },
+      select: { id: true, providerId: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 
   /**

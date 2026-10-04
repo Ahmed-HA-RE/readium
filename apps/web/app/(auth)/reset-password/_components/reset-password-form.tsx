@@ -19,7 +19,14 @@ import ResetPasswordConfirmation from './reset-password-confirmation';
 
 // The heading lives here rather than on the page so the success state replaces it
 // too — otherwise "Reset Password" would sit above the confirmation.
-const ResetPasswordForm = ({ token }: { token: string }) => {
+// `isSetup` is an OAuth-only user creating their first password from the Security tab.
+const ResetPasswordForm = ({
+  token,
+  isSetup,
+}: {
+  token: string;
+  isSetup: boolean;
+}) => {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const form = useForm<ResetPasswordValues>({
@@ -43,16 +50,18 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
 
   const isPending = form.formState.isSubmitting;
 
-  if (isSuccess) return <ResetPasswordConfirmation />;
+  if (isSuccess) return <ResetPasswordConfirmation isSetup={isSetup} />;
 
   return (
     <div className='flex flex-col gap-8'>
       <div className='flex flex-col gap-1'>
         <h1 className='text-2xl md:text-3xl xl:text-4xl font-medium tracking-tight capitalize'>
-          Reset Password
+          {isSetup ? 'Create Your Password' : 'Reset Password'}
         </h1>
         <p className='text-sm xl:text-base text-muted-foreground'>
-          Choose a new password for your account
+          {isSetup
+            ? 'Add a password so you can also sign in with your email'
+            : 'Choose a new password for your account'}
         </p>
       </div>
 
@@ -113,7 +122,13 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
           className='h-10 w-full'
           disabled={isPending}
         >
-          {isPending ? <Spinner /> : 'Reset password'}
+          {isPending ? (
+            <Spinner />
+          ) : isSetup ? (
+            'Create password'
+          ) : (
+            'Reset password'
+          )}
         </Button>
       </form>
     </div>

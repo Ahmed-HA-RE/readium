@@ -1,13 +1,13 @@
 import { resend } from '../lib/resend';
-import ForgotPassword from '../emails/forgot-password';
+import TwoFactorCode from '../emails/two-factor-code';
 import { APP_NAME } from '@repo/constants';
 
-const sendRequestPasswordReset = async (email: string, url: string) => {
+const sendTwoFactorCode = async (email: string, otp: string) => {
   const { error } = await resend.emails.send({
     from: `${APP_NAME} <noreply@${process.env.EMAIL_DOMAIN}>`,
     to: email,
-    subject: 'Reset your password',
-    react: ForgotPassword({ url }),
+    subject: `Your ${APP_NAME} sign-in code`,
+    react: TwoFactorCode({ otp }),
   });
 
   if (error) {
@@ -15,4 +15,4 @@ const sendRequestPasswordReset = async (email: string, url: string) => {
   }
 };
 
-export default sendRequestPasswordReset;
+export default sendTwoFactorCode;

@@ -42,6 +42,7 @@ export interface CurrentUser {
   banned?: boolean | null;
   banReason?: string | null;
   banExpires?: Date | null;
+  twoFactorEnabled?: boolean | null;
   /** Hardcoded `true` until subscriptions land. */
   isPro: boolean;
 }

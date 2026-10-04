@@ -5,21 +5,21 @@ import { cn } from 'cn';
 import Image from 'next/image';
 import { APP_LOGO } from '@repo/assets';
 
+const LINKS = {
+  'sign-in': { href: '/login', label: 'Sign in' },
+  'sign-up': { href: '/sign-up', label: 'Create an account' },
+} as const;
+
 interface AuthHeaderProps {
-  // Omitted on the password-reset routes, which have no counterpart route to offer.
-  mode?: 'login' | 'sign-up';
+
+  linkTo?: keyof typeof LINKS;
   callbackUrl?: string;
 }
 
 const logoStyle = { width: 40, height: 'auto' };
 
-const AuthHeader = ({ mode, callbackUrl = '/' }: AuthHeaderProps) => {
-  const isLogin = mode === 'login';
-  const target = isLogin ? '/sign-up' : '/login';
-  const href =
-    callbackUrl === '/'
-      ? target
-      : `${target}?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+const AuthHeader = ({ linkTo, callbackUrl = '/' }: AuthHeaderProps) => {
+  const link = linkTo && LINKS[linkTo];
 
   return (
     <header className='flex items-center justify-between gap-4'>
@@ -33,15 +33,19 @@ const AuthHeader = ({ mode, callbackUrl = '/' }: AuthHeaderProps) => {
           style={logoStyle}
         />
       </Link>
-      {mode && (
+      {link && (
         <Link
           className={cn(
             buttonVariants({ size: 'lg', variant: 'ghost' }),
             'group',
           )}
-          href={href}
+          href={
+            callbackUrl === '/'
+              ? link.href
+              : `${link.href}?callbackUrl=${encodeURIComponent(callbackUrl)}`
+          }
         >
-          {isLogin ? 'Create an account' : 'Sign in'}
+          {link.label}
           <FaArrowRight className='transition-transform duration-200 group-hover:translate-x-0.5' />
         </Link>
       )}
