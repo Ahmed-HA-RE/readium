@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { authClient } from '@/lib/auth-client';
+import { toAbsoluteUrl } from '@/lib/absolute-url';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
 
 interface LoginFormProps {
@@ -33,12 +35,14 @@ const LoginForm = ({ verifyRedirectUrl }: LoginFormProps) => {
   // Reads after mount because the cookie is browser-only, same as the OAuth buttons.
   useEffect(() => setIsLastUsed(authClient.isLastUsedLoginMethod('email')), []);
 
-  // On success Better Auth's client hard-navigates to `callbackURL`, and `/login` forwards the
-  // now signed-in user to their `callbackUrl`
   const onSubmit = async (values: LoginValues) => {
     await authClient.signIn.email(
       { ...values, callbackURL: verifyRedirectUrl },
       {
+        onSuccess: ({ data }) => {
+          if (data.user?.role === 'admin')
+            data.url = toAbsoluteUrl(ADMIN_OVERVIEW_PATH);
+        },
         onError: ({ error }) => {
           toast.error(error.message);
         },

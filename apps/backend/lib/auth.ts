@@ -9,6 +9,7 @@ import {
   twoFactor,
 } from 'better-auth/plugins';
 import { generateRandomString } from 'better-auth/crypto';
+import { stripe } from '@better-auth/stripe';
 import { APP_NAME } from '@repo/constants';
 import sendEmailVerification from '../mails/send-email-verification';
 import sendSetPasswordEmail from '../mails/send-set-password-email';
@@ -16,11 +17,16 @@ import sendChangeEmailConfirmation from '../mails/send-change-email-confirmation
 import sendDeleteAccountConfirmation from '../mails/send-delete-account-confirmation';
 import sendTwoFactorCode from '../mails/send-two-factor-code';
 import { deleteS3Object } from './s3';
+import { deleteStripeCustomer, stripeClient } from './stripe';
+import { ABANDONED_CHECKOUT_STATUSES } from './constants';
+import { createAuthMiddleware } from 'better-auth/api';
 
 const prisma = new PrismaClient({ adapter });
 
 // S3 keys read in `deleteUser.beforeDelete`, deleted in `afterDelete` once the rows are gone.
 const pendingS3Cleanup = new Map<string, string[]>();
+// Same pattern for the Stripe customer, deleted in `afterDelete` with the user's subscription rows.
+const pendingStripeCleanup = new Map<string, string>();
 
 // Only email-change tokens carry `updateTo`, so it tells the two verification emails apart.
 const isEmailChangeToken = (token: string): boolean => {
@@ -131,13 +137,16 @@ export const auth = betterAuth({
         const [row, blogs] = await Promise.all([
           prisma.user.findUnique({
             where: { id: user.id },
-            select: { image: true },
+            select: { image: true, stripeCustomerId: true },
           }),
           prisma.blog.findMany({
             where: { authorId: user.id, coverImage: { not: null } },
             select: { coverImage: true },
           }),
         ]);
+
+        if (row?.stripeCustomerId)
+          pendingStripeCleanup.set(user.id, row.stripeCustomerId);
 
         // OAuth sign-ups store the provider's avatar URL in `image`, which is not an S3 key.
         const keys = [row?.image, ...blogs.map(({ coverImage }) => coverImage)];
@@ -151,8 +160,16 @@ export const auth = betterAuth({
       // Only once the rows are gone, so a failed delete never strips a live account's images.
       afterDelete: async (user) => {
         const keys = pendingS3Cleanup.get(user.id) ?? [];
+        const customerId = pendingStripeCleanup.get(user.id);
         pendingS3Cleanup.delete(user.id);
-        await Promise.all(keys.map((key) => deleteS3Object(key)));
+        pendingStripeCleanup.delete(user.id);
+
+        // `referenceId` has no foreign key to `User`, so these rows don't cascade.
+        await Promise.all([
+          ...keys.map((key) => deleteS3Object(key)),
+          prisma.subscription.deleteMany({ where: { referenceId: user.id } }),
+          customerId && deleteStripeCustomer(customerId),
+        ]);
       },
     },
   },
@@ -203,6 +220,21 @@ export const auth = betterAuth({
     customRules: { '/list-sessions': false },
   },
 
+  hooks: {
+    after: createAuthMiddleware(async (ctx) => {
+      // Only the OAuth callback; email sign-in is a fetch and redirects in the login form's `onSuccess`.
+      if (
+        ctx.path.startsWith('/callback/') &&
+        ctx.context.newSession?.user?.role === 'admin'
+      ) {
+        ctx.redirect(
+          `${process.env.APP_FRONTEND_URL}/admin/dashboard/overview`,
+        );
+      }
+      await Promise.resolve();
+    }),
+  },
+
   plugins: [
     openAPI(),
     admin(),
@@ -221,6 +253,49 @@ export const auth = betterAuth({
           Array.from({ length: 6 }, () =>
             generateRandomString(6, 'a-z', '0-9'),
           ),
+      },
+    }),
+    stripe({
+      stripeClient,
+      // `stripe listen` signs local events with its own secret, separate from the dashboard endpoint's.
+      stripeWebhookSecret: (process.env.NODE_ENV === 'development'
+        ? process.env.STRIPE_WEBHOOK_SECRET_DEV
+        : process.env.STRIPE_WEBHOOK_SECRET) as string,
+      createCustomerOnSignUp: true,
+      subscription: {
+        enabled: true,
+        plans: [
+          {
+            name: process.env.PRO_PLAN_NAME as string,
+            priceId: process.env.PRO_PLAN_PRICE_ID as string,
+            annualDiscountPriceId: process.env
+              .PRO_ANNUAL_DISCOUNT_PRICE_ID as string,
+          },
+        ],
+        // The welcome offer: 20% off the first year, only for users who never had a subscription.
+        getCheckoutSessionParams: async ({ user }, _req, ctx) => {
+          const { annual } = (ctx.body ?? {}) as { annual?: boolean };
+          const isAnnual = annual === true;
+
+          // The plugin has already created this checkout's own `incomplete` row, so it's excluded.
+          const hasSubscribedBefore = await prisma.subscription.findFirst({
+            where: {
+              referenceId: user.id,
+              status: { notIn: ABANDONED_CHECKOUT_STATUSES },
+            },
+            select: { id: true },
+          });
+
+          const applyCoupon = isAnnual && !hasSubscribedBefore;
+
+          if (!applyCoupon) return {};
+
+          return {
+            params: {
+              discounts: [{ coupon: process.env.STRIPE_COUPON_ID_20 }],
+            },
+          };
+        },
       },
     }),
   ],

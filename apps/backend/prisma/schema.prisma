@@ -36,6 +36,7 @@ model User {
   banReason        String?
   banExpires       DateTime?
   twoFactorEnabled Boolean?  @default(false)
+  stripeCustomerId String?
 
   // Last time the user made an authenticated request. Refreshed at most once
   // every 15 minutes by LastActivityInterceptor, and used to count active users.
@@ -215,4 +216,28 @@ model TwoFactor {
   @@index([secret])
   @@index([userId])
   @@map("twoFactor")
+}
+
+model Subscription {
+  id                   String    @id
+  plan                 String
+  referenceId          String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  status               String    @default("incomplete")
+  periodStart          DateTime?
+  periodEnd            DateTime?
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  cancelAtPeriodEnd    Boolean?  @default(false)
+  cancelAt             DateTime?
+  canceledAt           DateTime?
+  endedAt              DateTime?
+  seats                Int?
+  billingInterval      String?
+  stripeScheduleId     String?
+
+  @@index([referenceId])
+  @@index([stripeSubscriptionId])
+  @@map("subscription")
 }

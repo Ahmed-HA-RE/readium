@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { Subscription } from '@better-auth/stripe';
 import { cn } from 'cn';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,7 +11,17 @@ import PricingTable from './pricing-table';
 const billingTabClassName =
   'h-auto rounded-none border-border bg-muted px-8 py-2 text-lg first:rounded-l-md last:rounded-r-md data-active:border-foreground data-active:bg-background group-data-[variant=default]/tabs-list:data-active:shadow-none dark:data-active:border-foreground dark:data-active:bg-background';
 
-const PlansPricing = () => {
+type PlansPricingProps = {
+  activeSubscription: Subscription | null;
+  isAdmin: boolean;
+  showWelcomeOffer: boolean;
+};
+
+const PlansPricing = ({
+  activeSubscription,
+  isAdmin,
+  showWelcomeOffer,
+}: PlansPricingProps) => {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('yearly');
 
   return (
@@ -26,17 +37,27 @@ const PlansPricing = () => {
           </TabsTrigger>
           <TabsTrigger
             value='yearly'
-            className={cn(billingTabClassName, 'flex-col gap-1 py-1.5')}
+            className={cn(
+              billingTabClassName,
+              showWelcomeOffer && 'flex-col gap-1 py-1.5',
+            )}
           >
-            <Badge variant='app' shape='rectangle'>
-              Save up to ${YEARLY_SAVINGS}
-            </Badge>
+            {showWelcomeOffer && (
+              <Badge variant='app' shape='rectangle'>
+                Save up to ${YEARLY_SAVINGS}
+              </Badge>
+            )}
             Yearly
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      <PricingTable billingPeriod={billingPeriod} />
+      <PricingTable
+        billingPeriod={billingPeriod}
+        activeSubscription={activeSubscription}
+        isAdmin={isAdmin}
+        showWelcomeOffer={showWelcomeOffer}
+      />
     </div>
   );
 };

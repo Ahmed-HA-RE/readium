@@ -5,6 +5,7 @@ import AuthHeader from '../_components/auth-header';
 import OAuthProviders from '../_components/oauth-providers';
 import LoginForm from './_components/login-form';
 import { toAbsoluteUrl, toSafeCallbackUrl } from '@/lib/absolute-url';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
 
 export const metadata: Metadata = {
   title: 'Sign in',
@@ -22,7 +23,9 @@ const LoginPage = async ({
 
   // Also where a successful sign-in lands, via the client's redirect to `verifyRedirectUrl` below.
   const session = await getCurrentLoggedInUser();
-  if (session) redirect(callbackUrl);
+  if (session) {
+    redirect(session.user.role === 'admin' ? ADMIN_OVERVIEW_PATH : callbackUrl);
+  }
 
   return (
     <>
