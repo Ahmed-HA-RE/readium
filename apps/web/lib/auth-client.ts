@@ -4,6 +4,7 @@ import {
   lastLoginMethodClient,
   twoFactorClient,
 } from 'better-auth/client/plugins';
+import { stripeClient } from '@better-auth/stripe/client';
 
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL as string,
@@ -16,5 +17,6 @@ export const authClient = createAuthClient({
         window.location.href = `/2fa${window.location.search}`;
       },
     }),
+    stripeClient({ subscription: true }),
   ],
 });

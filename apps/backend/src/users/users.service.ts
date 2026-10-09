@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  GetCurrentLoggedInUser,
   GetMyBlogs,
   GetMyComments,
   GetMyLikesAndBookmarks,
@@ -26,6 +27,7 @@ import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile-dto';
 import { generateImageKey } from '../../lib/utils';
+import { ABANDONED_CHECKOUT_STATUSES } from '../../lib/constants';
 import {
   buildLikesAndBookmarksFilter,
   buildLikesAndBookmarksPage,
@@ -34,8 +36,8 @@ import {
   likesAndBookmarksSelect,
 } from './utils/user-query';
 
-// Placeholder until the subscription model lands.
-const PLACEHOLDER_IS_PRO = false;
+// Matches the Stripe plugin's own "active or trialing" check behind `subscription.list`.
+const PRO_STATUSES = ['active', 'trialing'];
 
 // Matches the admin comment feed's default, so both cursor endpoints page alike.
 const DEFAULT_COMMENTS_PAGE_SIZE = 10;
@@ -89,12 +91,13 @@ export class UsersService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { banned, ...profile } = user;
 
-    return {
-      ...profile,
-      image: profile.image
-        ? await this.s3Service.getSignedUrl(profile.image)
-        : null,
-    };
+    // Only `isPro` is public; whether someone subscribed in the past stays private.
+    const [image, { isPro }] = await Promise.all([
+      profile.image ? this.s3Service.getSignedUrl(profile.image) : null,
+      this.getSubscriptionState(profile.id),
+    ]);
+
+    return { ...profile, image, isPro };
   }
 
   /**
@@ -152,28 +155,27 @@ export class UsersService {
   }
 
   /**
-   * The signed-in user's own profile, returned straight from the session with
-   * no database read — only `image` is rewritten from an S3 key to a URL.
+   * The signed-in user's own profile from the session, plus their subscription
+   * state — `image` is rewritten from an S3 key to a URL.
    *
    * `GetCurrentLoggedInUser` in `@repo/types` mirrors this shape by hand; keep
    * the two in step.
    */
   async getCurrentLoggedInUser(
     session: UserSession,
-  ): Promise<UserSession & { user: { isPro: boolean } }> {
+  ): Promise<GetCurrentLoggedInUser> {
     const { user } = session;
 
     this.logger.verbose(`Fetching the profile: ${user.name}`);
 
+    const [image, subscriptionState] = await Promise.all([
+      user.image ? this.s3Service.getSignedUrl(user.image) : null,
+      this.getSubscriptionState(user.id),
+    ]);
+
     return {
       ...session,
-      user: {
-        ...user,
-        image: user.image
-          ? await this.s3Service.getSignedUrl(user.image)
-          : null,
-        isPro: PLACEHOLDER_IS_PRO,
-      },
+      user: { ...user, image, ...subscriptionState },
     };
   }
 
@@ -247,8 +249,6 @@ export class UsersService {
         _count: { _all: true },
       }),
     ]);
-
-    console.log(statusGroups);
 
     const countFor = (isPublished: boolean) =>
       statusGroups.find((group) => group.isPublished === isPublished)?._count
@@ -534,5 +534,26 @@ export class UsersService {
         },
       })),
     );
+  }
+
+  /**
+   * Read from our `subscription` table, which the Stripe plugin's webhooks keep
+   * in sync, so no request reaches Stripe. `referenceId` holds the user's id.
+   */
+  private async getSubscriptionState(
+    userId: string,
+  ): Promise<{ isPro: boolean; hasSubscribedBefore: boolean }> {
+    const subscriptions = await this.prisma.subscription.findMany({
+      where: {
+        referenceId: userId,
+        status: { notIn: ABANDONED_CHECKOUT_STATUSES },
+      },
+      select: { status: true },
+    });
+
+    return {
+      isPro: subscriptions.some(({ status }) => PRO_STATUSES.includes(status)),
+      hasSubscribedBefore: subscriptions.length > 0,
+    };
   }
 }

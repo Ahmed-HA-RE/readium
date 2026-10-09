@@ -77,8 +77,6 @@ const BlogForm = ({ authorName, blog, isAdmin = false }: BlogFormProps) => {
       await queryClient.invalidateQueries({ queryKey: ['blogs'] });
       if (blog) toast.success('Your story has been updated');
 
-      console.log(saved.isPublished);
-
       // A draft lands on the Drafts tab rather than its page, which only the
       // author can see.
       router.push(

@@ -4,8 +4,16 @@ interface EmailButtonProps {
   url: string;
   content?: string;
   className?: string;
-  variant?: 'default' | 'destructive';
+  variant?: 'default' | 'secondary' | 'destructive';
 }
+
+const variantStyles = {
+  default: {
+    backgroundImage: 'linear-gradient(135deg, #7450f8 0%, #9e4af8 100%)',
+  },
+  secondary: { backgroundColor: '#111827' },
+  destructive: { backgroundColor: '#dc2626' },
+};
 
 const EmailButton = ({
   url,
@@ -16,15 +24,8 @@ const EmailButton = ({
   return (
     <Button
       href={url}
-      className={`inline-block px-[20px] py-[12px] rounded-[8px] text-white ${className}`}
-      style={
-        variant === 'destructive'
-          ? { backgroundColor: '#dc2626' }
-          : {
-              backgroundImage:
-                'linear-gradient(135deg, #7450f8 0%, #9e4af8 100%)',
-            }
-      }
+      className={`inline-block px-[20px] py-[12px] rounded-[8px] text-white ${className ?? ''}`}
+      style={variantStyles[variant]}
     >
       {content ?? 'Confirm Email'}
     </Button>

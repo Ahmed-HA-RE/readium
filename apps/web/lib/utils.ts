@@ -37,6 +37,8 @@ export const getProfilePath = (name: string) => `/@${encodeURIComponent(name)}`;
 export const getBlogPath = (authorName: string, slug: string) =>
   `${getProfilePath(authorName)}/${encodeURIComponent(slug)}`;
 
+export const ADMIN_OVERVIEW_PATH = '/admin/dashboard/overview';
+
 export const ADMIN_MY_STORIES_PATH = '/admin/dashboard/me/stories';
 
 export const ADMIN_MY_LISTS_PATH = '/admin/dashboard/me/lists';

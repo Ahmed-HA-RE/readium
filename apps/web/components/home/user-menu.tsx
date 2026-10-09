@@ -6,7 +6,14 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import { FaEdit } from 'react-icons/fa';
-import { GoBell, GoGear, GoMoon, GoSignOut, GoSun } from 'react-icons/go';
+import {
+  GoBell,
+  GoCreditCard,
+  GoGear,
+  GoMoon,
+  GoSignOut,
+  GoSun,
+} from 'react-icons/go';
 import { cn } from 'cn';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -138,7 +145,15 @@ const UserMenu = ({ name, image, isPro, isAdmin }: UserMenuProps) => {
 
         {!isPro && (
           <DropdownMenuItem render={<Link href='/plans' />} className='mt-1'>
-            Become a Readium member 🌟
+            {/* Admins get Pro through their role, so the link is only for checking the page. */}
+            {isAdmin ? (
+              <>
+                <GoCreditCard className={ICON_CLASS} />
+                View plans
+              </>
+            ) : (
+              'Become a Readium member 🌟'
+            )}
           </DropdownMenuItem>
         )}
 

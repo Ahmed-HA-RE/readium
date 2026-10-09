@@ -18,7 +18,7 @@ export const PLAN_FEATURES: { label: string; includedIn: PlanId[] }[] = [
   { label: 'Read every free story', includedIn: ['free', 'pro'] },
   { label: 'Preview Pro-only stories', includedIn: ['free', 'pro'] },
   { label: 'Write and publish your own stories', includedIn: ['free', 'pro'] },
-  { label: 'Read every Pro-only story in full', includedIn: ['pro'] },
+  { label: 'Full access to Pro stories', includedIn: ['pro'] },
   { label: 'Make your own stories Pro-only', includedIn: ['pro'] },
   { label: 'Pro badge on your profile and stories', includedIn: ['pro'] },
 ];

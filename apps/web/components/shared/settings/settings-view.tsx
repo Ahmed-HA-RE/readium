@@ -8,11 +8,10 @@ type SettingsViewProps = {
   panels: Record<SettingsTab, React.ReactNode>;
 };
 
-// The whole settings layout, so `/me/settings` and the admin dashboard mount the same page.
 const SettingsView = ({ user, panels }: SettingsViewProps) => (
-  <div className='mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8'>
-    <div className='grid gap-y-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-x-12'>
-      <h1 className='text-3xl font-bold tracking-tight lg:col-start-1'>
+  <div className='mx-auto flex w-full max-w-6xl flex-col px-4 pt-10 pb-6 sm:px-6 lg:min-h-[calc(100svh-61px)] lg:px-8 lg:pt-12 lg:pb-0'>
+    <div className='grid gap-y-6 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-[auto_1fr] lg:gap-x-12'>
+      <h1 className='mb-6 text-4xl font-bold tracking-tight lg:col-start-1 lg:mb-0 lg:text-5xl'>
         Settings
       </h1>
 

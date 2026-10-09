@@ -5,6 +5,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { authClient } from '@/lib/auth-client';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
 import {
   verifyTwoFactorSchema,
   type VerifyTwoFactorValues,
@@ -51,7 +52,7 @@ const VerifyCodeForm = ({ method, label, callbackUrl }: VerifyCodeFormProps) => 
 
   // A full load, so every server component reads the session Better Auth just created.
   const onSubmit = async ({ code, trustDevice }: VerifyTwoFactorValues) => {
-    const { error } = await verifyCode(method, { code, trustDevice });
+    const { data, error } = await verifyCode(method, { code, trustDevice });
 
     if (error) {
       form.resetField('code');
@@ -59,7 +60,9 @@ const VerifyCodeForm = ({ method, label, callbackUrl }: VerifyCodeFormProps) => 
       return;
     }
 
-    window.location.assign(callbackUrl);
+    window.location.assign(
+      data.user.role === 'admin' ? ADMIN_OVERVIEW_PATH : callbackUrl,
+    );
   };
 
   const isPending = form.formState.isSubmitting;

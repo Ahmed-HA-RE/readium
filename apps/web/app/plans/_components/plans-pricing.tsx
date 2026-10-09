@@ -10,7 +10,15 @@ import PricingTable from './pricing-table';
 const billingTabClassName =
   'h-auto rounded-none border-border bg-muted px-8 py-2 text-lg first:rounded-l-md last:rounded-r-md data-active:border-foreground data-active:bg-background group-data-[variant=default]/tabs-list:data-active:shadow-none dark:data-active:border-foreground dark:data-active:bg-background';
 
-const PlansPricing = () => {
+type PlansPricingProps = {
+  isAdmin: boolean;
+  showWelcomeOffer: boolean;
+};
+
+const PlansPricing = ({
+  isAdmin,
+  showWelcomeOffer,
+}: PlansPricingProps) => {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('yearly');
 
   return (
@@ -26,17 +34,32 @@ const PlansPricing = () => {
           </TabsTrigger>
           <TabsTrigger
             value='yearly'
-            className={cn(billingTabClassName, 'flex-col gap-1 py-1.5')}
+            className={cn(
+              billingTabClassName,
+              showWelcomeOffer && 'flex-col gap-1 py-1.5',
+            )}
           >
-            <Badge variant='app' shape='rectangle'>
-              Save up to ${YEARLY_SAVINGS}
-            </Badge>
+            {showWelcomeOffer && (
+              <Badge variant='app' shape='rectangle'>
+                Save up to ${YEARLY_SAVINGS}
+              </Badge>
+            )}
             Yearly
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      <PricingTable billingPeriod={billingPeriod} />
+      <div className='flex w-full flex-col items-center gap-10'>
+        <PricingTable
+          billingPeriod={billingPeriod}
+          isAdmin={isAdmin}
+          showWelcomeOffer={showWelcomeOffer}
+        />
+
+        <p className='text-center text-xs text-muted-foreground'>
+          Prices exclude tax, which is added at checkout where applicable.
+        </p>
+      </div>
     </div>
   );
 };

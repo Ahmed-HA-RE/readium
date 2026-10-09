@@ -105,6 +105,11 @@ type AccountFindManyArgs = {
   orderBy: { createdAt: 'asc' | 'desc' };
 };
 
+type SubscriptionFindManyArgs = {
+  where: { referenceId: string; status: { notIn: string[] } };
+  select: { status: true };
+};
+
 type LikesAndBookmarksMocks = {
   findMany: jest.Mock<Promise<unknown[]>, [LikesAndBookmarksFindManyArgs]>;
   count: jest.Mock<Promise<number>, [LikesAndBookmarksCountArgs]>;
@@ -129,6 +134,12 @@ type PrismaMocks = {
   bookmark: LikesAndBookmarksMocks;
   account: {
     findMany: jest.Mock<Promise<unknown[]>, [AccountFindManyArgs]>;
+  };
+  subscription: {
+    findMany: jest.Mock<
+      Promise<{ status: string }[]>,
+      [SubscriptionFindManyArgs]
+    >;
   };
 };
 
@@ -311,6 +322,11 @@ describe('UsersService', () => {
           .fn<Promise<unknown[]>, [AccountFindManyArgs]>()
           .mockResolvedValue([]),
       },
+      subscription: {
+        findMany: jest
+          .fn<Promise<{ status: string }[]>, [SubscriptionFindManyArgs]>()
+          .mockResolvedValue([]),
+      },
     };
     s3 = {
       getSignedUrl: jest.fn().mockResolvedValue('https://signed/url'),
@@ -354,9 +370,29 @@ describe('UsersService', () => {
         image: 'https://signed/url',
         bio: 'Writes about backends',
         website: 'https://example.com',
+        isPro: false,
         _count: { blogs: 3, likes: 7, bookmarks: 2 },
       });
       expect('banned' in result).toBe(false);
+    });
+
+    it('reports isPro for an active subscriber, so visitors see the badge', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...userRow });
+      prisma.subscription.findMany.mockResolvedValue([{ status: 'active' }]);
+
+      const result = await service.getPublicUserProfile('Ahmed');
+
+      expect(result.isPro).toBe(true);
+    });
+
+    // Past subscriptions are the user's own business, not a visitor's.
+    it('never exposes hasSubscribedBefore', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...userRow });
+      prisma.subscription.findMany.mockResolvedValue([{ status: 'canceled' }]);
+
+      const result = await service.getPublicUserProfile('Ahmed');
+
+      expect('hasSubscribedBefore' in result).toBe(false);
     });
 
     it('counts published blogs only, and likes and bookmarks on them', async () => {
@@ -534,13 +570,14 @@ describe('UsersService', () => {
       expect(result.session).toEqual(input.session);
     });
 
-    // The guard has already resolved the session, so there is nothing to look
-    // up. A query here would be a second read of data we were handed.
-    it('does not query the database', async () => {
+    // The guard has already resolved the session, so the subscription state is
+    // the only thing worth reading.
+    it('reads nothing but the subscription table', async () => {
       await service.getCurrentLoggedInUser(session());
 
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
       expect(prisma.blog.findMany).not.toHaveBeenCalled();
+      expect(prisma.subscription.findMany).toHaveBeenCalledTimes(1);
     });
 
     it('returns the session user with every field it carried', async () => {
@@ -554,16 +591,40 @@ describe('UsersService', () => {
         image: 'https://signed/url',
         role: 'user',
         isPro: false,
+        hasSubscribedBefore: false,
       });
     });
 
-    // Hardcoded until subscriptions land. This test is the reminder to update
-    // it when they do.
-    it('reports isPro as false for every user', async () => {
-      const result = await service.getCurrentLoggedInUser(session());
+    // An abandoned checkout leaves an `incomplete` row behind, which must not
+    // cost the user the welcome offer.
+    it("reads the user's subscriptions, skipping abandoned checkouts", async () => {
+      await service.getCurrentLoggedInUser(session());
 
-      expect(result.user.isPro).toBe(false);
+      expect(prisma.subscription.findMany).toHaveBeenCalledWith({
+        where: {
+          referenceId: 'user-1',
+          status: { notIn: ['incomplete', 'incomplete_expired'] },
+        },
+        select: { status: true },
+      });
     });
+
+    it.each([
+      ['active', true],
+      ['trialing', true],
+      ['past_due', false],
+      ['canceled', false],
+    ])(
+      'a %s subscription gives isPro %s and counts as subscribed before',
+      async (status, isPro) => {
+        prisma.subscription.findMany.mockResolvedValue([{ status }]);
+
+        const result = await service.getCurrentLoggedInUser(session());
+
+        expect(result.user.isPro).toBe(isPro);
+        expect(result.user.hasSubscribedBefore).toBe(true);
+      },
+    );
 
     it('signs the avatar so the sidebar can render it', async () => {
       const result = await service.getCurrentLoggedInUser(session());

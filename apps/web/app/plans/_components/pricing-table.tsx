@@ -12,14 +12,22 @@ import {
   type BillingPeriod,
   type PlanId,
 } from '@/lib/plans';
+import ProPlanButton from './pro-plan-button';
 
 type PlanPriceProps = {
   planId: PlanId;
   billingPeriod: BillingPeriod;
+  showWelcomeOffer: boolean;
 };
 
-const PlanPrice = ({ planId, billingPeriod }: PlanPriceProps) => {
+const PlanPrice = ({
+  planId,
+  billingPeriod,
+  showWelcomeOffer,
+}: PlanPriceProps) => {
   const isYearly = billingPeriod === 'yearly';
+  const isDiscounted = isYearly && showWelcomeOffer;
+  const yearlyPrice = isDiscounted ? PRO_FIRST_YEAR_PRICE : PRO_PRICE.yearly;
 
   if (planId === 'free') {
     return (
@@ -37,7 +45,7 @@ const PlanPrice = ({ planId, billingPeriod }: PlanPriceProps) => {
   return (
     <>
       <span className='flex flex-col items-center text-2xl font-bold text-foreground sm:flex-row sm:items-baseline sm:gap-1.5 sm:text-4xl'>
-        {isYearly && (
+        {isDiscounted && (
           <s className='text-base font-medium text-muted-foreground sm:text-xl'>
             ${PRO_PRICE.yearly}
           </s>
@@ -45,19 +53,19 @@ const PlanPrice = ({ planId, billingPeriod }: PlanPriceProps) => {
         <span
           className={cn(
             'whitespace-nowrap',
-            isYearly && 'rounded-sm bg-app px-1 text-white',
+            isDiscounted && 'rounded-sm bg-app px-1 text-white',
           )}
         >
           $
-          <NumberTicker
-            value={isYearly ? PRO_FIRST_YEAR_PRICE : PRO_PRICE.monthly}
-          />
+          <NumberTicker value={isYearly ? yearlyPrice : PRO_PRICE.monthly} />
         </span>
       </span>
       <span className='text-sm font-medium text-muted-foreground '>
-        {isYearly
+        {isDiscounted
           ? `for the first year, then $${PRO_PRICE.yearly}/year`
-          : 'Per Month'}
+          : isYearly
+            ? 'Per Year'
+            : 'Per Month'}
       </span>
     </>
   );
@@ -65,9 +73,15 @@ const PlanPrice = ({ planId, billingPeriod }: PlanPriceProps) => {
 
 type PricingTableProps = {
   billingPeriod: BillingPeriod;
+  isAdmin: boolean;
+  showWelcomeOffer: boolean;
 };
 
-const PricingTable = ({ billingPeriod }: PricingTableProps) => {
+const PricingTable = ({
+  billingPeriod,
+  isAdmin,
+  showWelcomeOffer,
+}: PricingTableProps) => {
   return (
     <div className='w-full overflow-x-auto'>
       <div className='grid min-w-[20rem] grid-cols-[7rem_1fr] bg-background sm:min-w-[32rem] sm:grid-cols-[12rem_1fr] lg:min-w-[46.5rem] lg:grid-cols-[20rem_1fr]'>
@@ -107,7 +121,11 @@ const PricingTable = ({ billingPeriod }: PricingTableProps) => {
                   <h3 className='text-xl font-semibold text-foreground sm:text-2xl'>
                     {plan.name}
                   </h3>
-                  <PlanPrice planId={plan.id} billingPeriod={billingPeriod} />
+                  <PlanPrice
+                    planId={plan.id}
+                    billingPeriod={billingPeriod}
+                    showWelcomeOffer={showWelcomeOffer}
+                  />
                 </div>
 
                 {PLAN_FEATURES.map((feature) => (
@@ -137,15 +155,22 @@ const PricingTable = ({ billingPeriod }: PricingTableProps) => {
                     plan.isPopular ? 'h-16' : 'h-17',
                   )}
                 >
-                  {/* Disabled until checkout is wired up in a later phase. */}
-                  <Button
-                    variant='ghost'
-                    disabled
-                    className='gap-1 px-4 text-sm font-medium text-foreground'
-                  >
-                    Select
-                    <FaArrowRight className='size-3.5' />
-                  </Button>
+                  {plan.id === 'pro' ? (
+                    <ProPlanButton
+                      billingPeriod={billingPeriod}
+                      isAdmin={isAdmin}
+                    />
+                  ) : (
+                    // Free has no flow yet: leaving Pro is cancelling, which belongs to the Membership tab.
+                    <Button
+                      variant='ghost'
+                      disabled
+                      className='gap-1 px-4 text-sm font-medium text-foreground'
+                    >
+                      Select
+                      <FaArrowRight className='size-3.5' />
+                    </Button>
+                  )}
                 </div>
               </div>
             );

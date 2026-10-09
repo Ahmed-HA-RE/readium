@@ -10,6 +10,7 @@ export interface PublicUserProfile {
   image: string | null;
   bio: string | null;
   website: string | null;
+  isPro: boolean;
   _count: {
     blogs: number;
     likes: number;
@@ -43,8 +44,8 @@ export interface CurrentUser {
   banReason?: string | null;
   banExpires?: Date | null;
   twoFactorEnabled?: boolean | null;
-  /** Hardcoded `true` until subscriptions land. */
   isPro: boolean;
+  hasSubscribedBefore: boolean;
 }
 
 /** The current session row backing the request, as better-auth returns it. */

@@ -18,7 +18,7 @@ import {
   type UserSession,
 } from '@thallesp/nestjs-better-auth';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { minutes, Throttle } from '@nestjs/throttler';
+import { minutes, SkipThrottle, Throttle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { UserBlogsQueryDto } from './dto/user-blogs-query-dto';
 import { MyBlogsQueryDto } from './dto/my-blogs-query-dto';
@@ -39,6 +39,7 @@ export class UsersController {
   // Method           GET /api/users/me
   // Description      Get the signed-in user's own profile
   @Get('me')
+  @SkipThrottle()
   getCurrentLoggedInUser(@Session() session: UserSession) {
     return this.usersService.getCurrentLoggedInUser(session);
   }

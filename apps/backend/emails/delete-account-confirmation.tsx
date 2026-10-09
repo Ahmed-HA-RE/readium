@@ -3,7 +3,6 @@ import {
   Container,
   Head,
   Html,
-  Img,
   pixelBasedPreset,
   Preview,
   Section,
@@ -11,7 +10,7 @@ import {
   Text,
 } from 'react-email';
 import { APP_NAME } from '@repo/constants';
-import { APP_LOGO } from '@repo/assets';
+import AppLogo from './components/app-logo';
 import EmailButton from './components/email-button';
 import EmailFooter from './components/email-footer';
 import ExpireToken from './components/expire-token';
@@ -48,14 +47,7 @@ const DeleteAccountConfirmation = ({
         <Container className="mx-auto w-full max-w-[640px]">
           <Section className="bg-gray-50 px-0 pt-14 text-center">
             <Section className="px-6 pb-[72px]">
-              <Section className="mb-8">
-                <Img
-                  src={APP_LOGO}
-                  alt="Logo"
-                  width={50}
-                  className="block mx-auto"
-                />
-              </Section>
+              <AppLogo />
 
               <Section className="mx-auto mb-8 max-w-[500px]">
                 <Text className="m-0 text-4xl font-medium">
