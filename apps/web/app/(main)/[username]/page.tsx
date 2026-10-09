@@ -13,6 +13,7 @@ import { getPublicUserProfile } from '@/lib/actions/user/getPublicUserProfile';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { buttonVariants } from '@/components/ui/button';
+import ProBadge from '@/components/shared/pro-badge';
 import UserBlogsList from './_components/user-blogs-list';
 
 type ProfilePageParams = Promise<{ username: string }>;
@@ -76,7 +77,7 @@ const ProfilePage = async ({ params }: { params: ProfilePageParams }) => {
   // An unknown or banned user, or a segment without the `@`, goes home, as a missing blog does.
   if (!profile) redirect('/');
 
-  const { id, name, image, bio, website, _count } = profile;
+  const { id, name, image, bio, website, isPro, _count } = profile;
   const isOwnProfile = session?.user.id === id;
   const isAdmin = session?.user.role === 'admin';
 
@@ -95,8 +96,9 @@ const ProfilePage = async ({ params }: { params: ProfilePageParams }) => {
         </Avatar>
 
         <div className='flex max-w-xl flex-col items-center gap-2'>
-          <h1 className='text-3xl font-bold tracking-tight wrap-break-word'>
+          <h1 className='flex items-center justify-center gap-2 text-3xl font-bold tracking-tight wrap-break-word'>
             {name}
+            {isPro && <ProBadge className='size-6' />}
           </h1>
           {bio && (
             <p className='whitespace-pre-line text-muted-foreground'>{bio}</p>

@@ -1,8 +1,8 @@
-import { IoStarSharp } from 'react-icons/io5';
 import type { CurrentUser } from '@repo/types';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import ProBadge from '@/components/shared/pro-badge';
 
 type SettingsProfileProps = {
   user: Pick<CurrentUser, 'name' | 'email' | 'image' | 'bio' | 'isPro'>;
@@ -24,15 +24,7 @@ const SettingsProfile = ({ user, className }: SettingsProfileProps) => {
         <div className='flex w-full min-w-0 flex-col items-center gap-1.5'>
           <p className='flex items-center justify-center gap-2 text-2xl font-semibold wrap-break-word'>
             {name}
-            {isPro && (
-              <>
-                <IoStarSharp
-                  aria-hidden
-                  className='size-5 shrink-0 text-yellow-500'
-                />
-                <span className='sr-only'>Pro member</span>
-              </>
-            )}
+            {isPro && <ProBadge />}
           </p>
           <p className='max-w-full truncate text-base text-muted-foreground'>
             {email}

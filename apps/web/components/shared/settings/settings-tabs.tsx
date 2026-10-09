@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryStates } from 'nuqs';
-import { MdManageAccounts, MdSecurity } from 'react-icons/md';
+import { MdCreditCard, MdManageAccounts, MdSecurity } from 'react-icons/md';
 import { settingsParsers, type SettingsTab } from '@/lib/search-params';
 import DashboardTabs, {
   type DashboardTab,
@@ -10,6 +10,7 @@ import DashboardTabs, {
 const TABS: DashboardTab[] = [
   { value: 'account', label: 'Account', icon: MdManageAccounts },
   { value: 'security', label: 'Security', icon: MdSecurity },
+  { value: 'membership', label: 'Payment and Membership', icon: MdCreditCard },
 ];
 
 // Every panel arrives rendered, so switching is client-only and never shows the previous tab.

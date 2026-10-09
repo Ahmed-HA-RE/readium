@@ -1,7 +1,6 @@
 import { IoMdCheckmark } from 'react-icons/io';
 import { AiOutlineMinusCircle } from 'react-icons/ai';
 import { FaArrowRight } from 'react-icons/fa6';
-import type { Subscription } from '@better-auth/stripe';
 import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
 import { NumberTicker } from '@/components/ui/number-ticker';
@@ -74,14 +73,12 @@ const PlanPrice = ({
 
 type PricingTableProps = {
   billingPeriod: BillingPeriod;
-  activeSubscription: Subscription | null;
   isAdmin: boolean;
   showWelcomeOffer: boolean;
 };
 
 const PricingTable = ({
   billingPeriod,
-  activeSubscription,
   isAdmin,
   showWelcomeOffer,
 }: PricingTableProps) => {
@@ -161,7 +158,6 @@ const PricingTable = ({
                   {plan.id === 'pro' ? (
                     <ProPlanButton
                       billingPeriod={billingPeriod}
-                      activeSubscription={activeSubscription}
                       isAdmin={isAdmin}
                     />
                   ) : (

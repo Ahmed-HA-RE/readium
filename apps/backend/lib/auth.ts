@@ -16,6 +16,8 @@ import sendSetPasswordEmail from '../mails/send-set-password-email';
 import sendChangeEmailConfirmation from '../mails/send-change-email-confirmation';
 import sendDeleteAccountConfirmation from '../mails/send-delete-account-confirmation';
 import sendTwoFactorCode from '../mails/send-two-factor-code';
+import sendSubscriptionWelcome from '../mails/send-subscription-welcome';
+import sendSubscriptionCancelled from '../mails/send-subscription-cancelled';
 import { deleteS3Object } from './s3';
 import { deleteStripeCustomer, stripeClient } from './stripe';
 import { ABANDONED_CHECKOUT_STATUSES } from './constants';
@@ -293,8 +295,29 @@ export const auth = betterAuth({
           return {
             params: {
               discounts: [{ coupon: process.env.STRIPE_COUPON_ID_20 }],
+              automatic_tax: { enabled: true },
             },
           };
+        },
+        onSubscriptionComplete: async ({ subscription }) => {
+          const user = await prisma.user.findUnique({
+            where: { id: subscription.referenceId },
+            select: { email: true, name: true },
+          });
+          if (user) await sendSubscriptionWelcome(user.email, user.name);
+        },
+        // Fires when the cancel is scheduled; the member keeps Pro until `cancelAt` or the period end.
+        onSubscriptionCancel: async ({ subscription }) => {
+          const user = await prisma.user.findUnique({
+            where: { id: subscription.referenceId },
+            select: { email: true, name: true },
+          });
+          if (user)
+            await sendSubscriptionCancelled(
+              user.email,
+              user.name,
+              subscription.cancelAt ?? subscription.periodEnd,
+            );
         },
       },
     }),

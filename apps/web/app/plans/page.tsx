@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 import { APP_NAME } from '@repo/constants';
 import { Badge } from '@/components/ui/badge';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
-import { getActiveSubscription } from '@/lib/actions/subscription/getActiveSubscription';
 import PlansPricing from './_components/plans-pricing';
 
 export const metadata: Metadata = {
@@ -16,10 +15,9 @@ const PlansPage = async () => {
   if (!session) redirect(`/login?callbackUrl=${encodeURIComponent('/plans')}`);
 
   const { isPro, hasSubscribedBefore, role } = session.user;
-  // Admins get Pro through their role, so they never have a subscription to load.
+  // Admins get Pro through their role and keep the page; members manage their plan in settings.
   const isAdmin = role === 'admin';
-  const activeSubscription =
-    isPro && !isAdmin ? await getActiveSubscription() : null;
+  if (isPro && !isAdmin) redirect('/me/settings?tab=membership');
   // Matches the checkout hook, which applies the coupon only to a first subscription.
   const showWelcomeOffer = !hasSubscribedBefore && !isAdmin;
 
@@ -40,7 +38,6 @@ const PlansPage = async () => {
       </div>
 
       <PlansPricing
-        activeSubscription={activeSubscription}
         isAdmin={isAdmin}
         showWelcomeOffer={showWelcomeOffer}
       />
