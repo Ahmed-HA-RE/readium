@@ -5,6 +5,7 @@ import type { Comment } from '@repo/types';
 import { formatPublishedAt } from '@/lib/utils';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import ProBadge from '@/components/shared/pro-badge';
 import CommentActionsMenu from './comment-actions-menu';
 import EditCommentForm from './edit-comment-form';
 
@@ -38,8 +39,11 @@ const CommentCard = ({
       <div className='flex min-w-0 flex-1 flex-col gap-2'>
         <div className='flex items-start justify-between gap-2'>
           <div className='flex min-w-0 flex-col'>
-            <span className='truncate text-sm font-medium'>
-              {isOwnComment ? 'Me' : author.name}
+            <span className='flex min-w-0 items-center gap-1'>
+              <span className='truncate text-sm font-medium'>
+                {isOwnComment ? 'Me' : author.name}
+              </span>
+              {author.isPro && <ProBadge className='size-3.5' />}
             </span>
             <span className='text-xs text-muted-foreground'>
               <time dateTime={new Date(shownAt).toISOString()}>

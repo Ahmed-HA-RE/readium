@@ -37,12 +37,15 @@ const EditStoryPage = async ({ params }: { params: EditStoryParams }) => {
     redirect(getBlogPath(data.blog.author.name, blogSlug));
   }
 
+  const isAdmin = session.user.role === 'admin';
+
   // `BlogForm` owns its page container, so the draft alert can span the width.
   return (
     <BlogForm
       authorName={session.user.name}
       blog={data.blog}
-      isAdmin={session.user.role === 'admin'}
+      isAdmin={isAdmin}
+      canMarkPro={session.user.isPro || isAdmin}
     />
   );
 };

@@ -1,10 +1,13 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BlogsService } from './blogs.service';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { BlogQueryDto, BlogSortOptions } from './dto/blog-query-dto';
+import { CreateBlogDto } from './dto/create-blog-dto';
+import { UpdateBlogDto } from './dto/update-blog-dto';
 import { Prisma } from '../generated/prisma/client';
+import { PRO_STATUSES } from '../../lib/constants';
 
 // The arguments the service hands to Prisma, so `mock.calls` stays typed and
 // the assertions below are actually checked.
@@ -31,10 +34,16 @@ type PrismaMocks = {
     findMany: jest.Mock<Promise<unknown[]>, [unknown]>;
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
     count: jest.Mock<Promise<number>, [unknown]>;
+    create: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  subscription: {
+    count: jest.Mock<Promise<number>, [unknown]>;
   };
 };
 
 const USER_ID = 'user-1';
+const VIEWER = { id: USER_ID, role: 'user' };
 
 // Every property of `BlogQueryDto` is required, so a partial query needs one
 // cast rather than one per test.
@@ -49,6 +58,7 @@ const blogRow = (overrides: Record<string, unknown> = {}) => ({
   tags: ['nest'],
   coverImage: 'cover-key',
   isPublished: true,
+  blogPro: false,
   authorId: 'author-1',
   createdAt: new Date('2026-09-01T00:00:00.000Z'),
   updatedAt: new Date('2026-09-01T00:00:00.000Z'),
@@ -79,6 +89,15 @@ describe('BlogsService', () => {
         findUnique: jest
           .fn<Promise<unknown>, [unknown]>()
           .mockResolvedValue(null),
+        count: jest.fn<Promise<number>, [unknown]>().mockResolvedValue(0),
+        create: jest
+          .fn<Promise<unknown>, [unknown]>()
+          .mockResolvedValue(blogRow()),
+        update: jest
+          .fn<Promise<unknown>, [unknown]>()
+          .mockResolvedValue(blogRow()),
+      },
+      subscription: {
         count: jest.fn<Promise<number>, [unknown]>().mockResolvedValue(0),
       },
     };
@@ -279,7 +298,7 @@ describe('BlogsService', () => {
       it('looks the blog up by slug, published or the caller’s own', async () => {
         prisma.blog.findUnique.mockResolvedValue(blogRow());
 
-        await service.getBlogBySlug('a-blog', USER_ID);
+        await service.getBlogBySlug('a-blog', VIEWER);
 
         expect(findUniqueArgs().where).toMatchObject({
           slug: 'a-blog',
@@ -303,7 +322,7 @@ describe('BlogsService', () => {
       it('hides a blog the caller has reported', async () => {
         prisma.blog.findUnique.mockResolvedValue(blogRow());
 
-        await service.getBlogBySlug('a-blog', USER_ID);
+        await service.getBlogBySlug('a-blog', VIEWER);
 
         expect(findUniqueArgs().where).toMatchObject({
           report: { none: { userId: USER_ID } },
@@ -342,7 +361,7 @@ describe('BlogsService', () => {
       prisma.blog.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.getBlogBySlug('missing', USER_ID),
+        service.getBlogBySlug('missing', VIEWER),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -350,7 +369,7 @@ describe('BlogsService', () => {
       it('signs the cover image and an S3 author avatar', async () => {
         prisma.blog.findUnique.mockResolvedValue(blogRow());
 
-        const { blog } = await service.getBlogBySlug('a-blog', USER_ID);
+        const { blog } = await service.getBlogBySlug('a-blog', VIEWER);
 
         expect(blog.coverImage).toBe('signed:cover-key');
         expect(blog.author.image).toBe('signed:avatar-key');
@@ -366,7 +385,7 @@ describe('BlogsService', () => {
           }),
         );
 
-        const { blog } = await service.getBlogBySlug('a-blog', USER_ID);
+        const { blog } = await service.getBlogBySlug('a-blog', VIEWER);
 
         expect(blog.author.image).toBe(url);
         expect(s3.getSignedUrl).not.toHaveBeenCalled();
@@ -380,7 +399,7 @@ describe('BlogsService', () => {
           }),
         );
 
-        const { blog } = await service.getBlogBySlug('a-blog', USER_ID);
+        const { blog } = await service.getBlogBySlug('a-blog', VIEWER);
 
         expect(blog.coverImage).toBeNull();
         expect(blog.author.image).toBeNull();
@@ -392,7 +411,7 @@ describe('BlogsService', () => {
           blogRow({ likes: [{ userId: USER_ID }], bookmarks: [] }),
         );
 
-        const result = await service.getBlogBySlug('a-blog', USER_ID);
+        const result = await service.getBlogBySlug('a-blog', VIEWER);
 
         expect(result.isLikedByLoggedInUser).toBe(true);
         expect(result.isBookmarkedByLoggedInUser).toBe(false);
@@ -414,12 +433,109 @@ describe('BlogsService', () => {
           blogRow({ likes: [{ userId: USER_ID }], bookmarks: [] }),
         );
 
-        const { blog } = await service.getBlogBySlug('a-blog', USER_ID);
+        const { blog } = await service.getBlogBySlug('a-blog', VIEWER);
 
         expect(blog).not.toHaveProperty('likes');
         expect(blog).not.toHaveProperty('bookmarks');
         expect(blog.content).toBe('<p>Body text</p>');
         expect(blog.shortDescription).toBe('A short preview');
+      });
+    });
+
+    describe('pro content', () => {
+      const proContent = '<p>one two three four</p><p>five six seven eight</p>';
+      const firstHalf = '<p>one two three four</p>';
+      const proBlog = () => blogRow({ blogPro: true, content: proContent });
+
+      it('returns a public blog in full without a subscription lookup', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          blogRow({ content: proContent }),
+        );
+
+        const result = await service.getBlogBySlug('a-blog');
+
+        expect(result.blog.content).toBe(proContent);
+        expect(result.isContentLocked).toBe(false);
+        expect(prisma.subscription.count).not.toHaveBeenCalled();
+      });
+
+      it('cuts a pro blog in half for an anonymous reader', async () => {
+        prisma.blog.findUnique.mockResolvedValue(proBlog());
+
+        const result = await service.getBlogBySlug('a-blog');
+
+        expect(result.blog.content).toBe(firstHalf);
+        expect(result.isContentLocked).toBe(true);
+        expect(prisma.subscription.count).not.toHaveBeenCalled();
+      });
+
+      // Otherwise the edit form would load the cut and save it over the body.
+      it('returns a pro blog in full to its author', async () => {
+        prisma.blog.findUnique.mockResolvedValue(proBlog());
+
+        const result = await service.getBlogBySlug('a-blog', {
+          id: 'author-1',
+          role: 'user',
+        });
+
+        expect(result.blog.content).toBe(proContent);
+        expect(result.isContentLocked).toBe(false);
+        expect(prisma.subscription.count).not.toHaveBeenCalled();
+      });
+
+      it('returns a pro blog in full to an admin', async () => {
+        prisma.blog.findUnique.mockResolvedValue(proBlog());
+
+        const result = await service.getBlogBySlug('a-blog', {
+          id: 'admin-1',
+          role: 'admin',
+        });
+
+        expect(result.blog.content).toBe(proContent);
+        expect(result.isContentLocked).toBe(false);
+        expect(prisma.subscription.count).not.toHaveBeenCalled();
+      });
+
+      it('returns a pro blog in full to an active subscriber', async () => {
+        prisma.blog.findUnique.mockResolvedValue(proBlog());
+        prisma.subscription.count.mockResolvedValue(1);
+
+        const result = await service.getBlogBySlug('a-blog', VIEWER);
+
+        expect(result.blog.content).toBe(proContent);
+        expect(result.isContentLocked).toBe(false);
+        expect(prisma.subscription.count).toHaveBeenCalledWith({
+          where: { referenceId: USER_ID, status: { in: PRO_STATUSES } },
+        });
+      });
+
+      it('cuts a pro blog in half for a signed-in reader without a subscription', async () => {
+        prisma.blog.findUnique.mockResolvedValue(proBlog());
+
+        const result = await service.getBlogBySlug('a-blog', VIEWER);
+
+        expect(result.blog.content).toBe(firstHalf);
+        expect(result.isContentLocked).toBe(true);
+      });
+
+      // Reading time comes from it, so a locked reader must not see half the minutes.
+      it('counts the words of the full body even when the content is cut', async () => {
+        prisma.blog.findUnique.mockResolvedValue(proBlog());
+
+        const result = await service.getBlogBySlug('a-blog');
+
+        expect(result.blog.content).toBe(firstHalf);
+        expect(result.wordCount).toBe(8);
+      });
+
+      it('counts the same words for a public blog', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          blogRow({ content: proContent }),
+        );
+
+        const result = await service.getBlogBySlug('a-blog');
+
+        expect(result.wordCount).toBe(8);
       });
     });
   });
@@ -552,6 +668,129 @@ describe('BlogsService', () => {
       prisma.blog.findMany.mockResolvedValue([]);
 
       await expect(service.getTrendingBlogs(USER_ID)).resolves.toEqual([]);
+    });
+  });
+
+  describe('createBlog', () => {
+    const newBlog = (blogPro?: boolean) =>
+      ({
+        title: 'A blog',
+        shortDescription: 'A short preview',
+        content: '<p>Body text that is long enough</p>',
+        tags: ['nest'],
+        blogPro,
+      }) as CreateBlogDto;
+
+    it('rejects a pro blog from an author without a subscription', async () => {
+      await expect(
+        service.createBlog(undefined, newBlog(true), VIEWER),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.blog.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a pro blog for an active subscriber', async () => {
+      prisma.subscription.count.mockResolvedValue(1);
+
+      await service.createBlog(undefined, newBlog(true), VIEWER);
+
+      expect(prisma.blog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ blogPro: true }) as unknown,
+      });
+    });
+
+    it('lets an admin create a pro blog without a subscription lookup', async () => {
+      await service.createBlog(undefined, newBlog(true), {
+        id: 'admin-1',
+        role: 'admin',
+      });
+
+      expect(prisma.blog.create).toHaveBeenCalled();
+      expect(prisma.subscription.count).not.toHaveBeenCalled();
+    });
+
+    it('defaults to a public blog and skips the subscription lookup', async () => {
+      await service.createBlog(undefined, newBlog(), VIEWER);
+
+      expect(prisma.blog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ blogPro: false }) as unknown,
+      });
+      expect(prisma.subscription.count).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateBlog', () => {
+    const existing = (blogPro: boolean) => ({
+      title: 'A blog',
+      slug: 'a-blog',
+      coverImage: null,
+      blogPro,
+    });
+
+    it('rejects turning Pro on without a subscription', async () => {
+      prisma.blog.findUnique.mockResolvedValue(existing(false));
+
+      await expect(
+        service.updateBlog(
+          'a-blog',
+          undefined,
+          { blogPro: true } as UpdateBlogDto,
+          VIEWER,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.blog.update).not.toHaveBeenCalled();
+    });
+
+    // A lapsed author can still fix a typo in a blog they made pro earlier.
+    it('lets a lapsed author keep an existing pro blog pro', async () => {
+      prisma.blog.findUnique.mockResolvedValue(existing(true));
+
+      await service.updateBlog(
+        'a-blog',
+        undefined,
+        {
+          blogPro: true,
+          content: '<p>Fixed a typo in here</p>',
+        } as UpdateBlogDto,
+        VIEWER,
+      );
+
+      expect(prisma.blog.update).toHaveBeenCalled();
+      expect(prisma.subscription.count).not.toHaveBeenCalled();
+    });
+
+    it('lets a lapsed author turn Pro off', async () => {
+      prisma.blog.findUnique.mockResolvedValue(existing(true));
+
+      await service.updateBlog(
+        'a-blog',
+        undefined,
+        { blogPro: false } as UpdateBlogDto,
+        VIEWER,
+      );
+
+      expect(prisma.blog.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ blogPro: false }) as unknown,
+        }),
+      );
+    });
+
+    it('turns Pro on for an active subscriber', async () => {
+      prisma.blog.findUnique.mockResolvedValue(existing(false));
+      prisma.subscription.count.mockResolvedValue(1);
+
+      await service.updateBlog(
+        'a-blog',
+        undefined,
+        { blogPro: true } as UpdateBlogDto,
+        VIEWER,
+      );
+
+      expect(prisma.blog.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ blogPro: true }) as unknown,
+        }),
+      );
     });
   });
 });

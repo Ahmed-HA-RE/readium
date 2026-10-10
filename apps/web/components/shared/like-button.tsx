@@ -2,6 +2,7 @@
 
 import { useOptimistic, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'motion/react';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -9,6 +10,27 @@ import { cn, getErrorMessage } from '@/lib/utils';
 import { likeBlog } from '@/lib/actions/blogs/likeBlog';
 import { unlikeBlog } from '@/lib/actions/blogs/unlikeBlog';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+// The burst played on a like: each spark flies `distance` px out along `angle`.
+
+const SPARKS = [
+  { angle: 0, distance: 28, delay: 0 },
+  { angle: 60, distance: 24, delay: 0.04 },
+  { angle: 120, distance: 30, delay: 0.02 },
+  { angle: 180, distance: 26, delay: 0.06 },
+  { angle: 240, distance: 28, delay: 0.01 },
+  { angle: 300, distance: 25, delay: 0.05 },
+].map(({ angle, distance, delay }) => ({
+  angle,
+  delay,
+  x: Math.round(Math.cos((angle * Math.PI) / 180) * distance),
+  y: Math.round(Math.sin((angle * Math.PI) / 180) * distance),
+}));
 
 type LikeButtonProps = {
   slug: string;
@@ -80,9 +102,21 @@ const LikeButton = ({
       {/* The author still sees the tally, just not a control the endpoint
           would reject. */}
       {isOwnBlog ? (
-        <span className='flex size-8 items-center justify-center text-muted-foreground'>
-          <FaRegHeart className='size-4.5' />
-        </span>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant='ghost-plain'
+                size='icon'
+                aria-label="You can't like your own story"
+                className='cursor-default text-muted-foreground hover:text-muted-foreground'
+              />
+            }
+          >
+            <FaRegHeart aria-hidden />
+          </TooltipTrigger>
+          <TooltipContent>You can&apos;t like your own story</TooltipContent>
+        </Tooltip>
       ) : (
         <Button
           variant='ghost-plain'
@@ -94,11 +128,49 @@ const LikeButton = ({
             !isLikedOptimistic && 'text-muted-foreground hover:text-red-600',
           )}
         >
-          {isLikedOptimistic ? (
-            <FaHeart className='text-red-600' />
-          ) : (
-            <FaRegHeart />
-          )}
+          <span className='relative flex items-center justify-center'>
+            <motion.span
+              initial={false}
+              animate={{
+                scale: isLikedOptimistic
+                  ? [1, 0.7, 1.35, 1.05, 1]
+                  : [1, 0.9, 1],
+              }}
+              transition={{ duration: 0.45, ease: 'easeInOut' }}
+              className='flex'
+            >
+              {isLikedOptimistic ? (
+                <FaHeart className='text-red-600' />
+              ) : (
+                <FaRegHeart />
+              )}
+            </motion.span>
+
+            <AnimatePresence initial={false}>
+              {isLikedOptimistic && (
+                <span
+                  aria-hidden
+                  className='pointer-events-none absolute inset-0 flex items-center justify-center'
+                >
+                  {SPARKS.map(({ angle, x, y, delay }) => (
+                    <motion.span
+                      key={angle}
+                      className='absolute size-1.5 rounded-full bg-red-600'
+                      initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
+                      animate={{
+                        x,
+                        y,
+                        scale: [0, 1.2, 0.8, 0],
+                        opacity: [1, 1, 0.6, 0],
+                      }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.55, delay, ease: 'easeOut' }}
+                    />
+                  ))}
+                </span>
+              )}
+            </AnimatePresence>
+          </span>
         </Button>
       )}
       {displayedCount > 0 && (

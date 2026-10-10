@@ -260,6 +260,7 @@ export class AdminUsersService {
               content: true,
               tags: true,
               isPublished: true,
+              blogPro: true,
               createdAt: true,
               coverImage: true,
               author: {

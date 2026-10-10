@@ -13,11 +13,14 @@ const NewStoryPage = async () => {
   const session = await getCurrentLoggedInUser();
   if (!session) redirect('/');
 
+  const isAdmin = session.user.role === 'admin';
+
   // `BlogForm` owns its page container, so the draft alert can span the width.
   return (
     <BlogForm
       authorName={session.user.name}
-      isAdmin={session.user.role === 'admin'}
+      isAdmin={isAdmin}
+      canMarkPro={session.user.isPro || isAdmin}
     />
   );
 };

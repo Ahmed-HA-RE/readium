@@ -61,8 +61,7 @@ export class BlogsController {
     @Param('slug') slug: string,
     @Session() session: UserSession | undefined,
   ) {
-    const userId = session?.user?.id;
-    return this.blogsService.getBlogBySlug(slug, userId);
+    return this.blogsService.getBlogBySlug(slug, session?.user);
   }
 
   // Method           POST /api/blogs
@@ -86,8 +85,7 @@ export class BlogsController {
     @Body() newBlogData: CreateBlogDto,
     @Session() session: UserSession,
   ) {
-    const userId = session.user.id;
-    return this.blogsService.createBlog(coverImage, newBlogData, userId);
+    return this.blogsService.createBlog(coverImage, newBlogData, session.user);
   }
 
   // Method           PUT /api/blogs/:slug
@@ -112,12 +110,11 @@ export class BlogsController {
     @Body() updateBlogData: UpdateBlogDto,
     @Session() session: UserSession,
   ) {
-    const userId = session.user.id;
     return this.blogsService.updateBlog(
       slug,
       coverImage,
       updateBlogData,
-      userId,
+      session.user,
     );
   }
 
