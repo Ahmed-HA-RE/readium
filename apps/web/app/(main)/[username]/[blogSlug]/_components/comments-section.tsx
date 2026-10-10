@@ -20,6 +20,7 @@ type CommentsSectionProps = {
     name: string;
     image: string | null;
     role: string | string[] | undefined;
+    isPro: boolean;
   } | null;
 };
 

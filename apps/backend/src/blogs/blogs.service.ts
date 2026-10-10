@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
 import { DatabaseService } from '../database/database.service';
 import { BlogQueryDto } from './dto/blog-query-dto';
 import {
@@ -13,7 +19,11 @@ import { S3ServiceService } from '../s3-service/s3-service.service';
 import { UpdateBlogDto } from './dto/update-blog-dto';
 import { generateImageKey, generateSlug } from '../../lib/utils';
 import { buildBlogQuery } from './utils/blog-query';
+import { countHtmlWords, truncateHtmlByWords } from './utils/truncate-html';
 import { Prisma } from '../generated/prisma/client';
+import { PRO_STATUSES } from '../../lib/constants';
+
+type BlogViewer = Pick<UserSession['user'], 'id' | 'role'>;
 
 @Injectable()
 export class BlogsService {
@@ -157,6 +167,28 @@ export class BlogsService {
       : this.s3Service.getSignedUrl(image);
   }
 
+  // Admins always have Pro access; everyone else needs an active or trialing subscription.
+  private async hasProAccess(viewer: BlogViewer): Promise<boolean> {
+    if (viewer.role === 'admin') return true;
+
+    const subscriptions = await this.prisma.subscription.count({
+      where: { referenceId: viewer.id, status: { in: PRO_STATUSES } },
+    });
+
+    return subscriptions > 0;
+  }
+
+  // The author always reads in full, so the edit form never loads and saves the cut.
+  private async isContentLocked(
+    blog: { blogPro: boolean; authorId: string },
+    viewer?: BlogViewer,
+  ): Promise<boolean> {
+    if (!blog.blogPro || !viewer) return blog.blogPro;
+    if (viewer.id === blog.authorId) return false;
+
+    return !(await this.hasProAccess(viewer));
+  }
+
   // The five most-liked published blogs, minus any the caller has reported. A
   // tie on like count goes to the more recently created blog.
   async getTrendingBlogs(userId?: string): Promise<GetTrendingBlogsResponse[]> {
@@ -202,8 +234,10 @@ export class BlogsService {
 
   async getBlogBySlug(
     slug: string,
-    userId?: string,
+    viewer?: BlogViewer,
   ): Promise<GetBlogBySlugResponse> {
+    const userId = viewer?.id;
+
     this.logger.verbose(
       `Fetching blog with slug: ${slug} for ${userId ? `userId: ${userId}` : 'anonymous user'}`,
     );
@@ -264,9 +298,10 @@ export class BlogsService {
       ? blog.bookmarks.length > 0
       : false;
 
-    const [presignedUrl, authorImage] = await Promise.all([
+    const [presignedUrl, authorImage, isContentLocked] = await Promise.all([
       blog.coverImage ? this.s3Service.getSignedUrl(blog.coverImage) : null,
       this.resolveAuthorImage(blog.author.image),
+      this.isContentLocked(blog, viewer),
     ]);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -275,20 +310,33 @@ export class BlogsService {
     return {
       blog: {
         ...blogData,
+        content: isContentLocked
+          ? truncateHtmlByWords(blogData.content)
+          : blogData.content,
         author: { ...blogData.author, image: authorImage },
         coverImage: presignedUrl,
       },
       isLikedByLoggedInUser,
       isBookmarkedByLoggedInUser,
+      isContentLocked,
+      wordCount: countHtmlWords(blogData.content),
     };
   }
 
   async createBlog(
     coverImage: Express.Multer.File | undefined,
     newBlogData: CreateBlogDto,
-    userId: string,
+    user: BlogViewer,
   ): Promise<{ success: boolean; data: Omit<Blog, '_count'> }> {
-    const { title, shortDescription, content, tags, isPublished } = newBlogData;
+    const { title, shortDescription, content, tags, isPublished, blogPro } =
+      newBlogData;
+    const userId = user.id;
+
+    if (blogPro && !(await this.hasProAccess(user))) {
+      throw new ForbiddenException(
+        'An active Pro subscription is required to make a story Pro-only',
+      );
+    }
 
     // Save the cover image to AWS S3 bucket and save the key in the database so that it can be retrieved later with presigned URL. The key will be in the format of `APP_NAME-userId-uuid-originalFileName` to ensure uniqueness and traceability.
     const imageKey = coverImage
@@ -310,6 +358,7 @@ export class BlogsService {
         coverImage: imageKey,
         tags,
         isPublished: isPublished ?? false,
+        blogPro: blogPro ?? false,
         authorId: userId,
       },
     });
@@ -325,12 +374,13 @@ export class BlogsService {
     slug: string,
     coverImage: Express.Multer.File | undefined,
     updateBlogData: UpdateBlogDto,
-    userId: string,
+    user: BlogViewer,
   ): Promise<UpdateMyBlogResponse> {
     let imageKey: string | null = null;
     let updatedSlug: string | null = null;
+    const userId = user.id;
 
-    const { title, shortDescription, content, tags, isPublished } =
+    const { title, shortDescription, content, tags, isPublished, blogPro } =
       updateBlogData;
 
     const existingBlog = await this.prisma.blog.findUnique({
@@ -339,11 +389,19 @@ export class BlogsService {
         title: true,
         slug: true,
         coverImage: true,
+        blogPro: true,
       },
     });
 
     if (!existingBlog) {
       throw new NotFoundException(`Blog with slug ${slug} not found`);
+    }
+
+    // Only turning Pro on is gated, so a lapsed author can still edit or unlock an existing pro blog.
+    if (blogPro && !existingBlog.blogPro && !(await this.hasProAccess(user))) {
+      throw new ForbiddenException(
+        'An active Pro subscription is required to make a story Pro-only',
+      );
     }
 
     if (title && existingBlog.title !== title) {
@@ -365,6 +423,7 @@ export class BlogsService {
         content,
         tags,
         isPublished,
+        blogPro,
         coverImage: imageKey ?? existingBlog.coverImage,
         slug: updatedSlug ?? slug,
       },

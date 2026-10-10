@@ -4,6 +4,7 @@ import { CommentsService } from './comments.service';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { CommentQueryDto } from './dto/comment-query-dto';
+import { PRO_STATUSES } from '../../lib/constants';
 
 type CommentFindManyArgs = {
   where: unknown;
@@ -32,6 +33,9 @@ type PrismaMocks = {
     create: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
     delete: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  subscription: {
+    findMany: jest.Mock<Promise<{ referenceId: string }[]>, [unknown]>;
   };
 };
 
@@ -86,6 +90,11 @@ describe('CommentsService', () => {
               ...(args as CommentUpdateArgs).data,
             }),
           ),
+      },
+      subscription: {
+        findMany: jest
+          .fn<Promise<{ referenceId: string }[]>, [unknown]>()
+          .mockResolvedValue([]),
       },
     };
 
@@ -232,6 +241,53 @@ describe('CommentsService', () => {
 
         expect(data[0].author.image).toBeNull();
         expect(s3.getSignedUrl).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('author pro status', () => {
+      const otherAuthorRow = (id: string) => ({
+        ...commentRow(id),
+        authorId: 'user-2',
+        author: { id: 'user-2', name: 'Sara', image: null },
+      });
+
+      it('flags only the authors with an active subscription', async () => {
+        prisma.comment.findMany.mockResolvedValue([
+          commentRow('c-1'),
+          otherAuthorRow('c-2'),
+        ]);
+        prisma.subscription.findMany.mockResolvedValue([
+          { referenceId: 'user-2' },
+        ]);
+
+        const { data } = await service.getCommentsForBlog(query({}), SLUG);
+
+        expect(data.map(({ author }) => author.isPro)).toEqual([false, true]);
+      });
+
+      it('looks up each author once, in one query for the page', async () => {
+        prisma.comment.findMany.mockResolvedValue([
+          commentRow('c-1'),
+          commentRow('c-2'),
+          otherAuthorRow('c-3'),
+        ]);
+
+        await service.getCommentsForBlog(query({}), SLUG);
+
+        expect(prisma.subscription.findMany).toHaveBeenCalledTimes(1);
+        expect(prisma.subscription.findMany).toHaveBeenCalledWith({
+          where: {
+            referenceId: { in: ['user-1', 'user-2'] },
+            status: { in: PRO_STATUSES },
+          },
+          select: { referenceId: true },
+        });
+      });
+
+      it('skips the lookup for an empty page', async () => {
+        await service.getCommentsForBlog(query({}), SLUG);
+
+        expect(prisma.subscription.findMany).not.toHaveBeenCalled();
       });
     });
   });

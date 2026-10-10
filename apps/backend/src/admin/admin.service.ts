@@ -124,12 +124,7 @@ export class AdminService {
     coverImage: Express.Multer.File | undefined,
     updateBlogDto: UpdateBlogDto,
   ): Promise<UpdateMyBlogResponse> {
-    return this.blogsService.updateBlog(
-      slug,
-      coverImage,
-      updateBlogDto,
-      user.id,
-    );
+    return this.blogsService.updateBlog(slug, coverImage, updateBlogDto, user);
   }
 
   async deleteMyBlogAsAdmin(

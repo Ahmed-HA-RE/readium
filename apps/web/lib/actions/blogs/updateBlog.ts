@@ -12,6 +12,7 @@ export const updateBlog = async (
     coverImage,
     tags,
     isPublished = false,
+    blogPro = false,
   }: BlogValues,
 ): Promise<UpdateMyBlogResponse['data']> => {
   const formData = new FormData();
@@ -23,6 +24,7 @@ export const updateBlog = async (
   if (coverImage) formData.append('coverImage', coverImage);
   formData.append('tags', JSON.stringify(tags));
   formData.append('isPublished', String(isPublished));
+  formData.append('blogPro', String(blogPro));
 
   const { data } = await api.put<UpdateMyBlogResponse>(
     `/blogs/${encodeURIComponent(slug)}`,

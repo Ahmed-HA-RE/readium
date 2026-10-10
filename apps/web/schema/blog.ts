@@ -68,6 +68,8 @@ export const blogSchema = z.object({
   isPublished: z
     .boolean({ error: 'Please choose the publish status' })
     .optional(),
+
+  blogPro: z.boolean({ error: 'Please choose who can read it' }).optional(),
 });
 
 // Fields hold the input shape; `onSubmit` receives the output, where `tags` is an array.

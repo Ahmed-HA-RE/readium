@@ -23,12 +23,13 @@ import {
   InputGroupTextarea,
 } from '@/components/ui/input-group';
 import { Spinner } from '@/components/ui/spinner';
+import ProBadge from '@/components/shared/pro-badge';
 
 const MAX_LENGTH = 500;
 
 type AddCommentFormProps = {
   slug: string;
-  viewer: { name: string; image: string | null };
+  viewer: { name: string; image: string | null; isPro: boolean };
 };
 
 const AddCommentForm = ({ slug, viewer }: AddCommentFormProps) => {
@@ -70,7 +71,10 @@ const AddCommentForm = ({ slug, viewer }: AddCommentFormProps) => {
           <AvatarImage src={viewer.image ?? DEFAULT_AVATAR} alt={viewer.name} />
           <AvatarFallback>{viewer.name.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
-        <span className='truncate text-sm font-medium'>{viewer.name}</span>
+        <span className='flex min-w-0 items-center gap-1'>
+          <span className='truncate text-sm font-medium'>{viewer.name}</span>
+          {viewer.isPro && <ProBadge className='size-3.5' />}
+        </span>
       </div>
 
       <Controller

@@ -25,12 +25,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Spinner } from '@/components/ui/spinner';
 import {
   Field,
+  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from '@/components/ui/field';
 import CoverImageField from './cover-image-field';
+import ProSwitch from './pro-switch';
 
 const RequiredMark = () => (
   <span aria-hidden className='text-destructive'>
@@ -44,9 +46,16 @@ type BlogFormProps = {
   // Present when editing; the form starts from it and submits an update.
   blog?: GetBlogBySlugResponse['blog'];
   isAdmin?: boolean;
+  // Pro members and admins; anyone else cannot turn the Pro switch on.
+  canMarkPro?: boolean;
 };
 
-const BlogForm = ({ authorName, blog, isAdmin = false }: BlogFormProps) => {
+const BlogForm = ({
+  authorName,
+  blog,
+  isAdmin = false,
+  canMarkPro = false,
+}: BlogFormProps) => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const contentLabelId = useId();
@@ -60,6 +69,7 @@ const BlogForm = ({ authorName, blog, isAdmin = false }: BlogFormProps) => {
       content: blog?.content ?? '',
       tags: blog?.tags.join(', ') ?? '',
       isPublished: blog?.isPublished ?? false,
+      blogPro: blog?.blogPro ?? false,
     },
   });
 
@@ -118,7 +128,7 @@ const BlogForm = ({ authorName, blog, isAdmin = false }: BlogFormProps) => {
           className='flex flex-col gap-8'
           noValidate
         >
-          <div className='flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-12'>
+          <div className='flex items-center justify-between gap-4 lg:gap-12'>
             <h1 className='min-w-0 text-3xl font-bold tracking-tight break-all'>
               {blog ? `Edit: ${blog.title}` : 'Write a story'}
             </h1>
@@ -132,6 +142,7 @@ const BlogForm = ({ authorName, blog, isAdmin = false }: BlogFormProps) => {
                   variant={field.value ? 'secondary' : 'default'}
                   onClick={() => field.onChange(!field.value)}
                   disabled={isPending}
+                  className='shrink-0'
                 >
                   {field.value ? 'Unpublish' : 'Publish'}
                 </Button>
@@ -140,6 +151,36 @@ const BlogForm = ({ authorName, blog, isAdmin = false }: BlogFormProps) => {
           </div>
 
           <FieldGroup>
+            <Controller
+              name='blogPro'
+              control={form.control}
+              render={({ field }) => (
+                <Field
+                  orientation='horizontal'
+                  className='flex-col justify-between gap-4 rounded-lg border p-4 sm:flex-row sm:gap-6'
+                >
+                  <FieldContent>
+                    <FieldLabel htmlFor={field.name} className='text-base'>
+                      Pro only story
+                    </FieldLabel>
+                    <FieldDescription id={`${field.name}-description`}>
+                      {canMarkPro
+                        ? 'Readers without a Pro membership see the first half, then an invitation to upgrade.'
+                        : 'You need an active Pro subscription to make a story Pro only.'}
+                    </FieldDescription>
+                  </FieldContent>
+                  <ProSwitch
+                    id={field.name}
+                    checked={field.value ?? false}
+                    onCheckedChange={field.onChange}
+                    disabled={isPending || (!canMarkPro && !field.value)}
+                    aria-describedby={`${field.name}-description`}
+                    className='self-end sm:self-auto'
+                  />
+                </Field>
+              )}
+            />
+
             <Controller
               name='title'
               control={form.control}

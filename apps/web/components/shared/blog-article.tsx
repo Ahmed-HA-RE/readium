@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Blog, BlogAuthor } from '@repo/types';
 import {
+  cn,
   formatPublishedAt,
   getProfilePath,
   getReadingTime,
@@ -18,15 +19,26 @@ type BlogArticleProps = {
   };
   // Must already be sanitized with `sanitizeBlogHtml`.
   html: string;
+  // Of the full body, which `html` is not when the paywall cuts it.
+  wordCount: number;
   // The bar under the author row: reader actions publicly, moderation for admins.
   actions?: React.ReactNode;
   // Left out on the admin dashboard, which does not show comments.
   comments?: React.ReactNode;
+  // An absolutely positioned overlay laid over the end of the content.
+  paywall?: React.ReactNode;
 };
 
 // Presentation only, so the public page and the admin dashboard render a blog
 // identically while fetching it their own way.
-const BlogArticle = ({ blog, html, actions, comments }: BlogArticleProps) => {
+const BlogArticle = ({
+  blog,
+  html,
+  wordCount,
+  actions,
+  comments,
+  paywall,
+}: BlogArticleProps) => {
   const { title, tags, coverImage, createdAt, author } = blog;
 
   return (
@@ -76,7 +88,7 @@ const BlogArticle = ({ blog, html, actions, comments }: BlogArticleProps) => {
               {author.name}
             </Link>
             <span aria-hidden>·</span>
-            <span>{getReadingTime(html)} min read</span>
+            <span>{getReadingTime(wordCount)} min read</span>
             <span aria-hidden>·</span>
             <time dateTime={new Date(createdAt).toISOString()}>
               {formatPublishedAt(createdAt)}
@@ -86,10 +98,13 @@ const BlogArticle = ({ blog, html, actions, comments }: BlogArticleProps) => {
           {actions}
         </header>
 
-        <div
-          className={blogProseClassName}
-          dangerouslySetInnerHTML={{ __html: highlightCodeBlocks(html) }}
-        />
+        <div className={cn('relative', paywall && 'min-h-96')}>
+          <div
+            className={blogProseClassName}
+            dangerouslySetInnerHTML={{ __html: highlightCodeBlocks(html) }}
+          />
+          {paywall}
+        </div>
 
         {comments}
       </div>

@@ -5,6 +5,7 @@ import { sanitizeBlogHtml } from '@/lib/sanitize-html';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import BlogArticle from '@/components/shared/blog-article';
 import BlogActionBar from './blog-action-bar';
+import BlogPaywall from './blog-paywall';
 import CommentsSection from './comments-section';
 
 type BlogContentProps = {
@@ -17,7 +18,13 @@ type BlogContentProps = {
 const BlogContent = async ({ data, blogSlug }: BlogContentProps) => {
   const session = await getCurrentLoggedInUser();
 
-  const { blog, isLikedByLoggedInUser, isBookmarkedByLoggedInUser } = data;
+  const {
+    blog,
+    isLikedByLoggedInUser,
+    isBookmarkedByLoggedInUser,
+    isContentLocked,
+    wordCount,
+  } = data;
 
   const isSignedIn = Boolean(session);
   const isOwnBlog = blog.authorId === session?.user.id;
@@ -29,6 +36,7 @@ const BlogContent = async ({ data, blogSlug }: BlogContentProps) => {
         name: session.user.name,
         image: session.user.image,
         role: session.user.role,
+        isPro: session.user.isPro,
       }
     : null;
 
@@ -36,6 +44,7 @@ const BlogContent = async ({ data, blogSlug }: BlogContentProps) => {
     <BlogArticle
       blog={blog}
       html={sanitizeBlogHtml(blog.content)}
+      wordCount={wordCount}
       actions={
         <BlogActionBar
           slug={blogSlug}
@@ -57,6 +66,7 @@ const BlogContent = async ({ data, blogSlug }: BlogContentProps) => {
           canReport={isSignedIn && !isAdmin && !isOwnBlog}
         />
       }
+      paywall={isContentLocked && <BlogPaywall isSignedIn={isSignedIn} />}
       // Fetched on the client, so a `router.refresh()` after a like or a new
       // comment re-renders the article without resetting the loaded pages.
       comments={

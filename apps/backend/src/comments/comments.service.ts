@@ -9,6 +9,7 @@ import { Comment, GetBlogCommentsResponse } from '@repo/types';
 import { CreateCommentDto } from './dto/create-comment-dto';
 import { UserSession } from '@thallesp/nestjs-better-auth';
 import { S3ServiceService } from '../s3-service/s3-service.service';
+import { PRO_STATUSES } from '../../lib/constants';
 
 @Injectable()
 export class CommentsService {
@@ -35,6 +36,32 @@ export class CommentsService {
         image: await this.s3Service.getSignedUrl(image),
       },
     };
+  }
+
+  // One subscription query per page, never per comment. `referenceId` holds the subscriber's user id.
+  private async attachProStatus<T extends { author: { id: string } }>(
+    comments: T[],
+  ): Promise<(T & { author: T['author'] & { isPro: boolean } })[]> {
+    const authorIds = [...new Set(comments.map(({ author }) => author.id))];
+
+    const subscriptions = authorIds.length
+      ? await this.prisma.subscription.findMany({
+          where: {
+            referenceId: { in: authorIds },
+            status: { in: PRO_STATUSES },
+          },
+          select: { referenceId: true },
+        })
+      : [];
+
+    const proAuthorIds = new Set(
+      subscriptions.map(({ referenceId }) => referenceId),
+    );
+
+    return comments.map((comment) => ({
+      ...comment,
+      author: { ...comment.author, isPro: proAuthorIds.has(comment.author.id) },
+    }));
   }
 
   private async findBlogBySlug(blogSlug: string) {
@@ -100,9 +127,13 @@ export class CommentsService {
       },
     });
 
+    const commentsWithProStatus = await this.attachProStatus(comments);
+
     return {
       data: await Promise.all(
-        comments.map((comment) => this.presignAuthorImage(comment)),
+        commentsWithProStatus.map((comment) =>
+          this.presignAuthorImage(comment),
+        ),
       ),
       // Only a full page can have more after it; a short page ends the feed.
       nextCursor:
@@ -136,7 +167,9 @@ export class CommentsService {
       },
     });
 
-    return this.presignAuthorImage(newComment);
+    const [commentWithProStatus] = await this.attachProStatus([newComment]);
+
+    return this.presignAuthorImage(commentWithProStatus);
   }
 
   async updateComment(
@@ -167,7 +200,9 @@ export class CommentsService {
       },
     });
 
-    return this.presignAuthorImage(updatedComment);
+    const [commentWithProStatus] = await this.attachProStatus([updatedComment]);
+
+    return this.presignAuthorImage(commentWithProStatus);
   }
 
   async deleteComment(

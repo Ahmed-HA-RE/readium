@@ -27,7 +27,7 @@ import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { LikesAndBookmarksQueryDto } from './dto/likes-and-bookmarks-query-dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile-dto';
 import { generateImageKey } from '../../lib/utils';
-import { ABANDONED_CHECKOUT_STATUSES } from '../../lib/constants';
+import { ABANDONED_CHECKOUT_STATUSES, PRO_STATUSES } from '../../lib/constants';
 import {
   buildLikesAndBookmarksFilter,
   buildLikesAndBookmarksPage,
@@ -35,9 +35,6 @@ import {
   likesAndBookmarksOrder,
   likesAndBookmarksSelect,
 } from './utils/user-query';
-
-// Matches the Stripe plugin's own "active or trialing" check behind `subscription.list`.
-const PRO_STATUSES = ['active', 'trialing'];
 
 // Matches the admin comment feed's default, so both cursor endpoints page alike.
 const DEFAULT_COMMENTS_PAGE_SIZE = 10;

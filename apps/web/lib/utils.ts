@@ -24,14 +24,6 @@ export const getErrorMessage = (error: unknown, fallback: string) => {
   return (Array.isArray(message) ? message[0] : message) || fallback;
 };
 
-// Blog content is HTML, so excerpts and word counts strip the tags first.
-export const htmlToText = (html: string) =>
-  html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
 export const getProfilePath = (name: string) => `/@${encodeURIComponent(name)}`;
 
 export const getBlogPath = (authorName: string, slug: string) =>
@@ -62,11 +54,9 @@ export const formatFileSize = (bytes: number) =>
 
 const WORDS_PER_MINUTE = 200;
 
-export const getReadingTime = (html: string) => {
-  const words = htmlToText(html).split(' ').filter(Boolean).length;
-
-  return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
-};
+// Takes the API's `wordCount`, since a locked pro blog only ships half its body.
+export const getReadingTime = (wordCount: number) =>
+  Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE));
 
 // Recent posts read as a distance ("5 days ago"), anything
 // older switches to a calendar date ("Sep 1").

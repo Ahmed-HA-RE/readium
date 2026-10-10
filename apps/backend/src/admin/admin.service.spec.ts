@@ -126,11 +126,12 @@ describe('AdminService', () => {
 
       await service.updateMyBlogAsAdmin(SESSION_USER, 'a-blog', undefined, dto);
 
+      // The whole user, so the Pro check sees the admin role.
       expect(blogs.updateBlog).toHaveBeenCalledWith(
         'a-blog',
         undefined,
         dto,
-        'admin-1',
+        SESSION_USER,
       );
     });
 

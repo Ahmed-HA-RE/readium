@@ -10,6 +10,7 @@ export const createBlog = async ({
   coverImage,
   tags,
   isPublished = false,
+  blogPro = false,
 }: BlogValues): Promise<CreateBlogResponse['data']> => {
   const formData = new FormData();
 
@@ -20,6 +21,7 @@ export const createBlog = async ({
   if (coverImage) formData.append('coverImage', coverImage);
   formData.append('tags', JSON.stringify(tags));
   formData.append('isPublished', String(isPublished));
+  formData.append('blogPro', String(blogPro));
 
   const { data } = await api.post<CreateBlogResponse>('/blogs', formData);
 

@@ -13,6 +13,7 @@ export interface Blog {
   tags: string[];
   coverImage: string | null;
   isPublished: boolean;
+  blogPro: boolean;
   _count: {
     comments: number;
     likes: number;
@@ -53,6 +54,10 @@ export interface GetBlogBySlugResponse {
   };
   isLikedByLoggedInUser: boolean;
   isBookmarkedByLoggedInUser: boolean;
+  // True when `blog.content` is the first half of a pro blog the caller cannot read in full.
+  isContentLocked: boolean;
+  // Words in the full body, so reading time is right even when `content` is cut.
+  wordCount: number;
 }
 
 // The trending panel renders a title, an excerpt, the author and a date, so

@@ -8,6 +8,7 @@ export interface Comment {
     id: string;
     name: string;
     image: string | null;
+    isPro: boolean;
   };
 }
 
