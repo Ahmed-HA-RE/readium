@@ -11,12 +11,14 @@ import { Spinner } from '@/components/ui/spinner';
 interface OAuthButtonProps {
   provider: OAuthProvider;
   callbackUrl: string;
+  errorCallbackUrl?: string;
   showLastUsed?: boolean;
 }
 
 const OAuthButton = ({
   provider,
   callbackUrl,
+  errorCallbackUrl,
   showLastUsed = false,
 }: OAuthButtonProps) => {
   const [isPending, startTransition] = useTransition();
@@ -31,7 +33,11 @@ const OAuthButton = ({
 
   const signIn = () => {
     startTransition(async () => {
-      await authClient.signIn.social({ provider, callbackURL: callbackUrl });
+      await authClient.signIn.social({
+        provider,
+        callbackURL: callbackUrl,
+        errorCallbackURL: errorCallbackUrl,
+      });
     });
   };
 

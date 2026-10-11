@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import AuthHeader from '../_components/auth-header';
 import OAuthProviders from '../_components/oauth-providers';
+import OAuthErrorAlert from '../_components/oauth-error-alert';
 import SignUpForm from './_components/sign-up-form';
 import { toAbsoluteUrl, toSafeCallbackUrl } from '@/lib/absolute-url';
 
@@ -15,12 +16,12 @@ export const metadata: Metadata = {
 const SignUpPage = async ({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) => {
   const session = await getCurrentLoggedInUser();
   if (session) redirect('/');
 
-  const { callbackUrl: rawCallbackUrl = '/' } = await searchParams;
+  const { callbackUrl: rawCallbackUrl = '/', error } = await searchParams;
   const callbackUrl = toSafeCallbackUrl(rawCallbackUrl);
 
   return (
@@ -38,7 +39,13 @@ const SignUpPage = async ({
             </p>
           </div>
 
-          <OAuthProviders callbackUrl={toAbsoluteUrl(callbackUrl)} />
+          <OAuthErrorAlert error={error} />
+          <OAuthProviders
+            callbackUrl={toAbsoluteUrl(callbackUrl)}
+            errorCallbackUrl={toAbsoluteUrl(
+              `/sign-up?callbackUrl=${encodeURIComponent(callbackUrl)}`,
+            )}
+          />
           <SignUpForm verifyRedirectUrl={toAbsoluteUrl('/login')} />
         </div>
       </div>

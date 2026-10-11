@@ -4,12 +4,13 @@ import OAuthButton from './oauth-button';
 
 interface OAuthProvidersProps {
   callbackUrl: string;
-  // Off by default so sign-up, which renders this too, shows no badge.
+  errorCallbackUrl?: string;
   showLastUsed?: boolean;
 }
 
 const OAuthProviders = ({
   callbackUrl,
+  errorCallbackUrl,
   showLastUsed = false,
 }: OAuthProvidersProps) => {
   return (
@@ -20,6 +21,7 @@ const OAuthProviders = ({
             key={provider}
             provider={provider}
             callbackUrl={callbackUrl}
+            errorCallbackUrl={errorCallbackUrl}
             showLastUsed={showLastUsed}
           />
         ))}
