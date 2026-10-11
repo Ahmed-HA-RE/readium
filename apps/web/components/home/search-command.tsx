@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DEFAULT_AVATAR, DEFAULT_BLOG_COVER } from '@/lib/constants';
 import { useSearchSuggestions } from '@/hooks/search';
-import { cn, getBlogPath } from '@/lib/utils';
+import { cn, getBlogPath, getProfilePath } from '@/lib/utils';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -128,7 +128,7 @@ const SearchCommand = ({ className }: { className?: string }) => {
                       <CommandItem
                         key={user.id}
                         value={user.id}
-                        onSelect={() => go(`/profile/${user.name}`)}
+                        onSelect={() => go(getProfilePath(user.name))}
                         className='gap-3'
                       >
                         <Avatar>

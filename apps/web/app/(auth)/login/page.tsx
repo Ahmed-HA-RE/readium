@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import AuthHeader from '../_components/auth-header';
 import OAuthProviders from '../_components/oauth-providers';
+import OAuthErrorAlert from '../_components/oauth-error-alert';
 import LoginForm from './_components/login-form';
 import { toAbsoluteUrl, toSafeCallbackUrl } from '@/lib/absolute-url';
 import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
@@ -16,10 +17,14 @@ export const metadata: Metadata = {
 const LoginPage = async ({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) => {
-  const { callbackUrl: rawCallbackUrl = '/' } = await searchParams;
+  const { callbackUrl: rawCallbackUrl = '/', error } = await searchParams;
   const callbackUrl = toSafeCallbackUrl(rawCallbackUrl);
+  // Also where a failed OAuth sign-in comes back to, with `&error=<code>` appended.
+  const loginUrl = toAbsoluteUrl(
+    `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`,
+  );
 
   // Also where a successful sign-in lands, via the client's redirect to `verifyRedirectUrl` below.
   const session = await getCurrentLoggedInUser();
@@ -42,15 +47,13 @@ const LoginPage = async ({
             </p>
           </div>
 
+          <OAuthErrorAlert error={error} />
           <OAuthProviders
             callbackUrl={toAbsoluteUrl(callbackUrl)}
+            errorCallbackUrl={loginUrl}
             showLastUsed
           />
-          <LoginForm
-            verifyRedirectUrl={toAbsoluteUrl(
-              `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`,
-            )}
-          />
+          <LoginForm verifyRedirectUrl={loginUrl} />
         </div>
       </div>
     </>

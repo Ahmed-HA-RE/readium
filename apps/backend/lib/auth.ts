@@ -43,6 +43,30 @@ const isEmailChangeToken = (token: string): boolean => {
   }
 };
 
+// Case-insensitive to match `UsersService.isUsernameTaken`, which drives the live check on the sign-up form.
+const isNameTaken = async (name: string): Promise<boolean> =>
+  !!(await prisma.user.findFirst({
+    where: { name: { equals: name, mode: 'insensitive' } },
+    select: { id: true },
+  }));
+
+// OAuth users can't pick their name, so a taken or invalid one gets a numeric suffix instead of failing.
+const findFreeOAuthName = async (name: string, email: string) => {
+  const base = (name.trim() || email.split('@')[0]).slice(0, 50);
+  if (base.length >= 3 && !(await isNameTaken(base))) return base;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = `${base.slice(0, 45).trimEnd()} ${generateRandomString(4, '0-9')}`;
+    if (!(await isNameTaken(candidate))) return candidate;
+  }
+
+  // The `code` makes the OAuth callback redirect to the frontend instead of rethrowing.
+  throw new APIError('BAD_REQUEST', {
+    code: 'NAME_UNAVAILABLE',
+    message: 'Could not find a free name for this account',
+  });
+};
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
@@ -183,7 +207,12 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        before: async (user) => {
+        before: async (user, ctx) => {
+          if (ctx?.path.startsWith('/callback/')) {
+            const name = await findFreeOAuthName(user.name, user.email);
+            return { data: { ...user, name } };
+          }
+
           const name = user.name.trim();
           if (name.length < 3)
             throw new APIError('BAD_REQUEST', {
@@ -195,14 +224,7 @@ export const auth = betterAuth({
             });
           }
 
-          // Case-insensitive to match `UsersService.isUsernameTaken`, which
-          // drives the live check on the sign-up form — a sensitive check here
-          // would accept a name the form already called taken.
-          const existingName = await prisma.user.findFirst({
-            where: { name: { equals: name, mode: 'insensitive' } },
-            select: { id: true },
-          });
-          if (existingName) {
+          if (await isNameTaken(name)) {
             throw new APIError('BAD_REQUEST', {
               message: 'Name is already taken',
             });
