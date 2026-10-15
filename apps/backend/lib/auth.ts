@@ -312,12 +312,13 @@ export const auth = betterAuth({
 
           const applyCoupon = isAnnual && !hasSubscribedBefore;
 
-          if (!applyCoupon) return {};
-
+          // Tax applies to every plan, not only the welcome offer.
           return {
             params: {
-              discounts: [{ coupon: process.env.STRIPE_COUPON_ID_20 }],
               automatic_tax: { enabled: true },
+              ...(applyCoupon && {
+                discounts: [{ coupon: process.env.STRIPE_COUPON_ID_20 }],
+              }),
             },
           };
         },
