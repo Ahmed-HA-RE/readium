@@ -79,10 +79,21 @@ export interface CreateBlogResponse {
 // `data.slug` is new when the title changed.
 export type UpdateMyBlogResponse = CreateBlogResponse;
 
+export enum AdminBlogStatus {
+  PUBLISHED = 'Published',
+  UNPUBLISHED = 'Unpublished',
+}
+
 export interface GetAllBlogsForAdmin {
   blogs: (Pick<
     Blog,
-    'id' | 'title' | 'slug' | 'isPublished' | 'createdAt' | '_count'
+    | 'id'
+    | 'title'
+    | 'slug'
+    | 'coverImage'
+    | 'isPublished'
+    | 'createdAt'
+    | '_count'
   > & {
     author: Pick<BlogAuthor, 'id' | 'name'>;
   })[];

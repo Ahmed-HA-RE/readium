@@ -8,7 +8,7 @@ import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUse
 import SidebarTrigger from './sidebar-trigger';
 import SearchCommand from './search-command';
 import NotificationsBell from './notifications-bell';
-import ThemeToggle from './theme-toggle';
+import ThemeToggle from '@/components/shared/theme-toggle';
 import UserMenu from './user-menu';
 
 const logoStyle = { width: 36, height: 'auto' };

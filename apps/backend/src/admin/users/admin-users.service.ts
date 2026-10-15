@@ -8,6 +8,7 @@ import {
 import { DatabaseService } from '../../database/database.service';
 import { UserQueryDto } from './dto/user-query-dto';
 import { Prisma } from '../../generated/prisma/client';
+import { DEFAULT_ADMIN_TABLE_PAGE_SIZE } from '@repo/constants';
 import {
   GetAllUsersAsAdmin,
   GetUserByUsernameAsAdmin,
@@ -46,12 +47,12 @@ export class AdminUsersService {
         }
       : {};
 
-    // Create is banned filter
-    const statusFilter: Prisma.UserWhereInput = banned
-      ? {
-          banned,
-        }
-      : {};
+    const statusFilter: Prisma.UserWhereInput =
+      banned === true
+        ? { banned: true }
+        : banned === false
+          ? { NOT: { banned: true } }
+          : {};
 
     const emailVerifiedFilter: Prisma.UserWhereInput =
       emailVerified !== undefined
@@ -67,12 +68,13 @@ export class AdminUsersService {
       role: { equals: 'user' }, // admin users should not be returned
     };
 
-    const limitValue = limit ?? 10;
+    const limitValue = limit ?? DEFAULT_ADMIN_TABLE_PAGE_SIZE;
     const pageValue = page ?? 1;
 
     const [users, totalUsers] = await Promise.all([
       this.prisma.user.findMany({
         where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (pageValue - 1) * limitValue,
         take: limitValue,
         select: {

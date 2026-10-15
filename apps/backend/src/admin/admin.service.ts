@@ -7,14 +7,19 @@ import { generateImageKey } from '../../lib/utils';
 import {
   AdminDashboardAnalytics,
   GetMyDataAsAdmin,
+  GetAdminSuggestions,
   GetMyBlogs,
   GetUserWithCommentsByUsernameAsAdmin,
+  StripeBalanceAmount,
   UpdateAdminSettings,
   UpdateMyBlogResponse,
 } from '@repo/types';
 import { subDays } from 'date-fns';
+import { stripeClient } from '../../lib/stripe';
+import { PRO_STATUSES } from '../../lib/constants';
 import { UpdateAdminDto } from './dto/update-admin-dto';
 import { AdminMyBlogsQueryDto } from './dto/admin-my-blogs-query-dto';
+import { AdminSuggestionsQueryDto } from './dto/admin-suggestions-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { UsersService } from '../users/users.service';
 import { BlogsService } from '../blogs/blogs.service';
@@ -23,9 +28,7 @@ import { UpdateBlogDto } from '../blogs/dto/update-blog-dto';
 // A user counts as active when their last activity falls within this window.
 const ACTIVE_USER_WINDOW_IN_DAYS = 30;
 
-// The subscription feature is not implemented yet, so there is no table to count.
-// Replace this placeholder with the real subscription count once Stripe lands.
-const PLACEHOLDER_TOTAL_SUBSCRIBERS = 10;
+const ADMIN_SUGGESTIONS_LIMIT = 5;
 
 @Injectable()
 export class AdminService {
@@ -143,7 +146,8 @@ export class AdminService {
       totalBlogs,
       totalReports,
       totalActiveUsers,
-      totalBlogLikes,
+      totalSubscribers,
+      availableBalance,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.blog.count(),
@@ -151,7 +155,10 @@ export class AdminService {
       this.prisma.user.count({
         where: { lastActivityAt: { gte: activeSince } },
       }),
-      this.prisma.like.count(),
+      this.prisma.subscription.count({
+        where: { status: { in: PRO_STATUSES } },
+      }),
+      this.getAvailableBalance(),
     ]);
 
     this.logger.verbose('Retrieved admin dashboard analytics');
@@ -160,9 +167,41 @@ export class AdminService {
       totalUsers,
       totalBlogs,
       totalReports,
-      totalSubscribers: PLACEHOLDER_TOTAL_SUBSCRIBERS,
+      totalSubscribers,
       totalActiveUsers,
-      totalBlogLikes,
+      availableBalance,
     };
+  }
+
+  // Unlike the public palette, banned users and admins are included, since admins search to moderate.
+  async getSuggestions({
+    q,
+  }: AdminSuggestionsQueryDto): Promise<GetAdminSuggestions> {
+    const users = await this.prisma.user.findMany({
+      where: q ? { name: { contains: q, mode: 'insensitive' } } : {},
+      select: { id: true, name: true, image: true, banned: true, role: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: ADMIN_SUGGESTIONS_LIMIT,
+    });
+
+    return Promise.all(
+      users.map(async (user) => ({
+        ...user,
+        image: user.image
+          ? await this.s3Service.getSignedUrl(user.image)
+          : null,
+      })),
+    );
+  }
+
+  // A Stripe outage shouldn't take the database counts down with it, so it degrades to `null`.
+  private async getAvailableBalance(): Promise<StripeBalanceAmount[] | null> {
+    try {
+      const { available } = await stripeClient.balance.retrieve();
+      return available.map(({ amount, currency }) => ({ amount, currency }));
+    } catch (error) {
+      this.logger.error('Failed to retrieve the Stripe balance', error);
+      return null;
+    }
   }
 }

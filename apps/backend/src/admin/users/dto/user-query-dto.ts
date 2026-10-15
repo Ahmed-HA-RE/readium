@@ -1,6 +1,8 @@
 import { Transform, Type } from 'class-transformer';
+import { ADMIN_TABLE_PAGE_SIZES } from '@repo/constants';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -40,6 +42,8 @@ export class UserQueryDto {
   @IsOptional()
   @IsNumber()
   @IsInt()
-  @Min(1, { message: 'Limit number must be greater than or equal to 1' })
+  @IsIn(ADMIN_TABLE_PAGE_SIZES, {
+    message: `Limit must be one of ${ADMIN_TABLE_PAGE_SIZES.join(', ')}`,
+  })
   limit?: number;
 }

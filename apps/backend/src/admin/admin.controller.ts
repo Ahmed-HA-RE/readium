@@ -19,6 +19,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { minutes, Throttle } from '@nestjs/throttler';
 import { UpdateBlogDto } from '../blogs/dto/update-blog-dto';
 import { AdminMyBlogsQueryDto } from './dto/admin-my-blogs-query-dto';
+import { AdminSuggestionsQueryDto } from './dto/admin-suggestions-query-dto';
 import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 
 @Controller('api/admin')
@@ -31,6 +32,14 @@ export class AdminController {
   @Roles(['admin'])
   getDashboardAnalytics() {
     return this.adminService.getDashboardAnalytics();
+  }
+
+  // Method           GET /api/admin/suggestions
+  // Description     Get the latest 5 users whose name matches the search term, for the admin header search
+  @Get('suggestions')
+  @Roles(['admin'])
+  getSuggestions(@Query() query: AdminSuggestionsQueryDto) {
+    return this.adminService.getSuggestions(query);
   }
 
   // Method           GET /api/admin/me

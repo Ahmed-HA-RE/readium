@@ -1,19 +1,9 @@
 'use client';
 
-import { useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { toast } from 'sonner';
 import { FaEdit } from 'react-icons/fa';
-import {
-  GoBell,
-  GoCreditCard,
-  GoGear,
-  GoMoon,
-  GoSignOut,
-  GoSun,
-} from 'react-icons/go';
+import { GoBell, GoCreditCard, GoGear, GoMoon, GoSun } from 'react-icons/go';
 import { cn } from 'cn';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -25,10 +15,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { authClient } from '@/lib/auth-client';
+import LogoutAction from '@/components/shared/logout-action';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import {
-  ADMIN_PROFILE_PATH,
   ADMIN_SETTINGS_PATH,
   getProfilePath,
 } from '@/lib/utils';
@@ -58,24 +47,7 @@ interface UserMenuProps {
 }
 
 const UserMenu = ({ name, image, isPro, isAdmin }: UserMenuProps) => {
-  const [isSigningOut, startSignOut] = useTransition();
   const { setTheme, resolvedTheme } = useTheme();
-  const router = useRouter();
-
-  const signOut = () =>
-    startSignOut(async () => {
-      await authClient.signOut({
-        fetchOptions: {
-          onSuccess: () => {
-            router.push('/');
-            router.refresh();
-          },
-          onError: ({ error }) => {
-            toast.error(error.message || 'Could not sign you out');
-          },
-        },
-      });
-    });
 
   return (
     <DropdownMenu>
@@ -103,7 +75,7 @@ const UserMenu = ({ name, image, isPro, isAdmin }: UserMenuProps) => {
           <div className='flex min-w-0 flex-col leading-tight'>
             <span className='truncate font-medium'>{name}</span>
             <Link
-              href={isAdmin ? ADMIN_PROFILE_PATH : getProfilePath(name)}
+              href={getProfilePath(name)}
               className='text-muted-foreground w-fit'
             >
               <small className='hover:text-foreground transition'>
@@ -159,14 +131,7 @@ const UserMenu = ({ name, image, isPro, isAdmin }: UserMenuProps) => {
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem
-          variant='destructive'
-          onClick={signOut}
-          disabled={isSigningOut}
-        >
-          <GoSignOut className={ICON_CLASS} />
-          {isSigningOut ? 'Signing out…' : 'Sign out'}
-        </DropdownMenuItem>
+        <LogoutAction label='Sign out' />
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -18,18 +18,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import UserSearchSuggestionSkeleton from '@/components/shared/user-search-suggestion-skeleton';
 import { DEFAULT_AVATAR, DEFAULT_BLOG_COVER } from '@/lib/constants';
 import { useSearchSuggestions } from '@/hooks/search';
 import { cn, getBlogPath, getProfilePath } from '@/lib/utils';
 
 const SEARCH_DEBOUNCE_MS = 300;
-
-const UserSkeleton = () => (
-  <div className='flex items-center gap-3 px-2 py-1.5'>
-    <Skeleton className='size-8 shrink-0 rounded-full' />
-    <Skeleton className='h-4 w-40' />
-  </div>
-);
 
 const BlogSkeleton = () => (
   <div className='flex items-center gap-3 px-2 py-1.5'>
@@ -100,9 +94,9 @@ const SearchCommand = ({ className }: { className?: string }) => {
             {isFetching ? (
               <>
                 <CommandGroup heading='Users'>
-                  <UserSkeleton />
-                  <UserSkeleton />
-                  <UserSkeleton />
+                  <UserSearchSuggestionSkeleton />
+                  <UserSearchSuggestionSkeleton />
+                  <UserSearchSuggestionSkeleton />
                 </CommandGroup>
                 <CommandGroup heading='Blogs'>
                   <BlogSkeleton />

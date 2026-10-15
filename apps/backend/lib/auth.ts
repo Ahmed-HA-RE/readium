@@ -19,8 +19,12 @@ import sendTwoFactorCode from '../mails/send-two-factor-code';
 import sendSubscriptionWelcome from '../mails/send-subscription-welcome';
 import sendSubscriptionCancelled from '../mails/send-subscription-cancelled';
 import { deleteS3Object } from './s3';
-import { deleteStripeCustomer, stripeClient } from './stripe';
-import { ABANDONED_CHECKOUT_STATUSES } from './constants';
+import {
+  cancelStripeSubscription,
+  deleteStripeCustomer,
+  stripeClient,
+} from './stripe';
+import { ABANDONED_CHECKOUT_STATUSES, PRO_STATUSES } from './constants';
 import { createAuthMiddleware } from 'better-auth/api';
 
 const prisma = new PrismaClient({ adapter });
@@ -245,17 +249,52 @@ export const auth = betterAuth({
   },
 
   hooks: {
+    // Better Auth only stops an admin from banning themselves, not other admins.
+    before: createAuthMiddleware(async (ctx) => {
+      if (
+        ctx.path !== '/admin/ban-user' &&
+        ctx.path !== '/admin/revoke-user-sessions'
+      ) {
+        return;
+      }
+
+      const { userId } = ctx.body as { userId: string };
+      const target = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+
+      if (target?.role === 'admin') {
+        throw new APIError('FORBIDDEN', {
+          code: 'CANNOT_MODERATE_ADMIN',
+          message: "Admins can't be banned or signed out by another admin",
+        });
+      }
+    }),
     after: createAuthMiddleware(async (ctx) => {
       // Only the OAuth callback; email sign-in is a fetch and redirects in the login form's `onSuccess`.
       if (
         ctx.path.startsWith('/callback/') &&
         ctx.context.newSession?.user?.role === 'admin'
       ) {
-        ctx.redirect(
-          `${process.env.APP_FRONTEND_URL}/admin/dashboard/overview`,
-        );
+        ctx.redirect(`${process.env.APP_FRONTEND_URL}/admin/dashboard`);
       }
-      await Promise.resolve();
+
+      // After hooks run on failures too, so only a ban that went through ends the subscription.
+      if (
+        ctx.path === '/admin/ban-user' &&
+        !(ctx.context.returned instanceof APIError)
+      ) {
+        const { userId } = ctx.body as { userId: string };
+        const subscription = await prisma.subscription.findFirst({
+          where: { referenceId: userId, status: { in: PRO_STATUSES } },
+          select: { stripeSubscriptionId: true },
+        });
+
+        if (subscription?.stripeSubscriptionId) {
+          await cancelStripeSubscription(subscription.stripeSubscriptionId);
+        }
+      }
     }),
   },
 

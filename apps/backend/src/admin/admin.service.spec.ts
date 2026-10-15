@@ -11,14 +11,21 @@ import { AdminMyBlogsQueryDto } from './dto/admin-my-blogs-query-dto';
 import { MyBlogsStatus } from '../users/dto/my-blogs-query-dto';
 import { UpdateBlogDto } from '../blogs/dto/update-blog-dto';
 
+// `mock`-prefixed so Jest allows the hoisted factory to reference it.
+const mockRetrieveBalance = jest.fn<Promise<unknown>, []>();
+
+jest.mock('../../lib/stripe', () => ({
+  stripeClient: { balance: { retrieve: () => mockRetrieveBalance() } },
+}));
+
 // Frozen so the 30 day cutoff is deterministic across runs.
 const NOW = new Date('2026-09-06T12:00:00.000Z');
 
 type CountMocks = {
-  user: { count: jest.Mock };
+  user: { count: jest.Mock; findMany: jest.Mock };
   blog: { count: jest.Mock };
   report: { count: jest.Mock };
-  like: { count: jest.Mock };
+  subscription: { count: jest.Mock };
 };
 
 // The signed-in admin, as better-auth hands it to the controller.
@@ -45,11 +52,12 @@ describe('AdminService', () => {
     jest.useFakeTimers().setSystemTime(NOW);
 
     prisma = {
-      user: { count: jest.fn() },
+      user: { count: jest.fn(), findMany: jest.fn() },
       blog: { count: jest.fn() },
       report: { count: jest.fn() },
-      like: { count: jest.fn() },
+      subscription: { count: jest.fn() },
     };
+    mockRetrieveBalance.mockReset();
 
     adminUsers = {
       getUserByUsername: jest.fn().mockResolvedValue({ id: 'admin-1' }),
@@ -79,7 +87,14 @@ describe('AdminService', () => {
       providers: [
         AdminService,
         { provide: DatabaseService, useValue: prisma },
-        { provide: S3ServiceService, useValue: {} },
+        {
+          provide: S3ServiceService,
+          useValue: {
+            getSignedUrl: jest.fn((key: string) =>
+              Promise.resolve(`signed:${key}`),
+            ),
+          },
+        },
         { provide: AdminUsersService, useValue: adminUsers },
         { provide: UsersService, useValue: users },
         { provide: BlogsService, useValue: blogs },
@@ -165,7 +180,65 @@ describe('AdminService', () => {
     });
   });
 
+  describe('getSuggestions', () => {
+    it('matches names case-insensitively, newest first, capped at 5', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+
+      await service.getSuggestions({ q: 'ahm' });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
+        where: { name: { contains: 'ahm', mode: 'insensitive' } },
+        select: { id: true, name: true, image: true, banned: true, role: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 5,
+      });
+    });
+
+    it('does not filter out banned users or admins', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+
+      await service.getSuggestions({});
+
+      // No `banned` or `role` condition, unlike the public palette.
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
+    });
+
+    it('signs avatars, leaves missing ones null and keeps the badge fields', async () => {
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: 'u1',
+          name: 'Ahmed',
+          image: 'avatars/u1.png',
+          banned: false,
+          role: 'admin',
+        },
+        { id: 'u2', name: 'Sara', image: null, banned: true, role: 'user' },
+      ]);
+
+      await expect(service.getSuggestions({ q: 'a' })).resolves.toEqual([
+        {
+          id: 'u1',
+          name: 'Ahmed',
+          image: 'signed:avatars/u1.png',
+          banned: false,
+          role: 'admin',
+        },
+        { id: 'u2', name: 'Sara', image: null, banned: true, role: 'user' },
+      ]);
+    });
+  });
+
   describe('getDashboardAnalytics', () => {
+    const mockZeroCounts = () => {
+      prisma.user.count.mockResolvedValue(0);
+      prisma.blog.count.mockResolvedValue(0);
+      prisma.report.count.mockResolvedValue(0);
+      prisma.subscription.count.mockResolvedValue(0);
+      mockRetrieveBalance.mockResolvedValue({ available: [] });
+    };
+
     it('returns the six dashboard analytics', async () => {
       // user.count is called twice: total users first, then active users.
       prisma.user.count
@@ -173,25 +246,30 @@ describe('AdminService', () => {
         .mockResolvedValueOnce(17); // totalActiveUsers
       prisma.blog.count.mockResolvedValue(8);
       prisma.report.count.mockResolvedValue(3);
-      prisma.like.count.mockResolvedValue(120);
+      prisma.subscription.count.mockResolvedValue(5);
+      mockRetrieveBalance.mockResolvedValue({
+        object: 'balance',
+        available: [
+          { amount: 666670, currency: 'usd', source_types: { card: 666670 } },
+        ],
+        pending: [{ amount: 61414, currency: 'usd' }],
+      });
 
       const analytics = await service.getDashboardAnalytics();
 
+      // Only `available` is used; `pending` and `source_types` are dropped.
       expect(analytics).toEqual({
         totalUsers: 42,
         totalBlogs: 8,
         totalReports: 3,
-        totalSubscribers: 10,
+        totalSubscribers: 5,
         totalActiveUsers: 17,
-        totalBlogLikes: 120,
+        availableBalance: [{ amount: 666670, currency: 'usd' }],
       });
     });
 
     it('counts active users from the past 30 days only', async () => {
-      prisma.user.count.mockResolvedValue(0);
-      prisma.blog.count.mockResolvedValue(0);
-      prisma.report.count.mockResolvedValue(0);
-      prisma.like.count.mockResolvedValue(0);
+      mockZeroCounts();
 
       await service.getDashboardAnalytics();
 
@@ -202,15 +280,25 @@ describe('AdminService', () => {
       });
     });
 
-    it('returns the placeholder subscriber count until subscriptions exist', async () => {
-      prisma.user.count.mockResolvedValue(0);
-      prisma.blog.count.mockResolvedValue(0);
-      prisma.report.count.mockResolvedValue(0);
-      prisma.like.count.mockResolvedValue(0);
+    it('counts only active or trialing subscriptions', async () => {
+      mockZeroCounts();
+
+      await service.getDashboardAnalytics();
+
+      expect(prisma.subscription.count).toHaveBeenCalledWith({
+        where: { status: { in: ['active', 'trialing'] } },
+      });
+    });
+
+    it('returns a null balance when Stripe fails, keeping the counts', async () => {
+      mockZeroCounts();
+      prisma.user.count.mockResolvedValue(4);
+      mockRetrieveBalance.mockRejectedValue(new Error('stripe down'));
 
       const analytics = await service.getDashboardAnalytics();
 
-      expect(analytics.totalSubscribers).toBe(10);
+      expect(analytics.availableBalance).toBeNull();
+      expect(analytics.totalUsers).toBe(4);
     });
 
     it('issues every count concurrently rather than sequentially', async () => {
@@ -223,7 +311,8 @@ describe('AdminService', () => {
       prisma.user.count.mockImplementation(pending);
       prisma.blog.count.mockImplementation(pending);
       prisma.report.count.mockImplementation(pending);
-      prisma.like.count.mockImplementation(pending);
+      prisma.subscription.count.mockImplementation(pending);
+      mockRetrieveBalance.mockResolvedValue({ available: [] });
 
       const analytics = service.getDashboardAnalytics();
 
@@ -233,7 +322,8 @@ describe('AdminService', () => {
       expect(prisma.user.count).toHaveBeenCalledTimes(2);
       expect(prisma.blog.count).toHaveBeenCalledTimes(1);
       expect(prisma.report.count).toHaveBeenCalledTimes(1);
-      expect(prisma.like.count).toHaveBeenCalledTimes(1);
+      expect(prisma.subscription.count).toHaveBeenCalledTimes(1);
+      expect(mockRetrieveBalance).toHaveBeenCalledTimes(1);
 
       release.forEach((resolve) => resolve(0));
 
@@ -241,10 +331,8 @@ describe('AdminService', () => {
     });
 
     it('propagates database failures', async () => {
-      prisma.user.count.mockResolvedValue(0);
+      mockZeroCounts();
       prisma.blog.count.mockRejectedValue(new Error('connection lost'));
-      prisma.report.count.mockResolvedValue(0);
-      prisma.like.count.mockResolvedValue(0);
 
       await expect(service.getDashboardAnalytics()).rejects.toThrow(
         'connection lost',

@@ -11,7 +11,6 @@ import { APP_LOGO } from '@repo/assets';
 import {
   ADMIN_MY_LISTS_PATH,
   ADMIN_MY_STORIES_PATH,
-  ADMIN_PROFILE_PATH,
   getProfilePath,
 } from '@/lib/utils';
 import type { ListsTab } from '@/lib/search-params';
@@ -61,7 +60,7 @@ const getNavItems = (isAdmin: boolean, username: string): NavItem[] => [
         },
       ]),
   {
-    path: isAdmin ? ADMIN_PROFILE_PATH : getProfilePath(username),
+    path: getProfilePath(username),
     label: 'Profile',
     Icon: FaRegUser,
     exact: true,

@@ -11,17 +11,3 @@ export const createCommentSchema = z.object({
 });
 
 export type CreateCommentFormData = z.infer<typeof createCommentSchema>;
-
-export const DELETE_COMMENT_CONFIRMATION = 'delete permanently';
-
-// Case-sensitive on purpose, like the S3 bucket delete confirmation.
-export const deleteCommentSchema = z
-  .object({
-    confirmation: z.string(),
-  })
-  .refine((value) => value.confirmation === DELETE_COMMENT_CONFIRMATION, {
-    message: `Type "${DELETE_COMMENT_CONFIRMATION}" exactly to confirm`,
-    path: ['confirmation'],
-  });
-
-export type DeleteCommentFormData = z.infer<typeof deleteCommentSchema>;

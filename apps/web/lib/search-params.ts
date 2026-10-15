@@ -1,11 +1,16 @@
 import {
   createLoader,
   parseAsInteger,
+  parseAsNumberLiteral,
   parseAsString,
   parseAsStringEnum,
   parseAsStringLiteral,
 } from 'nuqs/server';
-import { BlogSortOptions, MyBlogsStatus } from '@repo/types';
+import { AdminBlogStatus, BlogSortOptions, MyBlogsStatus } from '@repo/types';
+import {
+  ADMIN_TABLE_PAGE_SIZES,
+  DEFAULT_ADMIN_TABLE_PAGE_SIZE,
+} from '@repo/constants';
 
 const sortParser = parseAsStringEnum<BlogSortOptions>(
   Object.values(BlogSortOptions),
@@ -31,13 +36,37 @@ export const myStoriesParsers = {
 
 export const loadMyStoriesSearchParams = createLoader(myStoriesParsers);
 
+const adminTableLimitParser = parseAsNumberLiteral(
+  ADMIN_TABLE_PAGE_SIZES,
+).withDefault(DEFAULT_ADMIN_TABLE_PAGE_SIZE);
+
+// No default on `status`: absent means "All statuses", which the request leaves out.
+export const adminBlogsParsers = {
+  search: parseAsString.withDefault(''),
+  status: parseAsStringEnum<AdminBlogStatus>(Object.values(AdminBlogStatus)),
+  page: pageParser,
+  limit: adminTableLimitParser,
+};
+
+export const ADMIN_USER_STATUSES = ['banned', 'active'] as const;
+
+export type AdminUserStatus = (typeof ADMIN_USER_STATUSES)[number];
+
+// No default on `status`: absent means "All statuses", which the request leaves out.
+export const adminUsersParsers = {
+  search: parseAsString.withDefault(''),
+  status: parseAsStringLiteral(ADMIN_USER_STATUSES),
+  page: pageParser,
+  limit: adminTableLimitParser,
+};
+
 export const userBlogsParsers = {
   search: parseAsString.withDefault(''),
   sort: sortParser,
   page: pageParser,
 };
 
-export const LISTS_TABS =['bookmarks', 'likes', 'comments'] as const;
+export const LISTS_TABS = ['bookmarks', 'likes', 'comments'] as const;
 
 export type ListsTab = (typeof LISTS_TABS)[number];
 
