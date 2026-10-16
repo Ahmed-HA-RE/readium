@@ -58,7 +58,11 @@ export interface GetBlogBySlugResponse {
   isContentLocked: boolean;
   // Words in the full body, so reading time is right even when `content` is cut.
   wordCount: number;
+  // For the author only: why the story was taken down, with a ban outranking a warning.
+  moderation: BlogModeration | null;
 }
+
+export type BlogModeration = 'warning' | 'ban';
 
 // The trending panel renders a title, an excerpt, the author and a date, so
 // nothing else is selected. `slug` is not rendered but every item is a link.

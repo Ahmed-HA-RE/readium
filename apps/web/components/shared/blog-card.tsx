@@ -8,7 +8,7 @@ import { DEFAULT_AVATAR } from '@/lib/constants';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import BlogActionsMenu from './blog-actions-menu';
-import LikeButton from './like-button';
+import LikeButton, { getLikeDisabledReason } from './like-button';
 import BookmarkButton from './bookmark-button';
 
 const coverImageStyles = { width: '100%', height: '100%' };
@@ -122,12 +122,15 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
               slug={slug}
               likesCount={_count.likes}
               isLikedByLoggedInUser={isLikedByLoggedInUser}
-              isOwnBlog={isOwnBlog}
+              disabledReason={getLikeDisabledReason({ isOwnBlog, isAdmin })}
             />
-            <BookmarkButton
-              slug={slug}
-              isBookmarkedByLoggedInUser={isBookmarkedByLoggedInUser}
-            />
+            {/* Admins don't keep a library, so there's nothing to bookmark into. */}
+            {!isAdmin && (
+              <BookmarkButton
+                slug={slug}
+                isBookmarkedByLoggedInUser={isBookmarkedByLoggedInUser}
+              />
+            )}
           </div>
         </div>
       </div>

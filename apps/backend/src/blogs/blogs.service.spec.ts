@@ -65,6 +65,7 @@ const blogRow = (overrides: Record<string, unknown> = {}) => ({
   author: { id: 'author-1', name: 'Ahmed', image: 'avatar-key' },
   likes: [],
   bookmarks: [],
+  report: [],
   _count: { comments: 2, likes: 5, bookmarks: 1 },
   ...overrides,
 });

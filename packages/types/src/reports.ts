@@ -7,15 +7,22 @@ export enum ReportReason {
 
 export enum ReportStatus {
   PENDING = 'PENDING',
-  REVIEWED = 'REVIEWED',
   RESOLVED = 'RESOLVED',
   REJECTED = 'REJECTED',
+}
+
+// Mirrors the backend's `ModerationAction`; only a resolved report carries one.
+export enum ModerationAction {
+  WARNING = 'WARNING',
+  TEMPORARY_BAN = 'TEMPORARY_BAN',
+  PERMANENT_BAN = 'PERMANENT_BAN',
 }
 
 export interface Report {
   id: string;
   reason: ReportReason;
   status: ReportStatus;
+  action: ModerationAction | null;
   userId: string;
   blogId: string;
   createdAt: Date;
@@ -32,6 +39,7 @@ export interface GetAllReportsWithFilters {
     blog: {
       id: string;
       title: string;
+      slug: string;
       author: {
         id: string;
         name: string;

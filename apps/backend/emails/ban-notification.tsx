@@ -68,7 +68,7 @@ const BanNotification = ({
                     {isTemporary
                       ? 'suspended for 30 days'
                       : 'permanently banned'}{' '}
-                    following a report on one of your blog posts.
+                    after one of your blog posts was reported.
                   </Text>
 
                   <Text className="m-0 mt-6 text-gray-700 font-bold text-lg">
@@ -77,12 +77,9 @@ const BanNotification = ({
                   <Text className="m-0 mt-1 text-gray-500">{blogTitle}</Text>
 
                   <Text className="m-0 mt-6 text-gray-700 font-bold text-lg">
-                    Reason:
+                    Reported for:
                   </Text>
-                  <Text className="m-0 mt-1 text-gray-500 capitalize">
-                    {banReason.slice(0, 1).toUpperCase() +
-                      banReason.slice(1).toLowerCase().replaceAll('_', ' ')}
-                  </Text>
+                  <Text className="m-0 mt-1 text-gray-500">{banReason}</Text>
 
                   <Text className="m-0 mt-6 text-gray-500">
                     {isTemporary
@@ -91,10 +88,10 @@ const BanNotification = ({
                   </Text>
 
                   <Text className="m-0 mt-6 text-gray-500">
-                    This report has been carefully reviewed by our moderation
-                    team. Based on our review, we determined that your content
-                    violated our Community Guidelines and Terms of Service, and
-                    appropriate action has been taken against your account.
+                    Your blog post was reported, and after reviewing it our
+                    moderation team found that it violated our Community
+                    Guidelines and Terms of Service. Appropriate action has been
+                    taken against your account.
                   </Text>
                 </Section>
               </Section>
@@ -111,7 +108,7 @@ const BanNotification = ({
 BanNotification.PreviewProps = {
   authorName: 'John Doe',
   blogTitle: 'How to build a React app',
-  banReason: 'RULES_VIOLATION',
+  banReason: 'Harassment, Spam',
   banType: 'temporary',
 } satisfies BanNotificationProps;
 

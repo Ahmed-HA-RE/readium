@@ -3,12 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { GoLink } from 'react-icons/go';
 import { DEFAULT_AVATAR, SITE_NAME } from '@/lib/constants';
-import {
-  ADMIN_MY_STORIES_PATH,
-  ADMIN_SETTINGS_PATH,
-  cn,
-  getProfilePath,
-} from '@/lib/utils';
+import { cn, getProfilePath } from '@/lib/utils';
 import { getPublicUserProfile } from '@/lib/actions/user/getPublicUserProfile';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -125,7 +120,7 @@ const ProfilePage = async ({ params }: { params: ProfilePageParams }) => {
         {isOwnProfile && (
           <div className='flex flex-wrap justify-center gap-2'>
             <Link
-              href={isAdmin ? ADMIN_SETTINGS_PATH : '/me/settings?tab=account'}
+              href='/me/settings?tab=account'
               className={cn(
                 buttonVariants({ variant: 'default', size: 'lg' }),
                 'rounded-full px-4',
@@ -135,7 +130,7 @@ const ProfilePage = async ({ params }: { params: ProfilePageParams }) => {
             </Link>
             {/* Drafts live only on the dashboard; this page lists published stories. */}
             <Link
-              href={isAdmin ? ADMIN_MY_STORIES_PATH : '/me/stories'}
+              href='/me/stories'
               className={cn(
                 buttonVariants({ variant: 'secondary', size: 'lg' }),
                 'rounded-full px-4',

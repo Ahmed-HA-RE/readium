@@ -10,6 +10,10 @@ import {
   getAdminUsers,
   type GetAdminUsersParams,
 } from '@/lib/actions/admin/getAdminUsers';
+import {
+  getAdminReports,
+  type GetAdminReportsParams,
+} from '@/lib/actions/admin/getAdminReports';
 
 // Below this, the typed value is ignored and the latest users are shown instead.
 const MIN_SEARCH_LENGTH = 2;
@@ -44,6 +48,21 @@ export const useAdminBlogs = ({
   useQuery({
     queryKey: ['blogs', 'admin', { search, status, page, limit }],
     queryFn: () => getAdminBlogs({ search, status, page, limit }),
+    enabled: !search || search.length >= MIN_ADMIN_TABLE_SEARCH_LENGTH,
+    placeholderData: keepPreviousData,
+  });
+
+// Under `['reports']`, which a review refreshes. While the search is too short, the previous rows stay on screen.
+export const useAdminReports = ({
+  search,
+  reason,
+  status,
+  page,
+  limit,
+}: GetAdminReportsParams) =>
+  useQuery({
+    queryKey: ['reports', 'admin', { search, reason, status, page, limit }],
+    queryFn: () => getAdminReports({ search, reason, status, page, limit }),
     enabled: !search || search.length >= MIN_ADMIN_TABLE_SEARCH_LENGTH,
     placeholderData: keepPreviousData,
   });

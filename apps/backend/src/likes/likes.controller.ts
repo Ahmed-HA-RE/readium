@@ -1,7 +1,8 @@
 import { Controller, Delete, Param, Post } from '@nestjs/common';
-import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { Roles, Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import { LikesService } from './likes.service';
 
+// Users only: admins act on the community rather than take part in it.
 @Controller('api/blogs/:blogSlug/likes')
 export class LikesController {
   constructor(private readonly likesService: LikesService) {}
@@ -9,6 +10,7 @@ export class LikesController {
   // Method      POST /api/blogs/:blogSlug/likes
   // Description Like a blog post
   @Post()
+  @Roles(['user'])
   likeBlog(
     @Param('blogSlug') blogSlug: string,
     @Session() session: UserSession,
@@ -20,6 +22,7 @@ export class LikesController {
   // Method      DELETE /api/blogs/:blogSlug/likes
   // Description Unlike a blog post
   @Delete()
+  @Roles(['user'])
   unlikeBlog(
     @Param('blogSlug') blogSlug: string,
 

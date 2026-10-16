@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
 import BlogForm from '@/components/shared/blog-form';
 
 export const metadata: Metadata = {
@@ -12,15 +13,14 @@ export const metadata: Metadata = {
 const NewStoryPage = async () => {
   const session = await getCurrentLoggedInUser();
   if (!session) redirect('/');
-
-  const isAdmin = session.user.role === 'admin';
+  // Admins moderate stories rather than write them; the API refuses them too.
+  if (session.user.role === 'admin') redirect(ADMIN_OVERVIEW_PATH);
 
   // `BlogForm` owns its page container, so the draft alert can span the width.
   return (
     <BlogForm
       authorName={session.user.name}
-      isAdmin={isAdmin}
-      canMarkPro={session.user.isPro || isAdmin}
+      canMarkPro={session.user.isPro}
     />
   );
 };

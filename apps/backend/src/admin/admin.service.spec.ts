@@ -3,13 +3,8 @@ import { subDays } from 'date-fns';
 import { AdminService } from './admin.service';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
-import { AdminUsersService } from './users/admin-users.service';
 import { UsersService } from '../users/users.service';
-import { BlogsService } from '../blogs/blogs.service';
 import { UserSession } from '@thallesp/nestjs-better-auth';
-import { AdminMyBlogsQueryDto } from './dto/admin-my-blogs-query-dto';
-import { MyBlogsStatus } from '../users/dto/my-blogs-query-dto';
-import { UpdateBlogDto } from '../blogs/dto/update-blog-dto';
 
 // `mock`-prefixed so Jest allows the hoisted factory to reference it.
 const mockRetrieveBalance = jest.fn<Promise<unknown>, []>();
@@ -22,7 +17,7 @@ jest.mock('../../lib/stripe', () => ({
 const NOW = new Date('2026-09-06T12:00:00.000Z');
 
 type CountMocks = {
-  user: { count: jest.Mock; findMany: jest.Mock };
+  user: { count: jest.Mock; findMany: jest.Mock; findUniqueOrThrow: jest.Mock };
   blog: { count: jest.Mock };
   report: { count: jest.Mock };
   subscription: { count: jest.Mock };
@@ -35,53 +30,35 @@ const SESSION_USER = {
   email: 'ahmed@example.com',
 } as UserSession['user'];
 
-type AdminUsersMocks = {
-  getUserByUsername: jest.Mock;
-  getUserBlogsByUsernameAsAdmin: jest.Mock;
-  getUserCommentsByUsernameAsAdmin: jest.Mock;
-};
-
 describe('AdminService', () => {
   let service: AdminService;
   let prisma: CountMocks;
-  let adminUsers: AdminUsersMocks;
-  let users: { isUsernameTaken: jest.Mock; getMyBlogs: jest.Mock };
-  let blogs: { updateBlog: jest.Mock; deleteBlog: jest.Mock };
+  let users: { isUsernameTaken: jest.Mock };
 
   beforeEach(async () => {
     jest.useFakeTimers().setSystemTime(NOW);
 
     prisma = {
-      user: { count: jest.fn(), findMany: jest.fn() },
+      user: {
+        count: jest.fn(),
+        findMany: jest.fn(),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 'admin-1',
+          name: 'Ahmed',
+          email: 'ahmed@example.com',
+          image: 'avatar-key',
+          website: null,
+          bio: null,
+          createdAt: NOW,
+        }),
+      },
       blog: { count: jest.fn() },
       report: { count: jest.fn() },
       subscription: { count: jest.fn() },
     };
     mockRetrieveBalance.mockReset();
 
-    adminUsers = {
-      getUserByUsername: jest.fn().mockResolvedValue({ id: 'admin-1' }),
-      getUserBlogsByUsernameAsAdmin: jest
-        .fn()
-        .mockResolvedValue({ blogs: [], totalPages: 0 }),
-      getUserCommentsByUsernameAsAdmin: jest
-        .fn()
-        .mockResolvedValue({ data: [], nextCursor: null }),
-    };
-
-    users = {
-      isUsernameTaken: jest.fn(),
-      getMyBlogs: jest.fn().mockResolvedValue({
-        blogs: [],
-        totalPages: 0,
-        counts: { published: 0, draft: 0 },
-      }),
-    };
-
-    blogs = {
-      updateBlog: jest.fn().mockResolvedValue({ success: true, data: {} }),
-      deleteBlog: jest.fn().mockResolvedValue(undefined),
-    };
+    users = { isUsernameTaken: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -95,9 +72,7 @@ describe('AdminService', () => {
             ),
           },
         },
-        { provide: AdminUsersService, useValue: adminUsers },
         { provide: UsersService, useValue: users },
-        { provide: BlogsService, useValue: blogs },
       ],
     }).compile();
 
@@ -109,74 +84,24 @@ describe('AdminService', () => {
     jest.clearAllMocks();
   });
 
-  // The /api/admin/me family delegates to other services with the admin off
-  // the session, so the subject can never be steered by a path param.
-  describe('the /api/admin/me endpoints', () => {
-    it('reads the profile without the moderation columns', async () => {
+  // The subject comes off the session, so it can never be steered by a path param.
+  describe('getMyDataAsAdmin', () => {
+    it('reads only the profile fields, with no counts or moderation columns', async () => {
       await service.getMyDataAsAdmin(SESSION_USER);
 
-      expect(adminUsers.getUserByUsername).toHaveBeenCalledWith('Ahmed', false);
+      const [{ where, select }] = prisma.user.findUniqueOrThrow.mock
+        .calls[0] as [{ where: unknown; select: Record<string, unknown> }];
+      expect(where).toEqual({ id: 'admin-1' });
+      // Admins don't write, comment, like or bookmark, so there is nothing to count.
+      expect(select).not.toHaveProperty('_count');
+      expect(select).not.toHaveProperty('banned');
+      expect(select).not.toHaveProperty('banReason');
     });
 
-    it('lists the signed-in admin’s blogs exactly as the user dashboard does', async () => {
-      const query = {
-        status: MyBlogsStatus.DRAFT,
-        search: 'nest',
-        page: 2,
-        limit: 5,
-      } as AdminMyBlogsQueryDto;
+    it('signs the avatar', async () => {
+      const profile = await service.getMyDataAsAdmin(SESSION_USER);
 
-      const page = await service.getMyBlogsAsAdmin(SESSION_USER, query);
-
-      expect(users.getMyBlogs).toHaveBeenCalledWith(SESSION_USER, query);
-      expect(page).toEqual({
-        blogs: [],
-        totalPages: 0,
-        counts: { published: 0, draft: 0 },
-      });
-    });
-
-    it('updates only the signed-in admin’s own blog', async () => {
-      const dto = { title: 'A new title' } as UpdateBlogDto;
-
-      await service.updateMyBlogAsAdmin(SESSION_USER, 'a-blog', undefined, dto);
-
-      // The whole user, so the Pro check sees the admin role.
-      expect(blogs.updateBlog).toHaveBeenCalledWith(
-        'a-blog',
-        undefined,
-        dto,
-        SESSION_USER,
-      );
-    });
-
-    it('deletes only the signed-in admin’s own blog', async () => {
-      await service.deleteMyBlogAsAdmin(SESSION_USER, 'a-blog');
-
-      expect(blogs.deleteBlog).toHaveBeenCalledWith('a-blog', 'admin-1');
-    });
-
-    it('passes the comment cursor through for the signed-in admin', async () => {
-      const query = { limit: 10, cursor: 'comment-9' };
-
-      const page = await service.getMyCommentsAsAdmin(SESSION_USER, query);
-
-      expect(adminUsers.getUserCommentsByUsernameAsAdmin).toHaveBeenCalledWith(
-        'Ahmed',
-        query,
-      );
-      expect(page).toEqual({ data: [], nextCursor: null });
-    });
-
-    it('never queries the database directly', async () => {
-      await service.getMyDataAsAdmin(SESSION_USER);
-      await service.getMyBlogsAsAdmin(SESSION_USER, {} as AdminMyBlogsQueryDto);
-      await service.getMyCommentsAsAdmin(SESSION_USER, {});
-
-      // Every /me read reuses an existing service, so the admin and user routes
-      // can never drift into returning different shapes for the same data.
-      expect(prisma.user.count).not.toHaveBeenCalled();
-      expect(prisma.blog.count).not.toHaveBeenCalled();
+      expect(profile.image).toBe('signed:avatar-key');
     });
   });
 
@@ -239,13 +164,16 @@ describe('AdminService', () => {
       mockRetrieveBalance.mockResolvedValue({ available: [] });
     };
 
-    it('returns the six dashboard analytics', async () => {
+    it('returns the seven dashboard analytics', async () => {
       // user.count is called twice: total users first, then active users.
       prisma.user.count
         .mockResolvedValueOnce(42) // totalUsers
         .mockResolvedValueOnce(17); // totalActiveUsers
       prisma.blog.count.mockResolvedValue(8);
-      prisma.report.count.mockResolvedValue(3);
+      // report.count likewise: every report first, then the pending ones.
+      prisma.report.count
+        .mockResolvedValueOnce(3) // totalReports
+        .mockResolvedValueOnce(1); // pendingReports
       prisma.subscription.count.mockResolvedValue(5);
       mockRetrieveBalance.mockResolvedValue({
         object: 'balance',
@@ -262,6 +190,7 @@ describe('AdminService', () => {
         totalUsers: 42,
         totalBlogs: 8,
         totalReports: 3,
+        pendingReports: 1,
         totalSubscribers: 5,
         totalActiveUsers: 17,
         availableBalance: [{ amount: 666670, currency: 'usd' }],
@@ -321,7 +250,7 @@ describe('AdminService', () => {
 
       expect(prisma.user.count).toHaveBeenCalledTimes(2);
       expect(prisma.blog.count).toHaveBeenCalledTimes(1);
-      expect(prisma.report.count).toHaveBeenCalledTimes(1);
+      expect(prisma.report.count).toHaveBeenCalledTimes(2);
       expect(prisma.subscription.count).toHaveBeenCalledTimes(1);
       expect(mockRetrieveBalance).toHaveBeenCalledTimes(1);
 

@@ -3,7 +3,9 @@
 import { FaRegCommentDots } from 'react-icons/fa';
 import type { Blog } from '@repo/types';
 import { buttonVariants } from '@/components/ui/button';
-import LikeButton from '@/components/shared/like-button';
+import LikeButton, {
+  getLikeDisabledReason,
+} from '@/components/shared/like-button';
 import BookmarkButton from '@/components/shared/bookmark-button';
 import BlogActionsMenu from '@/components/shared/blog-actions-menu';
 import { cn } from 'cn';
@@ -19,6 +21,7 @@ type BlogActionBarProps = {
   isLikedByLoggedInUser: boolean;
   isBookmarkedByLoggedInUser: boolean;
   isOwnBlog: boolean;
+  isAdmin: boolean;
   isSignedIn: boolean;
   canReport: boolean;
 };
@@ -35,6 +38,7 @@ const BlogActionBar = ({
   isLikedByLoggedInUser,
   isBookmarkedByLoggedInUser,
   isOwnBlog,
+  isAdmin,
   isSignedIn,
   canReport,
 }: BlogActionBarProps) => (
@@ -44,7 +48,7 @@ const BlogActionBar = ({
         slug={slug}
         likesCount={counts.likes}
         isLikedByLoggedInUser={isLikedByLoggedInUser}
-        isOwnBlog={isOwnBlog}
+        disabledReason={getLikeDisabledReason({ isOwnBlog, isAdmin })}
         isSignedIn={isSignedIn}
         refreshOnChange
       />
@@ -63,12 +67,15 @@ const BlogActionBar = ({
     </div>
 
     <div className='flex items-center gap-1'>
-      <BookmarkButton
-        slug={slug}
-        isBookmarkedByLoggedInUser={isBookmarkedByLoggedInUser}
-        isSignedIn={isSignedIn}
-        refreshOnChange
-      />
+     
+      {!isAdmin && (
+        <BookmarkButton
+          slug={slug}
+          isBookmarkedByLoggedInUser={isBookmarkedByLoggedInUser}
+          isSignedIn={isSignedIn}
+          refreshOnChange
+        />
+      )}
 
       <ShareBlogDialog
         url={shareUrl}

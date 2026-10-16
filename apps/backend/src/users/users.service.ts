@@ -59,7 +59,10 @@ export class UsersService {
     // Case-insensitive, like `isUsernameTaken`, so `/@ahmed` finds `Ahmed`; the
     // web page then redirects to the canonical casing.
     const user = await this.prisma.user.findFirst({
-      where: { name: { equals: username, mode: 'insensitive' } },
+      where: {
+        name: { equals: username, mode: 'insensitive' },
+        role: { not: 'admin' },
+      },
       select: {
         id: true,
         name: true,

@@ -57,9 +57,10 @@ export interface GetUserByUsernameAsAdmin extends Pick<
 
 // An admin viewing their own profile has no ban state to moderate, so those
 // fields are absent from the /api/admin/me payload.
+// Admins don't write, comment, like or bookmark, so their own profile carries no counts.
 export interface GetMyDataAsAdmin extends Omit<
   GetUserByUsernameAsAdmin,
-  'banned' | 'banReason'
+  'banned' | 'banReason' | '_count'
 > {}
 
 export interface GetUserWithBlogsByUsernameAsAdmin {
@@ -91,6 +92,8 @@ export interface AdminDashboardAnalytics {
   totalUsers: number;
   totalBlogs: number;
   totalReports: number;
+  /** Reports still waiting for a review; drives the overview's "Review reports" button. */
+  pendingReports: number;
   /** Subscriptions that are `active` or `trialing`. */
   totalSubscribers: number;
   /** Users whose last activity falls within the past 30 days. */

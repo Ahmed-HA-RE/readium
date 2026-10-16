@@ -6,7 +6,13 @@ import {
   parseAsStringEnum,
   parseAsStringLiteral,
 } from 'nuqs/server';
-import { AdminBlogStatus, BlogSortOptions, MyBlogsStatus } from '@repo/types';
+import {
+  AdminBlogStatus,
+  BlogSortOptions,
+  MyBlogsStatus,
+  ReportReason,
+  ReportStatus,
+} from '@repo/types';
 import {
   ADMIN_TABLE_PAGE_SIZES,
   DEFAULT_ADMIN_TABLE_PAGE_SIZE,
@@ -56,6 +62,15 @@ export type AdminUserStatus = (typeof ADMIN_USER_STATUSES)[number];
 export const adminUsersParsers = {
   search: parseAsString.withDefault(''),
   status: parseAsStringLiteral(ADMIN_USER_STATUSES),
+  page: pageParser,
+  limit: adminTableLimitParser,
+};
+
+// `search` filters by reporter name; no default on `reason` or `status`, so absent means all of them.
+export const adminReportsParsers = {
+  search: parseAsString.withDefault(''),
+  reason: parseAsStringEnum<ReportReason>(Object.values(ReportReason)),
+  status: parseAsStringEnum<ReportStatus>(Object.values(ReportStatus)),
   page: pageParser,
   limit: adminTableLimitParser,
 };

@@ -1,7 +1,13 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { AdminBlogQueryDto, AdminBlogStatus } from './dto/admin-blog-query-dto';
 import { Prisma } from '../../generated/prisma/client';
+import { banReportFilter } from '../../reports/utils/report-query';
 import { GetAllBlogsForAdmin, GetBlogBySlugForAdmin } from '@repo/types';
 import { DEFAULT_ADMIN_TABLE_PAGE_SIZE } from '@repo/constants';
 import { UpdateBlogStatusDto } from './dto/update-blog-status-dto';
@@ -135,14 +141,28 @@ export class AdminBlogsService {
     blogSlug: string,
     updateBlogStatusDto: UpdateBlogStatusDto,
   ): Promise<{ isPublished: boolean }> {
+    // Counted in the same query, so the publish check below costs no extra round trip.
     const existingBlog = await this.prisma.blog.findUnique({
       where: { slug: blogSlug },
+      select: {
+        _count: {
+          select: {
+            report: { where: banReportFilter },
+          },
+        },
+      },
     });
 
     if (!existingBlog) {
       throw new NotFoundException(`Blog with slug ${blogSlug} does not exist.`);
     }
     const { isPublished } = updateBlogStatusDto;
+
+    if (isPublished && existingBlog._count.report > 0) {
+      throw new ForbiddenException(
+        'This story was taken down with a ban and cannot be republished.',
+      );
+    }
 
     this.logger.log(
       `Updating blog status for slug: ${blogSlug} to isPublished: ${isPublished}`,

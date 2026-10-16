@@ -64,7 +64,8 @@ const CommentsSection = ({
         Responses ({commentsCount})
       </h2>
 
-      {viewer ? (
+      {/* Admins moderate the thread (delete stays on each card) but don't post in it. */}
+      {viewer?.role === 'admin' ? null : viewer ? (
         <AddCommentForm slug={slug} viewer={viewer} />
       ) : (
         <div className='flex flex-col items-start gap-3 rounded-lg bg-muted/50 p-4'>

@@ -10,7 +10,7 @@ type PrismaMocks = {
   blog: { count: jest.Mock };
 };
 
-// Shape returned by buildAdminUserSelect: scalars plus counts, no relation lists.
+// Shape returned by adminUserSelect: scalars plus counts, no relation lists.
 const userRow = {
   id: 'user-1',
   name: 'Ahmed',
@@ -92,7 +92,7 @@ describe('AdminUsersService', () => {
   });
 
   describe('getUserByUsername', () => {
-    it('selects the moderation columns by default', async () => {
+    it('selects the moderation columns', async () => {
       prisma.user.findUnique.mockResolvedValue({ ...userRow });
 
       await service.getUserByUsername('Ahmed');
@@ -101,16 +101,6 @@ describe('AdminUsersService', () => {
       expect(where).toEqual({ name: 'Ahmed' });
       expect(select.banned).toBe(true);
       expect(select.banReason).toBe(true);
-    });
-
-    it('omits the moderation columns for the self view', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
-
-      await service.getUserByUsername('Ahmed', false);
-
-      const { select } = prisma.user.findUnique.mock.calls[0][0];
-      expect(select.banned).toBe(false);
-      expect(select.banReason).toBe(false);
     });
 
     it('requests counts but no embedded blog or comment lists', async () => {

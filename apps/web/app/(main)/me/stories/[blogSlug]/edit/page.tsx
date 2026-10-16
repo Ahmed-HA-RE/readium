@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getBlogPath } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH, getBlogPath } from '@/lib/utils';
 import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import BlogForm from '@/components/shared/blog-form';
@@ -28,6 +28,8 @@ export const generateMetadata = async ({
 const EditStoryPage = async ({ params }: { params: EditStoryParams }) => {
   const session = await getCurrentLoggedInUser();
   if (!session) redirect('/');
+  // Admins moderate stories rather than write them; the API refuses them too.
+  if (session.user.role === 'admin') redirect(ADMIN_OVERVIEW_PATH);
 
   const { blogSlug } = await params;
   const data = await getBlogBySlug(blogSlug);
@@ -37,15 +39,13 @@ const EditStoryPage = async ({ params }: { params: EditStoryParams }) => {
     redirect(getBlogPath(data.blog.author.name, blogSlug));
   }
 
-  const isAdmin = session.user.role === 'admin';
-
   // `BlogForm` owns its page container, so the draft alert can span the width.
   return (
     <BlogForm
       authorName={session.user.name}
       blog={data.blog}
-      isAdmin={isAdmin}
-      canMarkPro={session.user.isPro || isAdmin}
+      canMarkPro={session.user.isPro}
+      moderation={data.moderation}
     />
   );
 };

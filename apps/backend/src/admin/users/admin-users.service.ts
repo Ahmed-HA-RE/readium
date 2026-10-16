@@ -23,7 +23,7 @@ import { generateImageKey } from '../../../lib/utils';
 import { BlogQueryDto } from '../../blogs/dto/blog-query-dto';
 import { buildBlogQuery } from '../../blogs/utils/blog-query';
 import { CommentQueryDto } from '../../comments/dto/comment-query-dto';
-import { buildAdminUserSelect } from './utils/user-query';
+import { adminUserSelect } from './utils/user-query';
 
 @Injectable()
 export class AdminUsersService {
@@ -115,15 +115,10 @@ export class AdminUsersService {
     return { users, totalPages };
   }
 
-  // Shared by GET /api/admin/users/:username and GET /api/admin/me, which
-  // passes false so the moderation columns are left out of the self view.
-  async getUserByUsername(
-    username: string,
-    includeModerationData = true,
-  ): Promise<GetUserByUsernameAsAdmin> {
+  async getUserByUsername(username: string): Promise<GetUserByUsernameAsAdmin> {
     const existingUser = await this.prisma.user.findUnique({
       where: { name: username },
-      select: buildAdminUserSelect(includeModerationData),
+      select: adminUserSelect,
     });
 
     if (!existingUser) {

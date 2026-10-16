@@ -244,8 +244,12 @@ export const auth = betterAuth({
     enabled: true,
     max: 10,
     window: 60, // 60 seconds
-    // Read-only and already behind a fresh session, so the Security tab can refetch it freely.
-    customRules: { '/list-sessions': false },
+    customRules: {
+      // Read-only and already behind a fresh session, so the Security tab can refetch it freely.
+      '/list-sessions': false,
+      // Signed by Stripe, and one checkout or ban sends several events at once; a dropped one desyncs the subscription.
+      '/stripe/webhook': false,
+    },
   },
 
   hooks: {

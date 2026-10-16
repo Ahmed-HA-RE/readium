@@ -2,28 +2,21 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { UserSession } from '@thallesp/nestjs-better-auth';
-import { AdminUsersService } from './users/admin-users.service';
 import { generateImageKey } from '../../lib/utils';
 import {
   AdminDashboardAnalytics,
   GetMyDataAsAdmin,
   GetAdminSuggestions,
-  GetMyBlogs,
-  GetUserWithCommentsByUsernameAsAdmin,
   StripeBalanceAmount,
   UpdateAdminSettings,
-  UpdateMyBlogResponse,
 } from '@repo/types';
 import { subDays } from 'date-fns';
 import { stripeClient } from '../../lib/stripe';
 import { PRO_STATUSES } from '../../lib/constants';
+import { ReportStatus } from '../generated/prisma/enums';
 import { UpdateAdminDto } from './dto/update-admin-dto';
-import { AdminMyBlogsQueryDto } from './dto/admin-my-blogs-query-dto';
 import { AdminSuggestionsQueryDto } from './dto/admin-suggestions-query-dto';
-import { CommentQueryDto } from '../comments/dto/comment-query-dto';
 import { UsersService } from '../users/users.service';
-import { BlogsService } from '../blogs/blogs.service';
-import { UpdateBlogDto } from '../blogs/dto/update-blog-dto';
 
 // A user counts as active when their last activity falls within this window.
 const ACTIVE_USER_WINDOW_IN_DAYS = 30;
@@ -35,9 +28,7 @@ export class AdminService {
   constructor(
     private readonly prisma: DatabaseService,
     private readonly s3Service: S3ServiceService,
-    private readonly AdminUsersService: AdminUsersService,
     private readonly usersService: UsersService,
-    private readonly blogsService: BlogsService,
   ) {}
 
   readonly logger = new Logger(AdminService.name);
@@ -96,45 +87,27 @@ export class AdminService {
     return updatedUser;
   }
 
-  // The three /api/admin/me endpoints delegate to the services that already
-  // back /api/admin/users/:username. The session carries the admin's username,
-  // so the only difference is that the subject is fixed to the caller — and
-  // that the profile drops the moderation columns.
+  // Profile fields only: admins don't write, comment, like or bookmark, so there is nothing to count.
   async getMyDataAsAdmin(user: UserSession['user']): Promise<GetMyDataAsAdmin> {
-    return this.AdminUsersService.getUserByUsername(user.name, false);
-  }
+    const admin = await this.prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        website: true,
+        bio: true,
+        createdAt: true,
+      },
+    });
 
-  async getMyBlogsAsAdmin(
-    user: UserSession['user'],
-    query: AdminMyBlogsQueryDto,
-  ): Promise<GetMyBlogs> {
-    return this.usersService.getMyBlogs(user, query);
-  }
-
-  async getMyCommentsAsAdmin(
-    user: UserSession['user'],
-    query: CommentQueryDto,
-  ): Promise<GetUserWithCommentsByUsernameAsAdmin> {
-    return this.AdminUsersService.getUserCommentsByUsernameAsAdmin(
-      user.name,
-      query,
-    );
-  }
-
-  async updateMyBlogAsAdmin(
-    user: UserSession['user'],
-    slug: string,
-    coverImage: Express.Multer.File | undefined,
-    updateBlogDto: UpdateBlogDto,
-  ): Promise<UpdateMyBlogResponse> {
-    return this.blogsService.updateBlog(slug, coverImage, updateBlogDto, user);
-  }
-
-  async deleteMyBlogAsAdmin(
-    user: UserSession['user'],
-    slug: string,
-  ): Promise<void> {
-    return this.blogsService.deleteBlog(slug, user.id);
+    return {
+      ...admin,
+      image: admin.image
+        ? await this.s3Service.getSignedUrl(admin.image)
+        : null,
+    };
   }
 
   async getDashboardAnalytics(): Promise<AdminDashboardAnalytics> {
@@ -145,6 +118,7 @@ export class AdminService {
       totalUsers,
       totalBlogs,
       totalReports,
+      pendingReports,
       totalActiveUsers,
       totalSubscribers,
       availableBalance,
@@ -152,6 +126,7 @@ export class AdminService {
       this.prisma.user.count(),
       this.prisma.blog.count(),
       this.prisma.report.count(),
+      this.prisma.report.count({ where: { status: ReportStatus.PENDING } }),
       this.prisma.user.count({
         where: { lastActivityAt: { gte: activeSince } },
       }),
@@ -167,6 +142,7 @@ export class AdminService {
       totalUsers,
       totalBlogs,
       totalReports,
+      pendingReports,
       totalSubscribers,
       totalActiveUsers,
       availableBalance,

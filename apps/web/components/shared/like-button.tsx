@@ -32,11 +32,25 @@ const SPARKS = [
   y: Math.round(Math.sin((angle * Math.PI) / 180) * distance),
 }));
 
+// Why the viewer can't like this story, or undefined when they can.
+export const getLikeDisabledReason = ({
+  isOwnBlog,
+  isAdmin,
+}: {
+  isOwnBlog: boolean;
+  isAdmin: boolean;
+}) =>
+  isOwnBlog
+    ? "You can't like your own story"
+    : isAdmin
+      ? "Admins can't like stories"
+      : undefined;
+
 type LikeButtonProps = {
   slug: string;
   likesCount: number;
   isLikedByLoggedInUser: boolean;
-  isOwnBlog: boolean;
+  disabledReason?: string;
   // Anonymous readers are sent to sign in, since the endpoint would 401.
   isSignedIn?: boolean;
   // For server-rendered props, which only change after a router refresh.
@@ -48,7 +62,7 @@ const LikeButton = ({
   slug,
   likesCount,
   isLikedByLoggedInUser,
-  isOwnBlog,
+  disabledReason,
   isSignedIn = true,
   refreshOnChange = false,
   className,
@@ -99,23 +113,23 @@ const LikeButton = ({
 
   return (
     <span className={cn('flex items-center', className)}>
-      {/* The author still sees the tally, just not a control the endpoint
-          would reject. */}
-      {isOwnBlog ? (
+      {/* The author or an admin still sees the tally, just not a control the
+          endpoint would reject. */}
+      {disabledReason ? (
         <Tooltip>
           <TooltipTrigger
             render={
               <Button
                 variant='ghost-plain'
                 size='icon'
-                aria-label="You can't like your own story"
+                aria-label={disabledReason}
                 className='cursor-default text-muted-foreground hover:text-muted-foreground'
               />
             }
           >
             <FaRegHeart aria-hidden />
           </TooltipTrigger>
-          <TooltipContent>You can&apos;t like your own story</TooltipContent>
+          <TooltipContent>{disabledReason}</TooltipContent>
         </Tooltip>
       ) : (
         <Button

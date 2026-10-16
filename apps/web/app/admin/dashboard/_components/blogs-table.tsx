@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import Image from 'next/image';
 import { useQueryStates } from 'nuqs';
 import { format } from 'date-fns';
@@ -40,10 +40,7 @@ const EMPTY_BLOGS: AdminBlog[] = [];
 
 const COUNT_CLASS = 'text-center tabular-nums';
 
-// `viewerId` is the signed-in admin, so their own blogs read "You".
-const getColumns = (
-  viewerId: string,
-): ColumnDef<AdminTableFeatures, AdminBlog>[] => [
+const columns: ColumnDef<AdminTableFeatures, AdminBlog>[] = [
   {
     id: 'blog',
     header: 'Blog',
@@ -68,7 +65,7 @@ const getColumns = (
     header: 'Author',
     cell: ({ row }) => (
       <span className='text-muted-foreground'>
-        {row.original.author.id === viewerId ? 'You' : row.original.author.name}
+        {row.original.author.name}
       </span>
     ),
     size: 140,
@@ -150,13 +147,11 @@ const OVERVIEW_PARAMS = {
 };
 
 type BlogsTableProps = {
-  viewerId: string;
   // The overview hides the toolbar and footer; the blogs domain route shows them.
   showControls?: boolean;
 };
 
-const BlogsTable = ({ viewerId, showControls = false }: BlogsTableProps) => {
-  const columns = useMemo(() => getColumns(viewerId), [viewerId]);
+const BlogsTable = ({ showControls = false }: BlogsTableProps) => {
   const [urlParams, setParams] = useQueryStates(adminBlogsParsers);
   const params = showControls ? urlParams : OVERVIEW_PARAMS;
   const { search, status, page, limit } = params;

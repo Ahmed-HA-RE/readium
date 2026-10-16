@@ -351,12 +351,16 @@ describe('UsersService', () => {
 
   describe('getPublicUserProfile', () => {
     // `/@ahmed` must find `Ahmed`; the web page redirects to the stored casing.
-    it('looks the user up by name, ignoring case', async () => {
+  
+    it('looks the user up by name, ignoring case, skipping admins', async () => {
       prisma.user.findFirst.mockResolvedValue({ ...userRow });
 
       await service.getPublicUserProfile('ahmed');
 
-      expect(lookupArgs().where).toEqual(byName('ahmed'));
+      expect(lookupArgs().where).toEqual({
+        ...byName('ahmed'),
+        role: { not: 'admin' },
+      });
     });
 
     it('returns the profile and its counts without banned', async () => {

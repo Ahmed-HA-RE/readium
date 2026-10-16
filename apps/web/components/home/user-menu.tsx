@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { FaEdit } from 'react-icons/fa';
 import { GoBell, GoCreditCard, GoGear, GoMoon, GoSun } from 'react-icons/go';
+import { MdAdminPanelSettings } from 'react-icons/md';
 import { cn } from 'cn';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import {
 import LogoutAction from '@/components/shared/logout-action';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import {
+  ADMIN_OVERVIEW_PATH,
   ADMIN_SETTINGS_PATH,
   getProfilePath,
 } from '@/lib/utils';
@@ -25,9 +27,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const ICON_CLASS = 'size-4';
 
-// Header actions with no room below `lg`, so they collapse into this menu.
-const collapsedLinks = [
-  { href: '/new-story', label: 'Write', Icon: FaEdit },
+// Header actions with no room below `lg`, so they collapse into this menu. Admins get the dashboard instead of Write.
+const getCollapsedLinks = (isAdmin: boolean) => [
+  isAdmin
+    ? {
+        href: ADMIN_OVERVIEW_PATH,
+        label: 'Dashboard',
+        Icon: MdAdminPanelSettings,
+      }
+    : { href: '/new-story', label: 'Write', Icon: FaEdit },
   { href: '/notifications', label: 'Notifications', Icon: GoBell },
 ];
 
@@ -74,14 +82,17 @@ const UserMenu = ({ name, image, isPro, isAdmin }: UserMenuProps) => {
           </Avatar>
           <div className='flex min-w-0 flex-col leading-tight'>
             <span className='truncate font-medium'>{name}</span>
-            <Link
-              href={getProfilePath(name)}
-              className='text-muted-foreground w-fit'
-            >
-              <small className='hover:text-foreground transition'>
-                View Profile
-              </small>
-            </Link>
+            {/* Admins have no public profile. */}
+            {!isAdmin && (
+              <Link
+                href={getProfilePath(name)}
+                className='text-muted-foreground w-fit'
+              >
+                <small className='hover:text-foreground transition'>
+                  View Profile
+                </small>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -89,7 +100,7 @@ const UserMenu = ({ name, image, isPro, isAdmin }: UserMenuProps) => {
 
         {/* Below `lg` the header's own actions have no room, so they live here. */}
         <DropdownMenuGroup className='lg:hidden space-y-1'>
-          {collapsedLinks.map(({ href, label, Icon }) => (
+          {getCollapsedLinks(isAdmin).map(({ href, label, Icon }) => (
             <DropdownMenuItem key={href} render={<Link href={href} />}>
               <Icon className={ICON_CLASS} />
               {label}

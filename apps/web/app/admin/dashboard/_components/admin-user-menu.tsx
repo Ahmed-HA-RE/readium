@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import Link from 'next/link';
-import { FaEdit, FaHome, FaUser } from 'react-icons/fa';
+import { FaHome } from 'react-icons/fa';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -14,7 +14,6 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import LogoutAction from '@/components/shared/logout-action';
 import { DEFAULT_AVATAR } from '@/lib/constants';
-import { getProfilePath } from '@/lib/utils';
 
 const ITEM_CLASS = 'gap-2 px-4 py-2.5 text-base';
 const ICON_CLASS = 'text-foreground size-5';
@@ -28,8 +27,6 @@ type AdminUserMenuProps = {
 
 const AdminUserMenu = ({ name, email, image, trigger }: AdminUserMenuProps) => {
   const links = [
-    { href: getProfilePath(name), label: 'My Profile', Icon: FaUser },
-    { href: '/new-story', label: 'Write', Icon: FaEdit },
     { href: '/', label: 'Back to Main Page', Icon: FaHome },
   ];
 
