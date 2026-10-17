@@ -5,12 +5,12 @@ import { DatabaseService } from '../../database/database.service';
 import { S3ServiceService } from '../../s3-service/s3-service.service';
 
 type PrismaMocks = {
-  user: { findUnique: jest.Mock };
+  user: { findUnique: jest.Mock; findMany: jest.Mock; count: jest.Mock };
   comment: { findMany: jest.Mock };
   blog: { count: jest.Mock };
 };
 
-// Shape returned by buildAdminUserSelect: scalars plus counts, no relation lists.
+// Shape returned by adminUserSelect: scalars plus counts, no relation lists.
 const userRow = {
   id: 'user-1',
   name: 'Ahmed',
@@ -31,7 +31,7 @@ describe('AdminUsersService', () => {
 
   beforeEach(async () => {
     prisma = {
-      user: { findUnique: jest.fn() },
+      user: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn() },
       comment: { findMany: jest.fn() },
       blog: { count: jest.fn() },
     };
@@ -50,8 +50,49 @@ describe('AdminUsersService', () => {
 
   afterEach(() => jest.clearAllMocks());
 
+  describe('getAllUsersAsAdmin', () => {
+    beforeEach(() => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+    });
+
+    const whereOf = () =>
+      (prisma.user.findMany.mock.calls[0] as [{ where: unknown }])[0].where;
+
+    it('filters to banned users when banned is true', async () => {
+      await service.getAllUsersAsAdmin({ banned: true });
+
+      expect(whereOf()).toMatchObject({ banned: true });
+    });
+
+    it('filters to active users, including never-banned nulls, when banned is false', async () => {
+      await service.getAllUsersAsAdmin({ banned: false });
+
+      expect(whereOf()).toMatchObject({ NOT: { banned: true } });
+    });
+
+    it('returns everyone when banned is not given', async () => {
+      await service.getAllUsersAsAdmin({});
+
+      expect(whereOf()).not.toHaveProperty('banned');
+      expect(whereOf()).not.toHaveProperty('NOT');
+    });
+
+    it('lists the newest users first, 5 per page by default', async () => {
+      await service.getAllUsersAsAdmin({});
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          skip: 0,
+          take: 5,
+        }),
+      );
+    });
+  });
+
   describe('getUserByUsername', () => {
-    it('selects the moderation columns by default', async () => {
+    it('selects the moderation columns', async () => {
       prisma.user.findUnique.mockResolvedValue({ ...userRow });
 
       await service.getUserByUsername('Ahmed');
@@ -60,16 +101,6 @@ describe('AdminUsersService', () => {
       expect(where).toEqual({ name: 'Ahmed' });
       expect(select.banned).toBe(true);
       expect(select.banReason).toBe(true);
-    });
-
-    it('omits the moderation columns for the self view', async () => {
-      prisma.user.findUnique.mockResolvedValue({ ...userRow });
-
-      await service.getUserByUsername('Ahmed', false);
-
-      const { select } = prisma.user.findUnique.mock.calls[0][0];
-      expect(select.banned).toBe(false);
-      expect(select.banReason).toBe(false);
     });
 
     it('requests counts but no embedded blog or comment lists', async () => {

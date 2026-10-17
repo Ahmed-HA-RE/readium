@@ -7,6 +7,8 @@ import { BlogQueryDto, BlogSortOptions } from './dto/blog-query-dto';
 import { CreateBlogDto } from './dto/create-blog-dto';
 import { UpdateBlogDto } from './dto/update-blog-dto';
 import { Prisma } from '../generated/prisma/client';
+import { ModerationAction, ReportStatus } from '../generated/prisma/enums';
+import { banReportFilter } from '../reports/utils/report-query';
 import { PRO_STATUSES } from '../../lib/constants';
 
 // The arguments the service hands to Prisma, so `mock.calls` stays typed and
@@ -65,6 +67,7 @@ const blogRow = (overrides: Record<string, unknown> = {}) => ({
   author: { id: 'author-1', name: 'Ahmed', image: 'avatar-key' },
   likes: [],
   bookmarks: [],
+  report: [],
   _count: { comments: 2, likes: 5, bookmarks: 1 },
   ...overrides,
 });
@@ -442,6 +445,94 @@ describe('BlogsService', () => {
       });
     });
 
+    describe('moderation', () => {
+      const AUTHOR = { id: 'author-1', role: 'user' };
+      const reports = (...actions: ModerationAction[]) =>
+        blogRow({ report: actions.map((action) => ({ action })) });
+
+      it('loads the resolved reports that carry an action for a signed-in caller', async () => {
+        prisma.blog.findUnique.mockResolvedValue(blogRow());
+
+        await service.getBlogBySlug('a-blog', AUTHOR);
+
+        expect(findUniqueArgs().include.report).toEqual({
+          where: { status: ReportStatus.RESOLVED, action: { not: null } },
+          select: { action: true },
+        });
+      });
+
+      it('does not load reports for an anonymous caller', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          blogRow({ report: undefined }),
+        );
+
+        const result = await service.getBlogBySlug('a-blog');
+
+        expect(findUniqueArgs().include).not.toHaveProperty('report');
+        expect(result.moderation).toBeNull();
+      });
+
+      it('is null for an author with no resolved reports', async () => {
+        prisma.blog.findUnique.mockResolvedValue(reports());
+
+        const result = await service.getBlogBySlug('a-blog', AUTHOR);
+
+        expect(result.moderation).toBeNull();
+      });
+
+      it('is a warning when every action was a warning', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          reports(ModerationAction.WARNING, ModerationAction.WARNING),
+        );
+
+        const result = await service.getBlogBySlug('a-blog', AUTHOR);
+
+        expect(result.moderation).toBe('warning');
+      });
+
+      it.each([ModerationAction.TEMPORARY_BAN, ModerationAction.PERMANENT_BAN])(
+        'is a ban after a %s',
+        async (action) => {
+          prisma.blog.findUnique.mockResolvedValue(reports(action));
+
+          const result = await service.getBlogBySlug('a-blog', AUTHOR);
+
+          expect(result.moderation).toBe('ban');
+        },
+      );
+
+      it('lets a ban outrank an earlier warning', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          reports(ModerationAction.WARNING, ModerationAction.TEMPORARY_BAN),
+        );
+
+        const result = await service.getBlogBySlug('a-blog', AUTHOR);
+
+        expect(result.moderation).toBe('ban');
+      });
+
+      // Only the author learns why their story was taken down.
+      it('is null for a reader who is not the author', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          reports(ModerationAction.PERMANENT_BAN),
+        );
+
+        const result = await service.getBlogBySlug('a-blog', VIEWER);
+
+        expect(result.moderation).toBeNull();
+      });
+
+      it('strips the report relation from the blog', async () => {
+        prisma.blog.findUnique.mockResolvedValue(
+          reports(ModerationAction.WARNING),
+        );
+
+        const { blog } = await service.getBlogBySlug('a-blog', AUTHOR);
+
+        expect(blog).not.toHaveProperty('report');
+      });
+    });
+
     describe('pro content', () => {
       const proContent = '<p>one two three four</p><p>five six seven eight</p>';
       const firstHalf = '<p>one two three four</p>';
@@ -719,11 +810,13 @@ describe('BlogsService', () => {
   });
 
   describe('updateBlog', () => {
-    const existing = (blogPro: boolean) => ({
+    // `banReports` is the count of resolved ban reports the lookup selects.
+    const existing = (blogPro: boolean, banReports = 0) => ({
       title: 'A blog',
       slug: 'a-blog',
       coverImage: null,
       blogPro,
+      _count: { report: banReports },
     });
 
     it('rejects turning Pro on without a subscription', async () => {
@@ -791,6 +884,107 @@ describe('BlogsService', () => {
           data: expect.objectContaining({ blogPro: true }) as unknown,
         }),
       );
+    });
+
+    describe('ban lock', () => {
+      const update = (data: Partial<UpdateBlogDto>) =>
+        service.updateBlog('a-blog', undefined, data as UpdateBlogDto, VIEWER);
+
+      it("counts the author's own story's resolved ban reports in the lookup", async () => {
+        prisma.blog.findUnique.mockResolvedValue(existing(false));
+
+        await update({ isPublished: true });
+
+        expect(prisma.blog.findUnique).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { slug: 'a-blog', authorId: USER_ID },
+            select: expect.objectContaining({
+              _count: { select: { report: { where: banReportFilter } } },
+            }) as unknown,
+          }),
+        );
+      });
+
+      // A warned author may fix and republish, so only the two bans lock a story.
+      it('locks on a temporary or permanent ban, never on a warning', () => {
+        expect(banReportFilter).toEqual({
+          status: ReportStatus.RESOLVED,
+          action: {
+            in: [
+              ModerationAction.TEMPORARY_BAN,
+              ModerationAction.PERMANENT_BAN,
+            ],
+          },
+        });
+      });
+
+      it('refuses to republish a story taken down with a ban', async () => {
+        prisma.blog.findUnique.mockResolvedValue(existing(false, 1));
+
+        await expect(update({ isPublished: true })).rejects.toBeInstanceOf(
+          ForbiddenException,
+        );
+        expect(prisma.blog.update).not.toHaveBeenCalled();
+      });
+
+      it('still lets the author edit a ban-locked story as a draft', async () => {
+        prisma.blog.findUnique.mockResolvedValue(existing(false, 1));
+
+        await update({ isPublished: false, content: '<p>Fixed it up</p>' });
+
+        expect(prisma.blog.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ isPublished: false }) as unknown,
+          }),
+        );
+      });
+
+      it('publishes a story with no ban reports', async () => {
+        prisma.blog.findUnique.mockResolvedValue(existing(false));
+
+        await update({ isPublished: true });
+
+        expect(prisma.blog.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ isPublished: true }) as unknown,
+          }),
+        );
+      });
+    });
+  });
+
+  // Hidden while the ban lasts, so a temporary ban brings them back without a republish.
+  describe('banned authors', () => {
+    const hidden = { author: { NOT: { banned: true } } };
+
+    it('hides their blogs from the feed', async () => {
+      await service.getAllBlogs(query(), USER_ID);
+
+      expect(findManyArgs().where).toMatchObject(hidden);
+      expect(countArgs().where).toMatchObject(hidden);
+    });
+
+    it('keeps the author filter alongside an author-name search', async () => {
+      await service.getAllBlogs(query({ search: 'ahmed' }));
+
+      expect(findManyArgs().where).toMatchObject({
+        ...hidden,
+        OR: expect.arrayContaining([
+          { author: { name: { contains: 'ahmed', mode: 'insensitive' } } },
+        ]) as unknown,
+      });
+    });
+
+    it('hides their blogs from trending', async () => {
+      await service.getTrendingBlogs();
+
+      expect(findManyArgs().where).toMatchObject(hidden);
+    });
+
+    it('answers 404 for their blog page', async () => {
+      await service.getBlogBySlug('a-blog').catch(() => undefined);
+
+      expect(findUniqueArgs().where).toMatchObject(hidden);
     });
   });
 });

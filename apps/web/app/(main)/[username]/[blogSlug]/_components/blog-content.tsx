@@ -60,6 +60,7 @@ const BlogContent = async ({ data, blogSlug }: BlogContentProps) => {
           isLikedByLoggedInUser={isLikedByLoggedInUser}
           isBookmarkedByLoggedInUser={isBookmarkedByLoggedInUser}
           isOwnBlog={isOwnBlog}
+          isAdmin={isAdmin}
           isSignedIn={isSignedIn}
           // Reporting is `@Roles(['user'])` and rejects your own blog. A blog the
           // viewer already reported never reaches this page.

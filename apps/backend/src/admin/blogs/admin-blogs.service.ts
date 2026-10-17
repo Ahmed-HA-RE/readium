@@ -1,8 +1,15 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { AdminBlogQueryDto, AdminBlogStatus } from './dto/admin-blog-query-dto';
 import { Prisma } from '../../generated/prisma/client';
+import { banReportFilter } from '../../reports/utils/report-query';
 import { GetAllBlogsForAdmin, GetBlogBySlugForAdmin } from '@repo/types';
+import { DEFAULT_ADMIN_TABLE_PAGE_SIZE } from '@repo/constants';
 import { UpdateBlogStatusDto } from './dto/update-blog-status-dto';
 import { S3ServiceService } from '../../s3-service/s3-service.service';
 
@@ -47,7 +54,7 @@ export class AdminBlogsService {
     };
 
     const pageValue = page ? page : 1;
-    const limitValue = limit ? limit : 10;
+    const limitValue = limit ? limit : DEFAULT_ADMIN_TABLE_PAGE_SIZE;
 
     const blogs = await this.prisma.blog.findMany({
       where: whereFilter,
@@ -61,6 +68,7 @@ export class AdminBlogsService {
         id: true,
         title: true,
         slug: true,
+        coverImage: true,
         isPublished: true,
         createdAt: true,
         _count: {
@@ -68,6 +76,7 @@ export class AdminBlogsService {
             comments: true,
             likes: true,
             bookmarks: true,
+            report: { where: banReportFilter },
           },
         },
         author: {
@@ -85,7 +94,16 @@ export class AdminBlogsService {
     const totalPages = Math.ceil(totalBlogs / limitValue);
 
     return {
-      blogs,
+      blogs: await Promise.all(
+        blogs.map(async ({ _count: { report, ...counts }, ...blog }) => ({
+          ...blog,
+          _count: counts,
+          banLocked: report > 0,
+          coverImage: blog.coverImage
+            ? await this.s3Service.getSignedUrl(blog.coverImage)
+            : null,
+        })),
+      ),
       totalPages,
     };
   }
@@ -126,14 +144,28 @@ export class AdminBlogsService {
     blogSlug: string,
     updateBlogStatusDto: UpdateBlogStatusDto,
   ): Promise<{ isPublished: boolean }> {
+    // Counted in the same query, so the publish check below costs no extra round trip.
     const existingBlog = await this.prisma.blog.findUnique({
       where: { slug: blogSlug },
+      select: {
+        _count: {
+          select: {
+            report: { where: banReportFilter },
+          },
+        },
+      },
     });
 
     if (!existingBlog) {
       throw new NotFoundException(`Blog with slug ${blogSlug} does not exist.`);
     }
     const { isPublished } = updateBlogStatusDto;
+
+    if (isPublished && existingBlog._count.report > 0) {
+      throw new ForbiddenException(
+        'This story was taken down with a ban and cannot be republished.',
+      );
+    }
 
     this.logger.log(
       `Updating blog status for slug: ${blogSlug} to isPublished: ${isPublished}`,

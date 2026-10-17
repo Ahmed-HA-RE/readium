@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-query';
 import type { SearchParams } from 'nuqs/server';
 import type { BlogAuthor } from '@repo/types';
-import { ADMIN_MY_STORIES_PATH, cn } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH, cn } from '@/lib/utils';
 import { loadMyStoriesSearchParams } from '@/lib/search-params';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import {
@@ -55,7 +55,8 @@ const MyStoriesPage = async ({
 }) => {
   const session = await getCurrentLoggedInUser();
   if (!session) redirect('/');
-  if (session.user.role === 'admin') redirect(ADMIN_MY_STORIES_PATH);
+  // Admins don't write, so they have no stories to list.
+  if (session.user.role === 'admin') redirect(ADMIN_OVERVIEW_PATH);
 
   const params = await loadMyStoriesSearchParams(searchParams);
   const author = { name: session.user.name, image: session.user.image };

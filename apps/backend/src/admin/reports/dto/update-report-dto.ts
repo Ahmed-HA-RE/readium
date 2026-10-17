@@ -1,17 +1,14 @@
-import { IsEnum, IsOptional } from 'class-validator';
-import { ReportStatus } from '../../../generated/prisma/enums';
-
-export enum ModerationAction {
-  WARNING = 'WARNING',
-  TEMPORARY_BAN = 'TEMPORARY_BAN',
-  PERMANENT_BAN = 'PERMANENT_BAN',
-}
+import { IsEnum, IsIn, ValidateIf } from 'class-validator';
+import {
+  ModerationAction,
+  ReportStatus,
+} from '../../../generated/prisma/enums';
 
 export class UpdateReportStatusDto {
-  @IsOptional()
-  @IsEnum(ReportStatus)
+  @IsIn([ReportStatus.REJECTED, ReportStatus.RESOLVED])
   status: ReportStatus;
 
+  @ValidateIf((o: UpdateReportStatusDto) => o.status === ReportStatus.RESOLVED)
   @IsEnum(ModerationAction)
-  action: ModerationAction;
+  action?: ModerationAction;
 }

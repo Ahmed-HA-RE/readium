@@ -1,6 +1,8 @@
 import { Transform } from 'class-transformer';
+import { ADMIN_TABLE_PAGE_SIZES } from '@repo/constants';
 import {
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -49,6 +51,8 @@ export class AdminBlogQueryDto {
   @IsOptional()
   @IsNotEmpty()
   @IsNumber()
-  @Min(1, { message: 'Limit must be greater than or equal to 1' })
+  @IsIn(ADMIN_TABLE_PAGE_SIZES, {
+    message: `Limit must be one of ${ADMIN_TABLE_PAGE_SIZES.join(', ')}`,
+  })
   limit: number;
 }

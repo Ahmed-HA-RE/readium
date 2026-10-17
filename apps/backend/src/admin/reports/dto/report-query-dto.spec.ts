@@ -32,17 +32,23 @@ describe('ReportQueryDto', () => {
       expect(parse({ limit }).errors).toHaveLength(1);
     });
 
-    // An unbounded limit reached Prisma as `take` and read the whole table.
-    it.each(['101', '1000000'])('rejects limit=%s as over the cap', (limit) => {
-      expect(parse({ limit }).errors).toHaveLength(1);
-    });
+    // Only the table's page sizes are allowed, which also caps `take`.
+    it.each(['10', '100', '1000000'])(
+      'rejects limit=%s as not a page size',
+      (limit) => {
+        expect(parse({ limit }).errors).toHaveLength(1);
+      },
+    );
 
-    it('accepts the cap itself', () => {
-      const { dto, errors } = parse({ limit: '100' });
+    it.each(['5', '15', '20', '25'])(
+      'accepts the page size %s and transforms it to a number',
+      (limit) => {
+        const { dto, errors } = parse({ limit });
 
-      expect(errors).toHaveLength(0);
-      expect(dto.limit).toBe(100);
-    });
+        expect(errors).toHaveLength(0);
+        expect(dto.limit).toBe(Number(limit));
+      },
+    );
   });
 
   // The service defaults both to page 1 of 10, so omitting them stays valid.

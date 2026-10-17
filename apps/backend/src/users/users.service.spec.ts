@@ -351,12 +351,16 @@ describe('UsersService', () => {
 
   describe('getPublicUserProfile', () => {
     // `/@ahmed` must find `Ahmed`; the web page redirects to the stored casing.
-    it('looks the user up by name, ignoring case', async () => {
+
+    it('looks the user up by name, ignoring case, skipping admins', async () => {
       prisma.user.findFirst.mockResolvedValue({ ...userRow });
 
       await service.getPublicUserProfile('ahmed');
 
-      expect(lookupArgs().where).toEqual(byName('ahmed'));
+      expect(lookupArgs().where).toEqual({
+        ...byName('ahmed'),
+        role: { not: 'admin' },
+      });
     });
 
     it('returns the profile and its counts without banned', async () => {
@@ -1003,10 +1007,13 @@ describe('UsersService', () => {
 
     // A blog unpublished after it was liked or bookmarked would otherwise
     // render a card linking to a dead page.
-    it('excludes blogs that are no longer published', async () => {
+    it('excludes unpublished blogs and blogs by a banned author', async () => {
       await saved();
 
-      expect(findManyArgs().where.blog).toEqual({ isPublished: true });
+      expect(findManyArgs().where.blog).toEqual({
+        isPublished: true,
+        author: { NOT: { banned: true } },
+      });
     });
 
     // The sort key is when the user saved it, not when the blog was written.

@@ -1,5 +1,5 @@
 import { Controller, Delete, Param, Post, Session } from '@nestjs/common';
-import type { UserSession } from '@thallesp/nestjs-better-auth';
+import { Roles, type UserSession } from '@thallesp/nestjs-better-auth';
 import { BookmarksService } from './bookmarks.service';
 
 @Controller('api/blogs/:blogSlug/bookmarks')
@@ -8,6 +8,7 @@ export class BookmarksController {
   // Method      POST /api/blogs/:blogSlug/bookmarks
   // Description Bookmark a blog post
   @Post()
+  @Roles(['user'])
   bookmarkBlog(
     @Param('blogSlug') blogSlug: string,
     @Session() session: UserSession,
@@ -19,6 +20,7 @@ export class BookmarksController {
   // Method      DELETE /api/blogs/:blogSlug/bookmarks
   // Description Remove a bookmark from a blog post
   @Delete()
+  @Roles(['user'])
   unBookmarkBlog(
     @Param('blogSlug') blogSlug: string,
     @Session() session: UserSession,

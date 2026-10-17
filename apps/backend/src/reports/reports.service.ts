@@ -101,6 +101,8 @@ export class ReportsService {
       id: newReport.id,
       reason: newReport.reason as ReportReason,
       status: newReport.status as ReportStatus,
+      // A new report is pending, and only a resolved one carries an action.
+      action: null,
       userId: newReport.userId,
       blogId: newReport.blogId,
       createdAt: newReport.createdAt,

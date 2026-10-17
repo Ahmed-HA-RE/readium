@@ -16,6 +16,7 @@ import {
 import { BlogsService } from './blogs.service';
 import {
   AllowAnonymous,
+  Roles,
   Session,
   type UserSession,
 } from '@thallesp/nestjs-better-auth';
@@ -68,6 +69,7 @@ export class BlogsController {
   // Description      Create a new blog
   @Throttle({ default: { ttl: minutes(1), limit: 10 } })
   @Post()
+  @Roles(['user'])
   @UseInterceptors(FileInterceptor('coverImage'))
   createBlog(
     @UploadedFile(
@@ -92,6 +94,7 @@ export class BlogsController {
   // Description      Update an existing blog
   @Throttle({ default: { ttl: minutes(1), limit: 10 } })
   @Put(':slug')
+  @Roles(['user'])
   @UseInterceptors(FileInterceptor('coverImage'))
   updateBlog(
     @Param('slug') slug: string,
@@ -122,6 +125,7 @@ export class BlogsController {
   // Description      Delete a blog by slug
   @Throttle({ default: { ttl: minutes(1), limit: 10 } })
   @Delete(':slug')
+  @Roles(['user'])
   deleteBlog(@Param('slug') slug: string, @Session() session: UserSession) {
     const userId = session.user.id;
     return this.blogsService.deleteBlog(slug, userId);

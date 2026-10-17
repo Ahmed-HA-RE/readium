@@ -9,6 +9,7 @@ import { DatabaseService } from '../database/database.service';
 import { BlogQueryDto } from './dto/blog-query-dto';
 import {
   Blog,
+  BlogModeration,
   GetAllBlogsResponse,
   GetBlogBySlugResponse,
   GetTrendingBlogsResponse,
@@ -18,9 +19,11 @@ import { CreateBlogDto } from './dto/create-blog-dto';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { UpdateBlogDto } from './dto/update-blog-dto';
 import { generateImageKey, generateSlug } from '../../lib/utils';
-import { buildBlogQuery } from './utils/blog-query';
+import { buildBlogQuery, visibleAuthorFilter } from './utils/blog-query';
+import { banReportFilter } from '../reports/utils/report-query';
 import { countHtmlWords, truncateHtmlByWords } from './utils/truncate-html';
 import { Prisma } from '../generated/prisma/client';
+import { ModerationAction, ReportStatus } from '../generated/prisma/enums';
 import { PRO_STATUSES } from '../../lib/constants';
 
 type BlogViewer = Pick<UserSession['user'], 'id' | 'role'>;
@@ -58,6 +61,7 @@ export class BlogsService {
     // of everyone's feed before a moderator has looked at it.
     const where = {
       ...queryFilter,
+      ...visibleAuthorFilter,
       isPublished: true,
       ...(userId ? { report: { none: { userId } } } : {}),
     };
@@ -198,6 +202,7 @@ export class BlogsService {
 
     const blogs = await this.prisma.blog.findMany({
       where: {
+        ...visibleAuthorFilter,
         isPublished: true,
         likesCount: { gt: 0 },
         // Hidden from the reporter only, matching the feed and the search
@@ -245,6 +250,7 @@ export class BlogsService {
     const blog = await this.prisma.blog.findUnique({
       where: {
         slug,
+        ...visibleAuthorFilter,
         // A draft is visible to its author only; anyone else gets 404.
         OR: [{ isPublished: true }, ...(userId ? [{ authorId: userId }] : [])],
         // Hidden from the reporter only, matching the feed, trending and search.
@@ -284,6 +290,11 @@ export class BlogsService {
                   userId: true,
                 },
               },
+              // Feeds the author's moderation notice in the editor; ignored for other viewers.
+              report: {
+                where: { status: ReportStatus.RESOLVED, action: { not: null } },
+                select: { action: true },
+              },
             }
           : {}),
       },
@@ -304,8 +315,19 @@ export class BlogsService {
       this.isContentLocked(blog, viewer),
     ]);
 
+    // Only the author learns why their story was taken down.
+    const actions =
+      userId === blog.authorId ? blog.report.map(({ action }) => action) : [];
+    const moderation: BlogModeration | null = actions.some(
+      (action) => action !== ModerationAction.WARNING,
+    )
+      ? 'ban'
+      : actions.length > 0
+        ? 'warning'
+        : null;
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { likes, bookmarks, ...blogData } = blog; // Purpose of this line is to remove the likes and bookmarks properties from the blog object so that they don't get sent to the client. These properties are only used to determine if the logged in user has liked or bookmarked the blog.
+    const { likes, bookmarks, report, ...blogData } = blog; // Purpose of this line is to remove the likes and bookmarks properties from the blog object so that they don't get sent to the client. These properties are only used to determine if the logged in user has liked or bookmarked the blog.
 
     return {
       blog: {
@@ -320,6 +342,7 @@ export class BlogsService {
       isBookmarkedByLoggedInUser,
       isContentLocked,
       wordCount: countHtmlWords(blogData.content),
+      moderation,
     };
   }
 
@@ -390,6 +413,7 @@ export class BlogsService {
         slug: true,
         coverImage: true,
         blogPro: true,
+        _count: { select: { report: { where: banReportFilter } } },
       },
     });
 
@@ -401,6 +425,13 @@ export class BlogsService {
     if (blogPro && !existingBlog.blogPro && !(await this.hasProAccess(user))) {
       throw new ForbiddenException(
         'An active Pro subscription is required to make a story Pro-only',
+      );
+    }
+
+    // A warned author may fix and republish; a story taken down with a ban stays down.
+    if (isPublished && existingBlog._count.report > 0) {
+      throw new ForbiddenException(
+        'This story was taken down with a ban and cannot be republished.',
       );
     }
 

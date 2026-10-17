@@ -12,6 +12,7 @@ import {
 import { CommentsService } from './comments.service';
 import {
   AllowAnonymous,
+  Roles,
   Session,
   type UserSession,
 } from '@thallesp/nestjs-better-auth';
@@ -35,7 +36,9 @@ export class CommentsController {
 
   // Method      POST /api/blogs/:blogSlug/comments
   // Description Create a new comment for a blog post
+
   @Post()
+  @Roles(['user'])
   createComment(
     @Body() createCommentDto: CreateCommentDto,
     @Param('blogSlug') blogSlug: string,
@@ -52,6 +55,7 @@ export class CommentsController {
   // Method      PUT /api/blogs/:blogSlug/comments/:commentId
   // Description Update an existing comment for a blog post
   @Put('/:commentId')
+  @Roles(['user'])
   updateComment(
     @Body() updateCommentDto: CreateCommentDto, // We can use CreateCommentDto here since the fields are the same for updating a comment (content is required)
     @Param('blogSlug') blogSlug: string,

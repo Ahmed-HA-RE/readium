@@ -58,7 +58,11 @@ export interface GetBlogBySlugResponse {
   isContentLocked: boolean;
   // Words in the full body, so reading time is right even when `content` is cut.
   wordCount: number;
+  // For the author only: why the story was taken down, with a ban outranking a warning.
+  moderation: BlogModeration | null;
 }
+
+export type BlogModeration = 'warning' | 'ban';
 
 // The trending panel renders a title, an excerpt, the author and a date, so
 // nothing else is selected. `slug` is not rendered but every item is a link.
@@ -79,12 +83,24 @@ export interface CreateBlogResponse {
 // `data.slug` is new when the title changed.
 export type UpdateMyBlogResponse = CreateBlogResponse;
 
+export enum AdminBlogStatus {
+  PUBLISHED = 'Published',
+  UNPUBLISHED = 'Unpublished',
+}
+
 export interface GetAllBlogsForAdmin {
   blogs: (Pick<
     Blog,
-    'id' | 'title' | 'slug' | 'isPublished' | 'createdAt' | '_count'
+    | 'id'
+    | 'title'
+    | 'slug'
+    | 'coverImage'
+    | 'isPublished'
+    | 'createdAt'
+    | '_count'
   > & {
     author: Pick<BlogAuthor, 'id' | 'name'>;
+    banLocked: boolean;
   })[];
   totalPages: number;
 }

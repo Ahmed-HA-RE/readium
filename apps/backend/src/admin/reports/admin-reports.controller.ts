@@ -1,14 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Put,
-  Query,
-  Req,
-  Session,
-} from '@nestjs/common';
-import { Roles, type UserSession } from '@thallesp/nestjs-better-auth';
+import { Body, Controller, Get, Param, Put, Query, Req } from '@nestjs/common';
+import { Roles } from '@thallesp/nestjs-better-auth';
 import { ReportQueryDto } from './dto/report-query-dto';
 import { AdminReportsService } from './admin-reports.service';
 import { UpdateReportStatusDto } from './dto/update-report-dto';
@@ -33,14 +24,11 @@ export class AdminReportsController {
     @Param('reportId') reportId: string,
     @Body() updateReportDto: UpdateReportStatusDto,
     @Req() req: Request,
-    @Session() session: UserSession,
   ) {
-    const user = session.user;
     return this.reportsService.updateReportStatusAsAdmin(
       reportId,
       updateReportDto,
       req,
-      user,
     );
   }
 }

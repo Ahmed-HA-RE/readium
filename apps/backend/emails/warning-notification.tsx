@@ -58,9 +58,10 @@ const WarningNotification = ({
                 </Text>
 
                 <Text className="m-0 mt-6 text-gray-500">
-                  Hi {authorName}, your blog post has received a report that our
-                  moderation team has reviewed and upheld. This is an official
-                  warning on your {APP_NAME} account.
+                  Hi {authorName}, your blog post was reported, and after
+                  reviewing it our moderation team found that it goes against
+                  our community guidelines. This is an official warning on your{' '}
+                  {APP_NAME} account.
                 </Text>
 
                 <Text className="m-0 mt-6 text-gray-700 font-bold text-lg">
@@ -69,11 +70,19 @@ const WarningNotification = ({
                 <Text className="m-0 mt-1 text-gray-500">{blogTitle}</Text>
 
                 <Text className="m-0 mt-6 text-gray-700 font-bold text-lg">
-                  Reason:
+                  Reported for:
                 </Text>
-                <Text className="m-0 mt-1 text-gray-500 capitalize">
-                  {banReason.slice(0, 1).toUpperCase() +
-                    banReason.slice(1).toLowerCase().replaceAll('_', ' ')}
+                <Text className="m-0 mt-1 text-gray-500">{banReason}</Text>
+
+                <Text className="m-0 mt-6 text-gray-700 font-bold text-lg">
+                  What happens now:
+                </Text>
+                <Text className="m-0 mt-1 text-gray-500">
+                  This blog post has been unpublished and is no longer visible
+                  to readers. Please edit it to remove or change the content
+                  that goes against our community guidelines, then republish
+                  it from the editor. Republishing it without those changes
+                  may lead to further reports.
                 </Text>
 
                 <Text className="m-0 mt-6 text-gray-500">
@@ -96,7 +105,7 @@ const WarningNotification = ({
 WarningNotification.PreviewProps = {
   authorName: 'John Doe',
   blogTitle: 'How to build a React app',
-  banReason: 'Spam',
+  banReason: 'Harassment, Spam',
 } satisfies WarningNotificationProps;
 
 export default WarningNotification;

@@ -5,15 +5,10 @@ import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { IconType } from 'react-icons';
 import { IoHome, IoNewspaperOutline } from 'react-icons/io5';
-import { MdAdminPanelSettings, MdLibraryBooks } from 'react-icons/md';
+import { MdLibraryBooks } from 'react-icons/md';
 import { FaRegHeart, FaRegUser } from 'react-icons/fa';
 import { APP_LOGO } from '@repo/assets';
-import {
-  ADMIN_MY_LISTS_PATH,
-  ADMIN_MY_STORIES_PATH,
-  ADMIN_PROFILE_PATH,
-  getProfilePath,
-} from '@/lib/utils';
+import { getProfilePath } from '@/lib/utils';
 import type { ListsTab } from '@/lib/search-params';
 import {
   Sidebar,
@@ -34,48 +29,22 @@ type NavItem = {
   tab?: ListsTab;
   label: string;
   Icon: IconType;
-  // Keeps `/`, `/@name` and `/admin/dashboard` from matching every route nested under them.
+  // Keeps `/` and `/@name` from matching every route nested under them.
   exact?: boolean;
 };
 
-const getNavItems = (isAdmin: boolean, username: string): NavItem[] => [
+// Users only: the layout doesn't render the sidebar for admins.
+const getNavItems = (username: string): NavItem[] => [
   { path: '/', label: 'Home', Icon: IoHome, exact: true },
+  { path: '/me/stories', label: 'Stories', Icon: IoNewspaperOutline },
+  { path: '/me/lists', label: 'Library', Icon: MdLibraryBooks },
+  { path: '/me/lists', tab: 'likes', label: 'Likes', Icon: FaRegHeart },
   {
-    path: isAdmin ? ADMIN_MY_STORIES_PATH : '/me/stories',
-    label: 'Stories',
-    Icon: IoNewspaperOutline,
-  },
-  {
-    path: isAdmin ? ADMIN_MY_LISTS_PATH : '/me/lists',
-    label: 'Library',
-    Icon: MdLibraryBooks,
-  },
-  ...(isAdmin
-    ? []
-    : [
-        {
-          path: '/me/lists',
-          tab: 'likes' as const,
-          label: 'Likes',
-          Icon: FaRegHeart,
-        },
-      ]),
-  {
-    path: isAdmin ? ADMIN_PROFILE_PATH : getProfilePath(username),
+    path: getProfilePath(username),
     label: 'Profile',
     Icon: FaRegUser,
     exact: true,
   },
-  ...(isAdmin
-    ? [
-        {
-          path: '/admin/dashboard',
-          label: 'Dashboard',
-          Icon: MdAdminPanelSettings,
-          exact: true,
-        },
-      ]
-    : []),
 ];
 
 const getHref = ({ path, tab }: NavItem) => (tab ? `${path}?tab=${tab}` : path);
@@ -99,14 +68,13 @@ const isActiveItem = (
 
 type HomeSidebarProps = {
   username: string;
-  isAdmin: boolean;
 };
 
-const HomeSidebar = ({ username, isAdmin }: HomeSidebarProps) => {
+const HomeSidebar = ({ username }: HomeSidebarProps) => {
   const pathname = usePathname();
   const tab = useSearchParams().get('tab');
   const { setOpenMobile } = useSidebar();
-  const navItems = getNavItems(isAdmin, username);
+  const navItems = getNavItems(username);
 
   return (
     <Sidebar

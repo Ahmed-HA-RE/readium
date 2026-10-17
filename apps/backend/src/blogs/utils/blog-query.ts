@@ -1,6 +1,11 @@
 import { Prisma } from '../../generated/prisma/client';
 import { BlogSortOptions } from '../dto/blog-query-dto';
 
+// Hides a banned author's stories until the ban ends; `NOT` keeps never-banned `null` rows.
+export const visibleAuthorFilter = {
+  author: { NOT: { banned: true } },
+} satisfies Prisma.BlogWhereInput;
+
 export const buildBlogQuery = (
   search?: string,
   sort?: BlogSortOptions,

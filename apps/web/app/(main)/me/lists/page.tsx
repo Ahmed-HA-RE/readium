@@ -7,7 +7,7 @@ import {
   QueryClient,
 } from '@tanstack/react-query';
 import type { SearchParams } from 'nuqs/server';
-import { ADMIN_MY_LISTS_PATH } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
 import { loadListsSearchParams, type ListsTab } from '@/lib/search-params';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import { getMyLikesOrBookmarks } from '@/lib/actions/user/getMyLikesOrBookmarks';
@@ -58,7 +58,7 @@ const ListsPage = async ({
 }) => {
   const session = await getCurrentLoggedInUser();
   if (!session) redirect('/');
-  if (session.user.role === 'admin') redirect(ADMIN_MY_LISTS_PATH);
+  if (session.user.role === 'admin') redirect(ADMIN_OVERVIEW_PATH);
 
   const { tab, page } = await loadListsSearchParams(searchParams);
   const viewer = { id: session.user.id, name: session.user.name };

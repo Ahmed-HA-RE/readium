@@ -1,4 +1,5 @@
 import { Prisma } from '../../generated/prisma/client';
+import { visibleAuthorFilter } from '../../blogs/utils/blog-query';
 
 // Search filter for the blogs of a single author: title and content only,
 // since the blogs are already scoped to one author.
@@ -35,7 +36,7 @@ export const likesAndBookmarksSelect = {
 // card can link to a dead page. Structural type: `Like` and `Bookmark` differ.
 export const buildLikesAndBookmarksFilter = (userId: string) => ({
   userId,
-  blog: { isPublished: true },
+  blog: { isPublished: true, ...visibleAuthorFilter },
 });
 
 // Newest saved first. The `id` tie-break keeps the order total — `createdAt`

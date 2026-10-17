@@ -7,9 +7,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { LuGlobeLock } from 'react-icons/lu';
-import { MyBlogsStatus, type GetBlogBySlugResponse } from '@repo/types';
+import { VscReport } from 'react-icons/vsc';
 import {
-  ADMIN_MY_STORIES_PATH,
+  MyBlogsStatus,
+  type BlogModeration,
+  type GetBlogBySlugResponse,
+} from '@repo/types';
+import {
+  cn,
   getBlogPath,
   getErrorMessage,
   getMyStoriesPath,
@@ -34,6 +39,9 @@ import {
 import CoverImageField from './cover-image-field';
 import ProSwitch from './pro-switch';
 
+const STICKY_ALERT_CLASS =
+  'sticky top-15 z-40 rounded-none border-x-0 border-t-0 px-4 py-3 sm:px-6 lg:px-8';
+
 const RequiredMark = () => (
   <span aria-hidden className='text-destructive'>
     *
@@ -45,17 +53,19 @@ type BlogFormProps = {
   authorName: string;
   // Present when editing; the form starts from it and submits an update.
   blog?: GetBlogBySlugResponse['blog'];
-  isAdmin?: boolean;
-  // Pro members and admins; anyone else cannot turn the Pro switch on.
+  // Pro members only; anyone else cannot turn the Pro switch on.
   canMarkPro?: boolean;
+  // Set when a report against the story was upheld; a ban keeps it from being published again.
+  moderation?: BlogModeration | null;
 };
 
 const BlogForm = ({
   authorName,
   blog,
-  isAdmin = false,
   canMarkPro = false,
+  moderation = null,
 }: BlogFormProps) => {
+  const isTakenDown = moderation === 'ban';
   const router = useRouter();
   const queryClient = useQueryClient();
   const contentLabelId = useId();
@@ -92,9 +102,7 @@ const BlogForm = ({
       router.push(
         saved.isPublished
           ? getBlogPath(authorName, saved.slug)
-          : isAdmin
-            ? ADMIN_MY_STORIES_PATH
-            : getMyStoriesPath(MyBlogsStatus.DRAFT),
+          : getMyStoriesPath(MyBlogsStatus.DRAFT),
       );
     } catch (error) {
       toast.error(
@@ -108,18 +116,44 @@ const BlogForm = ({
 
   return (
     <>
-      {!isPublished && (
+      {isTakenDown ? (
         <Alert
-          variant='warning'
-          className='sticky top-15 z-40 rounded-none border-x-0 border-t-0 px-4 py-3 sm:px-6 lg:px-8'
+          variant='destructive'
+          className={cn(
+            STICKY_ALERT_CLASS,
+            'border-destructive/30 bg-destructive/10 dark:bg-destructive/20',
+          )}
         >
-          <LuGlobeLock />
-          <AlertTitle>Your story is not published</AlertTitle>
+          <VscReport />
+          <AlertTitle>This story was taken down</AlertTitle>
           <AlertDescription>
-            Only you can see it. Press Publish, then save, to share it with
-            readers.
+            Our moderators upheld a report against it, so it can&apos;t be
+            published again. Only you can see it, and you can still keep it as
+            a draft or delete it.
           </AlertDescription>
         </Alert>
+      ) : (
+        !isPublished &&
+        (moderation === 'warning' ? (
+          <Alert variant='warning' className={STICKY_ALERT_CLASS}>
+            <VscReport />
+            <AlertTitle>This story was unpublished after a report</AlertTitle>
+            <AlertDescription>
+              Our moderators upheld a report against it. Edit it to remove or
+              change anything that goes against our community guidelines,
+              then publish it again.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert variant='warning' className={STICKY_ALERT_CLASS}>
+            <LuGlobeLock />
+            <AlertTitle>Your story is not published</AlertTitle>
+            <AlertDescription>
+              Only you can see it. Press Publish, then save, to share it with
+              readers.
+            </AlertDescription>
+          </Alert>
+        ))
       )}
 
       <div className='mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 lg:px-8'>
@@ -141,7 +175,8 @@ const BlogForm = ({
                   type='button'
                   variant={field.value ? 'secondary' : 'default'}
                   onClick={() => field.onChange(!field.value)}
-                  disabled={isPending}
+                
+                  disabled={isPending || isTakenDown}
                   className='shrink-0'
                 >
                   {field.value ? 'Unpublish' : 'Publish'}

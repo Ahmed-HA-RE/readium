@@ -1,13 +1,14 @@
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
-  Max,
   MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
+import { ADMIN_TABLE_PAGE_SIZES } from '@repo/constants';
 import { ReportReason, ReportStatus } from '../../../generated/prisma/enums';
 import { Type } from 'class-transformer';
 
@@ -39,7 +40,8 @@ export class ReportQueryDto {
   @Type(() => Number)
   @IsOptional()
   @IsInt()
-  @Min(1)
-  @Max(100)
+  @IsIn(ADMIN_TABLE_PAGE_SIZES, {
+    message: `Limit must be one of ${ADMIN_TABLE_PAGE_SIZES.join(', ')}`,
+  })
   limit?: number;
 }
