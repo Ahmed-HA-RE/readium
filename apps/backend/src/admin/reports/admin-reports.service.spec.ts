@@ -421,6 +421,32 @@ describe('AdminReportsService', () => {
         expect(mockBanUser).toHaveBeenCalledTimes(1);
       });
 
+      it('reports banFailed false when the ban goes through', async () => {
+        const result = await resolve(ModerationAction.PERMANENT_BAN);
+
+        expect(result.banFailed).toBe(false);
+      });
+
+      // The review is already committed, so failing the request would hide that it went through.
+      it('still resolves and flags banFailed when banUser throws', async () => {
+        mockBanUser.mockRejectedValueOnce(new Error('auth down'));
+
+        const result = await resolve(ModerationAction.TEMPORARY_BAN);
+
+        expect(result).toMatchObject({
+          status: ReportStatus.RESOLVED,
+          banFailed: true,
+        });
+      });
+
+      it('sends no ban email when banUser throws', async () => {
+        mockBanUser.mockRejectedValueOnce(new Error('auth down'));
+
+        await resolve(ModerationAction.PERMANENT_BAN);
+
+        expect(mockSendBan).not.toHaveBeenCalled();
+      });
+
       it('notifies only after the transaction commits', async () => {
         prisma.$transaction.mockRejectedValueOnce(new Error('rollback'));
 

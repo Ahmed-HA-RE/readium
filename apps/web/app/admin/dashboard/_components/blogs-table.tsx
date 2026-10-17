@@ -121,6 +121,7 @@ const columns: ColumnDef<AdminTableFeatures, AdminBlog>[] = [
         slug={row.original.slug}
         title={row.original.title}
         isPublished={row.original.isPublished}
+        banLocked={row.original.banLocked}
       />
     ),
 

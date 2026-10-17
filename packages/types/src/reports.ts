@@ -29,6 +29,9 @@ export interface Report {
   updatedAt: Date;
 }
 
+// `banFailed`: the review committed but `banUser` threw, so the author still needs banning by hand.
+export type UpdateReportStatusResponse = Report & { banFailed: boolean };
+
 export interface GetAllReportsWithFilters {
   reports: (Report & {
     user: {

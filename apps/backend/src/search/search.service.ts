@@ -4,6 +4,7 @@ import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { Prisma } from '../generated/prisma/client';
 import { SuggestionQueryDto } from './dto/suggestion-query-dto';
+import { visibleAuthorFilter } from '../blogs/utils/blog-query';
 
 // The palette shows one short list per group, not a paginated result set.
 const SUGGESTIONS_PER_GROUP = 3;
@@ -35,6 +36,7 @@ export class SearchService {
     // Hidden from the reporter only, matching the feed in `BlogsService`. A
     // blog the caller reported must not come back through the palette.
     const blogsWhere: Prisma.BlogWhereInput = {
+      ...visibleAuthorFilter,
       isPublished: true,
       ...(userId ? { report: { none: { userId } } } : {}),
       ...(q

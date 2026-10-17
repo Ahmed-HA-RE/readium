@@ -7,7 +7,11 @@ import {
 } from '@nestjs/common';
 import { UpdateReportStatusDto } from './dto/update-report-dto';
 // Types only: a value import from `@repo/types` makes Node load its `.ts` source at runtime and crash.
-import type { GetAllReportsWithFilters, Report } from '@repo/types';
+import type {
+  GetAllReportsWithFilters,
+  Report,
+  UpdateReportStatusResponse,
+} from '@repo/types';
 import { DEFAULT_ADMIN_TABLE_PAGE_SIZE } from '@repo/constants';
 import { DatabaseService } from '../../database/database.service';
 import { S3ServiceService } from '../../s3-service/s3-service.service';
@@ -137,7 +141,7 @@ export class AdminReportsService {
     reportId: string,
     updateReportDto: UpdateReportStatusDto,
     req: Request,
-  ): Promise<Report> {
+  ): Promise<UpdateReportStatusResponse> {
     const { status, action } = updateReportDto;
 
     const resolvedStatus = status === ReportStatus.RESOLVED;
@@ -243,6 +247,7 @@ export class AdminReportsService {
     // `banUser` overwrites the expiry, so a 30-day ban would shorten a permanent one; the report still resolves.
     const isAlreadyBannedForGood =
       isTemporary && author.banned && !author.banExpires;
+    let banFailed = false;
 
     if (action === ModerationAction.WARNING) {
       await sendWarningNotification({
@@ -256,22 +261,34 @@ export class AdminReportsService {
         action === ModerationAction.PERMANENT_BAN) &&
       !isAlreadyBannedForGood
     ) {
-      await auth.api.banUser({
-        body: {
-          userId: author.id,
+      try {
+        await auth.api.banUser({
+          body: {
+            userId: author.id,
+            banReason: reasons,
+            // 30 days in seconds; a permanent ban sets no expiry.
+            ...(isTemporary && { banExpiresIn: 30 * 24 * 60 * 60 }),
+          },
+          headers: req.headers,
+        });
+      } catch (error) {
+        // The review is already committed, so it isn't failed; the admin is told to ban from the users table.
+        this.logger.error(
+          `Failed to ban ${author.id} for report ${reportId}`,
+          error,
+        );
+        banFailed = true;
+      }
+
+      if (!banFailed) {
+        await sendBanNotification({
+          email: author.email,
+          authorName: author.name,
+          blogTitle,
           banReason: reasons,
-          // 30 days in seconds; a permanent ban sets no expiry.
-          ...(isTemporary && { banExpiresIn: 30 * 24 * 60 * 60 }),
-        },
-        headers: req.headers,
-      });
-      await sendBanNotification({
-        email: author.email,
-        authorName: author.name,
-        blogTitle,
-        banReason: reasons,
-        banType: isTemporary ? 'temporary' : 'permanent',
-      });
+          banType: isTemporary ? 'temporary' : 'permanent',
+        });
+      }
     }
 
     return {
@@ -279,6 +296,7 @@ export class AdminReportsService {
       status: updatedReport.status as Report['status'],
       reason: updatedReport.reason as Report['reason'],
       action: updatedReport.action as Report['action'],
+      banFailed,
     };
   }
 }

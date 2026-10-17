@@ -66,7 +66,7 @@ const ReviewReportDialog = ({ reportId, blogTitle }: ReviewReportDialogProps) =>
   const isRejected = status === ReportStatus.REJECTED;
 
   const onSubmit = async ({ status, action }: ReviewReportFormData) => {
-    const { error } = await updateAdminReportStatus({
+    const { error, banFailed } = await updateAdminReportStatus({
       reportId,
       status,
       action,
@@ -86,11 +86,17 @@ const ReviewReportDialog = ({ reportId, blogTitle }: ReviewReportDialogProps) =>
     // The pending count and the cards are server-rendered, so the page re-renders to pick up the review.
     router.refresh();
 
-    toast.success(
-      status === ReportStatus.RESOLVED
-        ? 'Report resolved and the story is unpublished'
-        : 'Report rejected',
-    );
+    if (banFailed) {
+      toast.warning(
+        "Report resolved and the story is unpublished, but the ban didn't go through. Ban the author from the users table.",
+      );
+    } else {
+      toast.success(
+        status === ReportStatus.RESOLVED
+          ? 'Report resolved and the story is unpublished'
+          : 'Report rejected',
+      );
+    }
     setIsOpen(false);
   };
 

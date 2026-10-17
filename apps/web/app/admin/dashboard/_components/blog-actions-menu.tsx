@@ -25,9 +25,15 @@ type BlogActionsMenuProps = {
   slug: string;
   title: string;
   isPublished: boolean;
+  banLocked: boolean;
 };
 
-const BlogActionsMenu = ({ slug, title, isPublished }: BlogActionsMenuProps) => {
+const BlogActionsMenu = ({
+  slug,
+  title,
+  isPublished,
+  banLocked,
+}: BlogActionsMenuProps) => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isUpdating, startUpdate] = useTransition();
   const queryClient = useQueryClient();
@@ -93,19 +99,22 @@ const BlogActionsMenu = ({ slug, title, isPublished }: BlogActionsMenuProps) => 
             <FaEye className={ICON_CLASS} />
             View Blog
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={toggleStatus} disabled={isUpdating}>
-            {isPublished ? (
-              <>
-                <FaEyeSlash className={ICON_CLASS} />
-                Unpublish
-              </>
-            ) : (
-              <>
-                <FaGlobe className={ICON_CLASS} />
-                Publish
-              </>
-            )}
-          </DropdownMenuItem>
+          {/* A story taken down with a ban can't be republished, so Publish isn't offered. */}
+          {(isPublished || !banLocked) && (
+            <DropdownMenuItem onClick={toggleStatus} disabled={isUpdating}>
+              {isPublished ? (
+                <>
+                  <FaEyeSlash className={ICON_CLASS} />
+                  Unpublish
+                </>
+              ) : (
+                <>
+                  <FaGlobe className={ICON_CLASS} />
+                  Publish
+                </>
+              )}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant='destructive'

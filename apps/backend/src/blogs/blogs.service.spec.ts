@@ -952,4 +952,39 @@ describe('BlogsService', () => {
       });
     });
   });
+
+  // Hidden while the ban lasts, so a temporary ban brings them back without a republish.
+  describe('banned authors', () => {
+    const hidden = { author: { NOT: { banned: true } } };
+
+    it('hides their blogs from the feed', async () => {
+      await service.getAllBlogs(query(), USER_ID);
+
+      expect(findManyArgs().where).toMatchObject(hidden);
+      expect(countArgs().where).toMatchObject(hidden);
+    });
+
+    it('keeps the author filter alongside an author-name search', async () => {
+      await service.getAllBlogs(query({ search: 'ahmed' }));
+
+      expect(findManyArgs().where).toMatchObject({
+        ...hidden,
+        OR: expect.arrayContaining([
+          { author: { name: { contains: 'ahmed', mode: 'insensitive' } } },
+        ]) as unknown,
+      });
+    });
+
+    it('hides their blogs from trending', async () => {
+      await service.getTrendingBlogs();
+
+      expect(findManyArgs().where).toMatchObject(hidden);
+    });
+
+    it('answers 404 for their blog page', async () => {
+      await service.getBlogBySlug('a-blog').catch(() => undefined);
+
+      expect(findUniqueArgs().where).toMatchObject(hidden);
+    });
+  });
 });

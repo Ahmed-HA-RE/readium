@@ -100,6 +100,7 @@ export interface GetAllBlogsForAdmin {
     | '_count'
   > & {
     author: Pick<BlogAuthor, 'id' | 'name'>;
+    banLocked: boolean;
   })[];
   totalPages: number;
 }

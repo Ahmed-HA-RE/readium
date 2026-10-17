@@ -119,9 +119,16 @@ describe('AdminBlogsService', () => {
 
   describe('getAllBlogsAsAdmin', () => {
     beforeEach(() => {
+      // `_count.report` is the number of resolved ban reports.
+      const counts = (report: number) => ({
+        comments: 1,
+        likes: 2,
+        bookmarks: 3,
+        report,
+      });
       prisma.blog.findMany.mockResolvedValue([
-        { id: 'blog-1', coverImage: 'cover-key' },
-        { id: 'blog-2', coverImage: null },
+        { id: 'blog-1', coverImage: 'cover-key', _count: counts(0) },
+        { id: 'blog-2', coverImage: null, _count: counts(2) },
       ]);
       prisma.blog.count.mockResolvedValue(12);
     });
@@ -162,6 +169,32 @@ describe('AdminBlogsService', () => {
       expect(s3.getSignedUrl).toHaveBeenCalledTimes(1);
       expect(blogs[0].coverImage).toBe('https://signed/cover-key');
       expect(blogs[1].coverImage).toBeNull();
+    });
+
+    it('counts resolved ban reports in the same query', async () => {
+      await service.getAllBlogsAsAdmin({} as AdminBlogQueryDto);
+
+      const [{ select }] = prisma.blog.findMany.mock.calls[0] as [
+        { select: { _count: { select: Record<string, unknown> } } },
+      ];
+      expect(select._count.select.report).toEqual({ where: banReportFilter });
+    });
+
+    it('flags a story with a ban report as locked', async () => {
+      const { blogs } = await service.getAllBlogsAsAdmin(
+        {} as AdminBlogQueryDto,
+      );
+
+      expect(blogs[0].banLocked).toBe(false);
+      expect(blogs[1].banLocked).toBe(true);
+    });
+
+    it('keeps the ban report count out of the returned counts', async () => {
+      const { blogs } = await service.getAllBlogsAsAdmin(
+        {} as AdminBlogQueryDto,
+      );
+
+      expect(blogs[1]._count).toEqual({ comments: 1, likes: 2, bookmarks: 3 });
     });
   });
 

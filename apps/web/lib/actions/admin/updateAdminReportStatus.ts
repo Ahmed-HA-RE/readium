@@ -1,6 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
+import type { UpdateReportStatusResponse } from '@repo/types';
 import { api } from '@/lib/axios';
 import { getErrorMessage } from '@/lib/utils';
 import type { ReviewReportFormData } from '@/schema/report';
@@ -11,16 +12,17 @@ export const updateAdminReportStatus = async ({
   status,
   action,
 }: ReviewReportFormData & { reportId: string }): Promise<{
+  banFailed?: boolean;
   error?: string;
 }> => {
   try {
-    await api.put(
+    const { data } = await api.put<UpdateReportStatusResponse>(
       `/admin/reports/${encodeURIComponent(reportId)}/status`,
       { status, action },
       { headers: { Cookie: (await cookies()).toString() } },
     );
 
-    return {};
+    return { banFailed: data.banFailed };
   } catch (error) {
     return {
       error: getErrorMessage(error, 'Could not review the report'),

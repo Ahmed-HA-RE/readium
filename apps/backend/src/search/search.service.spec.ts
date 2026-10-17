@@ -115,6 +115,12 @@ describe('SearchService', () => {
       ]);
     });
 
+    it('hides blogs by a banned author', async () => {
+      await service.getSuggestions(query('nest'));
+
+      expect(blogArgs().where.author).toEqual({ NOT: { banned: true } });
+    });
+
     it('applies no text filter when the term is omitted', async () => {
       await service.getSuggestions(query());
 

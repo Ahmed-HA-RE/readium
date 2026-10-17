@@ -76,6 +76,7 @@ export class AdminBlogsService {
             comments: true,
             likes: true,
             bookmarks: true,
+            report: { where: banReportFilter },
           },
         },
         author: {
@@ -94,8 +95,10 @@ export class AdminBlogsService {
 
     return {
       blogs: await Promise.all(
-        blogs.map(async (blog) => ({
+        blogs.map(async ({ _count: { report, ...counts }, ...blog }) => ({
           ...blog,
+          _count: counts,
+          banLocked: report > 0,
           coverImage: blog.coverImage
             ? await this.s3Service.getSignedUrl(blog.coverImage)
             : null,

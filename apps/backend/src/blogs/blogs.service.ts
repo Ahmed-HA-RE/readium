@@ -19,7 +19,7 @@ import { CreateBlogDto } from './dto/create-blog-dto';
 import { S3ServiceService } from '../s3-service/s3-service.service';
 import { UpdateBlogDto } from './dto/update-blog-dto';
 import { generateImageKey, generateSlug } from '../../lib/utils';
-import { buildBlogQuery } from './utils/blog-query';
+import { buildBlogQuery, visibleAuthorFilter } from './utils/blog-query';
 import { banReportFilter } from '../reports/utils/report-query';
 import { countHtmlWords, truncateHtmlByWords } from './utils/truncate-html';
 import { Prisma } from '../generated/prisma/client';
@@ -61,6 +61,7 @@ export class BlogsService {
     // of everyone's feed before a moderator has looked at it.
     const where = {
       ...queryFilter,
+      ...visibleAuthorFilter,
       isPublished: true,
       ...(userId ? { report: { none: { userId } } } : {}),
     };
@@ -201,6 +202,7 @@ export class BlogsService {
 
     const blogs = await this.prisma.blog.findMany({
       where: {
+        ...visibleAuthorFilter,
         isPublished: true,
         likesCount: { gt: 0 },
         // Hidden from the reporter only, matching the feed and the search
@@ -248,6 +250,7 @@ export class BlogsService {
     const blog = await this.prisma.blog.findUnique({
       where: {
         slug,
+        ...visibleAuthorFilter,
         // A draft is visible to its author only; anyone else gets 404.
         OR: [{ isPublished: true }, ...(userId ? [{ authorId: userId }] : [])],
         // Hidden from the reporter only, matching the feed, trending and search.
