@@ -1,16 +1,15 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { GoDotFill } from 'react-icons/go';
-import { IoMdCheckmark } from 'react-icons/io';
 import { APP_NAME } from '@repo/constants';
-import { ReportStatus } from '@repo/types';
-import { cn } from 'cn';
-import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import { getDashboardAnalytics } from '@/lib/actions/admin/getDashboardAnalytics';
 import AnalyticsCards from './_components/analytics-cards';
+import PendingReportsAction from './_components/pending-reports-action';
+import {
+  AnalyticsCardsSkeleton,
+  PendingReportsSkeleton,
+} from './_components/analytics-skeletons';
 import BlogsTable from './_components/blogs-table';
 import UsersTable from './_components/users-table';
 import ReportsTable from './_components/reports-table';
@@ -28,11 +27,11 @@ export const metadata: Metadata = {
 
 const AdminOverviewPage = async () => {
   // The session call is deduped with the layout's by `cache`; the redirect only narrows the type for the greeting.
-  const [session, analytics] = await Promise.all([
-    getCurrentLoggedInUser(),
-    getDashboardAnalytics(),
-  ]);
+  const session = await getCurrentLoggedInUser();
   if (!session) redirect('/');
+
+  // Started, not awaited: the badge and the cards await it in their own boundaries, so the tables don't wait on Stripe.
+  const analyticsPromise = getDashboardAnalytics();
 
   return (
     <div className='flex flex-col gap-10'>
@@ -40,29 +39,14 @@ const AdminOverviewPage = async () => {
         <h1 className='text-3xl font-semibold tracking-tight wrap-anywhere lg:text-4xl'>
           Welcome back, {session.user.name}
         </h1>
-        {analytics.pendingReports > 0 ? (
-          <Link
-            href={`${ADMIN_REPORTS_PATH}?status=${ReportStatus.PENDING}`}
-            className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }))}
-          >
-            <GoDotFill
-              aria-hidden
-              className='text-destructive motion-safe:animate-pulse'
-            />
-            Review reports
-            <Badge variant='destructive' className='tabular-nums'>
-              {analytics.pendingReports.toLocaleString('en-US')}
-            </Badge>
-          </Link>
-        ) : (
-          <Badge variant='success' size='lg'>
-            <IoMdCheckmark />
-            All caught up
-          </Badge>
-        )}
+        <Suspense fallback={<PendingReportsSkeleton />}>
+          <PendingReportsAction analyticsPromise={analyticsPromise} />
+        </Suspense>
       </div>
 
-      <AnalyticsCards analytics={analytics} />
+      <Suspense fallback={<AnalyticsCardsSkeleton />}>
+        <AnalyticsCards analyticsPromise={analyticsPromise} />
+      </Suspense>
 
       <div className='grid gap-10 xl:grid-cols-2 xl:gap-6'>
         <OverviewTableCard

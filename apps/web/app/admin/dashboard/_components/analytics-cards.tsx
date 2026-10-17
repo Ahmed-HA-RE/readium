@@ -74,33 +74,37 @@ const getCards = (analytics: AdminDashboardAnalytics): AnalyticCard[] => [
   },
 ];
 
-const AnalyticsCards = ({
-  analytics,
+const AnalyticsCards = async ({
+  analyticsPromise,
 }: {
-  analytics: AdminDashboardAnalytics;
-}) => (
-  <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3 '>
-    {getCards(analytics).map(({ label, value, Icon, iconClassName }) => (
-      <Card key={label}>
-        <CardContent className='flex items-center gap-4'>
-          <div
-            className={cn(
-              'flex size-12 shrink-0 items-center justify-center rounded-lg',
-              iconClassName,
-            )}
-          >
-            <Icon className='size-6' />
-          </div>
-          <div className='flex min-w-0 flex-col'>
-            <span className='text-muted-foreground truncate text-sm'>
-              {label}
-            </span>
-            <span className='truncate text-2xl font-semibold'>{value}</span>
-          </div>
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-);
+  analyticsPromise: Promise<AdminDashboardAnalytics>;
+}) => {
+  const analytics = await analyticsPromise;
+
+  return (
+    <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+      {getCards(analytics).map(({ label, value, Icon, iconClassName }) => (
+        <Card key={label}>
+          <CardContent className='flex items-center gap-4'>
+            <div
+              className={cn(
+                'flex size-12 shrink-0 items-center justify-center rounded-lg',
+                iconClassName,
+              )}
+            >
+              <Icon className='size-6' />
+            </div>
+            <div className='flex min-w-0 flex-col'>
+              <span className='text-muted-foreground truncate text-sm'>
+                {label}
+              </span>
+              <span className='truncate text-2xl font-semibold'>{value}</span>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+};
 
 export default AnalyticsCards;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
@@ -52,6 +53,7 @@ type ReviewReportDialogProps = {
 
 const ReviewReportDialog = ({ reportId, blogTitle }: ReviewReportDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
   const queryClient = useQueryClient();
   const statusId = useId();
   const actionId = useId();
@@ -81,6 +83,8 @@ const ReviewReportDialog = ({ reportId, blogTitle }: ReviewReportDialogProps) =>
       queryClient.invalidateQueries({ queryKey: ['blogs'] }),
       queryClient.invalidateQueries({ queryKey: ['users'] }),
     ]);
+    // The pending count and the cards are server-rendered, so the page re-renders to pick up the review.
+    router.refresh();
 
     toast.success(
       status === ReportStatus.RESOLVED
