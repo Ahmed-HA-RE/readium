@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { SITE_NAME } from '@/lib/constants';
 import { getBlogPath } from '@/lib/utils';
 import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
@@ -15,8 +15,8 @@ export const generateMetadata = async ({
   const { blogSlug } = await params;
   const data = blogSlug ? await getBlogBySlug(blogSlug) : null;
 
-  // The page redirects in this case, so there is nothing to describe.
-  if (!data) return {};
+  // The page renders the 404 in this case, whose own metadata isn't applied after `notFound()`.
+  if (!data) return { title: 'Page not found' };
 
   const {
     title,
@@ -63,7 +63,7 @@ const BlogPage = async ({ params }: { params: BlogPageParams }) => {
   // Shared with `generateMetadata` through `cache`, so this is not a second fetch.
   const data = blogSlug ? await getBlogBySlug(blogSlug) : null;
 
-  if (!data) redirect('/');
+  if (!data) notFound();
 
   // A wrong or missing `@username` still finds the blog, so send it to the
   // canonical URL rather than serving duplicates.

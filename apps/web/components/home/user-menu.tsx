@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useTheme } from 'next-themes';
+import { useTheme } from '@wrksz/themes/client';
 import { FaEdit } from 'react-icons/fa';
 import { GoBell, GoCreditCard, GoGear, GoMoon, GoSun } from 'react-icons/go';
 import { MdAdminPanelSettings } from 'react-icons/md';

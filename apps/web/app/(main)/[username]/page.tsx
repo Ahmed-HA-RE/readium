@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { GoLink } from 'react-icons/go';
 import { DEFAULT_AVATAR, SITE_NAME } from '@/lib/constants';
 import { cn, getProfilePath } from '@/lib/utils';
@@ -36,8 +36,8 @@ export const generateMetadata = async ({
 }): Promise<Metadata> => {
   const profile = await loadProfile(params);
 
-  // The page redirects in this case, so there is nothing to describe.
-  if (!profile) return {};
+  // The page renders the 404 in this case, whose own metadata isn't applied after `notFound()`.
+  if (!profile) return { title: 'Page not found' };
 
   const { name, bio, image } = profile;
   const url = getProfilePath(name);
@@ -69,8 +69,8 @@ const ProfilePage = async ({ params }: { params: ProfilePageParams }) => {
     getCurrentLoggedInUser(),
   ]);
 
-  // An unknown or banned user, or a segment without the `@`, goes home, as a missing blog does.
-  if (!profile) redirect('/');
+  // An unknown or banned user, or a segment without the `@`, goes to the 404 page, as a missing blog does.
+  if (!profile) notFound();
 
   const { id, name, image, bio, website, isPro, _count } = profile;
   const isOwnProfile = session?.user.id === id;
