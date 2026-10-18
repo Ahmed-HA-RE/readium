@@ -58,7 +58,8 @@ const columns: ColumnDef<AdminTableFeatures, AdminBlog>[] = [
         </span>
       </div>
     ),
-    size: 360,
+    meta: { fluid: true },
+    size: 280,
   },
   {
     id: 'author',
