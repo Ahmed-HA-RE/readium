@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Roboto } from 'next/font/google';
+import { ThemeProvider } from '@wrksz/themes/next';
 import Providers from './providers';
 import { SITE_NAME, SITE_URL } from '@/lib/constants';
 import './globals.css';
@@ -77,7 +78,10 @@ const RootLayout = ({
       suppressHydrationWarning
     >
       <body className={roboto.className}>
-        <Providers>{children}</Providers>
+    
+        <ThemeProvider disableTransitionOnChange>
+          <Providers>{children}</Providers>
+        </ThemeProvider>
       </body>
     </html>
   );
