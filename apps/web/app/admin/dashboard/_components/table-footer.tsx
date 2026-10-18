@@ -33,9 +33,9 @@ const TableFooter = ({
   onPageChange,
   onLimitChange,
 }: TableFooterProps) => (
-  <div className='flex items-center justify-between gap-3 px-4 py-4 max-sm:flex-col'>
+  <div className='flex items-center justify-between gap-3 px-4 py-4'>
     <div className='flex items-center gap-2'>
-      <span className='text-muted-foreground text-sm whitespace-nowrap'>
+      <span className='text-muted-foreground text-sm whitespace-nowrap max-sm:hidden'>
         Rows per page
       </span>
       <Select
@@ -60,7 +60,7 @@ const TableFooter = ({
 
     {totalPages ? (
       <div className='flex items-center gap-4'>
-        <span className='text-muted-foreground text-sm whitespace-nowrap'>
+        <span className='text-muted-foreground text-sm whitespace-nowrap max-sm:hidden'>
           Page {page} of {totalPages}
         </span>
         <BlogPagination

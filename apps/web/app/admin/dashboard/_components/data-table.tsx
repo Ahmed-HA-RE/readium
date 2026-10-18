@@ -125,10 +125,9 @@ const DataTable = <TData extends object>({
 
   return (
     <Table
-      className={cn(
-        !compact && 'table-fixed max-lg:min-w-[900px]',
-        className,
-      )}
+      className={cn(!compact && 'table-fixed', className)}
+      // Below the columns' total size the table scrolls, so a fluid column never collapses.
+      style={compact ? undefined : { minWidth: `${table.getTotalSize()}px` }}
     >
       <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
@@ -136,7 +135,11 @@ const DataTable = <TData extends object>({
             {headerGroup.headers.map((header) => (
               <TableHead
                 key={header.id}
-                style={compact ? undefined : { width: `${header.getSize()}px` }}
+                style={
+                  compact || header.column.columnDef.meta?.fluid
+                    ? undefined
+                    : { width: `${header.getSize()}px` }
+                }
                 className={cn(
                   'text-muted-foreground h-10 first:pl-4 last:pr-4',
                   header.column.columnDef.meta?.className,

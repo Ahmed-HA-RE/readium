@@ -6,16 +6,28 @@ import { useQueryStates } from 'nuqs';
 import { format } from 'date-fns';
 import type { ColumnDef, ColumnVisibilityState } from '@tanstack/react-table';
 import { GrPowerReset } from 'react-icons/gr';
+import { PiWarningFill } from 'react-icons/pi';
+import { TbClockX } from 'react-icons/tb';
+import { MdBlock } from 'react-icons/md';
+import { IoCheckmarkDoneCircle } from 'react-icons/io5';
+import type { IconType } from 'react-icons';
 import {
+  ModerationAction,
   ReportReason,
   ReportStatus,
   type GetAllReportsWithFilters,
 } from '@repo/types';
+import { cn } from '@/lib/utils';
 import { DEFAULT_ADMIN_TABLE_PAGE_SIZE } from '@repo/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -68,6 +80,57 @@ const STATUS_ITEMS = [
     label: STATUS_BADGES[value].label,
   })),
 ];
+
+type Outcome = { label: string; Icon: IconType; className: string };
+
+// What a closed report led to; the Status badge already says whether it was resolved or rejected.
+const OUTCOMES: Record<ModerationAction, Outcome> = {
+  [ModerationAction.WARNING]: {
+    label: 'Author warned',
+    Icon: PiWarningFill,
+    className: 'text-amber-500',
+  },
+  [ModerationAction.TEMPORARY_BAN]: {
+    label: 'Author banned temporarily',
+    Icon: TbClockX,
+    className: 'text-orange-500',
+  },
+  [ModerationAction.PERMANENT_BAN]: {
+    label: 'Author banned permanently',
+    Icon: MdBlock,
+    className: 'text-destructive',
+  },
+};
+
+// Rejected reports, and resolved ones from before `action` was recorded.
+const NO_ACTION_OUTCOME: Outcome = {
+  label: 'No action taken',
+  Icon: IoCheckmarkDoneCircle,
+  className: 'text-muted-foreground',
+};
+
+const ReportOutcome = ({ action }: { action: ModerationAction | null }) => {
+  const { label, Icon, className } = action
+    ? OUTCOMES[action]
+    : NO_ACTION_OUTCOME;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type='button'
+            aria-label={label}
+            className='inline-flex cursor-default'
+          />
+        }
+      >
+        <Icon aria-hidden className={cn('size-5', className)} />
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+};
 
 // Stable references, so TanStack Table doesn't re-render in a loop.
 const EMPTY_REPORTS: AdminReport[] = [];
@@ -150,7 +213,7 @@ const columns: ColumnDef<AdminTableFeatures, AdminReport>[] = [
           blogTitle={row.original.blog.title}
         />
       ) : (
-        <span className='text-muted-foreground'>—</span>
+        <ReportOutcome action={row.original.action} />
       ),
 
     meta: { className: 'text-center last:pr-6' },

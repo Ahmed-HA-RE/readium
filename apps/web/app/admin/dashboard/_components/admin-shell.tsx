@@ -1,23 +1,7 @@
-import type { ReactElement } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FaBell } from 'react-icons/fa';
-import {
-  LayoutDashboardIcon,
-  ChartPieIcon,
-  FileTextIcon,
-  FolderIcon,
-  ListTodoIcon,
-  CalendarIcon,
-  UsersIcon,
-  ShieldCheckIcon,
-  SettingsIcon,
-  BellIcon,
-  CreditCardIcon,
-  PlugIcon,
-  ChevronRightIcon,
-  ArrowRightIcon,
-} from 'lucide-react';
+import { ArrowRightIcon } from 'lucide-react';
 import { IoSearch } from 'react-icons/io5';
 import { APP_LOGO } from '@repo/assets';
 import { APP_NAME } from '@repo/constants';
@@ -27,198 +11,25 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from '@/components/ui/breadcrumb';
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import ThemeToggle from '@/components/shared/theme-toggle';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { ADMIN_NOTIFICATIONS_PATH, ADMIN_OVERVIEW_PATH } from '@/lib/utils';
+import AdminBreadcrumb from './admin-breadcrumb';
 import AdminSearch from './admin-search';
 import AdminUserMenu from './admin-user-menu';
+import SidebarGroupedMenuItems from './sidebar-grouped-menu-items';
 
 const logoStyle = { width: 32, height: 'auto' };
-
-type MenuSubItem = {
-  label: string;
-  href: string;
-};
-
-type MenuItem = {
-  icon: ReactElement;
-  label: string;
-  isActive?: boolean;
-} & (
-  | {
-      href: string;
-      items?: never;
-    }
-  | { href?: never; items: MenuSubItem[] }
-);
-
-// The aside keeps the block's placeholder domains until a later phase replaces them.
-const generalItems: MenuItem[] = [
-  {
-    icon: <LayoutDashboardIcon />,
-    label: 'Dashboard',
-    href: '#',
-    isActive: true,
-  },
-  {
-    icon: <ChartPieIcon />,
-    label: 'Analytics',
-    href: '#',
-  },
-  {
-    icon: <FileTextIcon />,
-    label: 'Reports',
-    href: '#',
-  },
-];
-
-const workspaceItems: MenuItem[] = [
-  {
-    icon: <FolderIcon />,
-    label: 'Projects',
-    items: [
-      { label: 'All Projects', href: '#' },
-      { label: 'New Project', href: '#' },
-    ],
-  },
-  {
-    icon: <ListTodoIcon />,
-    label: 'Tasks',
-    href: '#',
-  },
-  {
-    icon: <CalendarIcon />,
-    label: 'Calendar',
-    href: '#',
-  },
-];
-
-const teamItems: MenuItem[] = [
-  {
-    icon: <UsersIcon />,
-    label: 'Members',
-    href: '#',
-  },
-  {
-    icon: <ShieldCheckIcon />,
-    label: 'Roles & Permissions',
-    href: '#',
-  },
-];
-
-const settingsItems: MenuItem[] = [
-  {
-    icon: <SettingsIcon />,
-    label: 'General',
-    href: '#',
-  },
-  {
-    icon: <BellIcon />,
-    label: 'Notifications',
-    href: '#',
-  },
-  {
-    icon: <CreditCardIcon />,
-    label: 'Billing',
-    href: '#',
-  },
-  {
-    icon: <PlugIcon />,
-    label: 'Integrations',
-    href: '#',
-  },
-];
-
-const SidebarGroupedMenuItems = ({
-  data,
-  groupLabel,
-}: {
-  data: MenuItem[];
-  groupLabel?: string;
-}) => {
-  return (
-    <SidebarGroup>
-      {groupLabel && <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>}
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {data.map((item) =>
-            item.items ? (
-              <Collapsible className='group/collapsible' key={item.label}>
-                <SidebarMenuItem>
-                  <CollapsibleTrigger
-                    render={
-                      <SidebarMenuButton
-                        tooltip={item.label}
-                        className='hover:bg-primary/10 data-active:bg-background/10'
-                      />
-                    }
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                    <ChevronRightIcon className='ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90' />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {item.items.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.label}>
-                          <SidebarMenuSubButton
-                            className='hover:bg-primary/10'
-                            render={<a href={subItem.href} />}
-                          >
-                            {subItem.label}
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-            ) : (
-              <SidebarMenuItem key={item.label}>
-                <SidebarMenuButton
-                  isActive={item.isActive}
-                  tooltip={item.label}
-                  className='hover:bg-primary/10 data-active:bg-primary/10'
-                  render={<a href={item.href} />}
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ),
-          )}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
-};
 
 type AdminShellProps = {
   user: { name: string; email: string; image: string | null | undefined };
@@ -259,34 +70,7 @@ const AdminShell = ({ user, children }: AdminShellProps) => {
             </SidebarMenu>
           </SidebarHeader>
           <SidebarContent>
-            <SidebarGroupedMenuItems data={generalItems} groupLabel='General' />
-            <div
-              className='hidden group-data-[collapsible=icon]:block'
-              aria-hidden='true'
-            >
-              <Separator className='my-2' />
-            </div>
-            <SidebarGroupedMenuItems
-              data={workspaceItems}
-              groupLabel='Workspace'
-            />
-            <div
-              className='hidden group-data-[collapsible=icon]:block'
-              aria-hidden='true'
-            >
-              <Separator className='my-2' />
-            </div>
-            <SidebarGroupedMenuItems data={teamItems} groupLabel='Team' />
-            <div
-              className='hidden group-data-[collapsible=icon]:block'
-              aria-hidden='true'
-            >
-              <Separator className='my-2' />
-            </div>
-            <SidebarGroupedMenuItems
-              data={settingsItems}
-              groupLabel='Settings'
-            />
+            <SidebarGroupedMenuItems />
           </SidebarContent>
           <SidebarFooter className='group-data-[collapsible=icon]:-rotate-90'>
             <Button
@@ -335,13 +119,7 @@ const AdminShell = ({ user, children }: AdminShellProps) => {
                   orientation='vertical'
                   className='h-5! data-vertical:self-center'
                 />
-                <Breadcrumb className='max-lg:hidden'>
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>Dashboard</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
+                <AdminBreadcrumb className='max-lg:hidden' />
               </div>
               <div className='flex flex-1 justify-center'>
                 <AdminSearch
