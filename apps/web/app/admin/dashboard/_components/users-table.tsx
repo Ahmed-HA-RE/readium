@@ -145,6 +145,7 @@ const columns: ColumnDef<AdminTableFeatures, AdminUser>[] = [
         userId={row.original.id}
         name={row.original.name}
         banned={row.original.banned}
+        stripeCustomerId={row.original.stripeCustomerId}
       />
     ),
     // Overrides the table's `last:pr-4`, so the "Actions" header has room on the right.

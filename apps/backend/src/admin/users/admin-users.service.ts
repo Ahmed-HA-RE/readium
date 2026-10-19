@@ -86,6 +86,7 @@ export class AdminUsersService {
           banned: true,
           image: true,
           createdAt: true,
+          stripeCustomerId: true,
           _count: {
             select: {
               blogs: true,

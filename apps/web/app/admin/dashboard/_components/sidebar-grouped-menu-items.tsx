@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboardIcon, SettingsIcon } from 'lucide-react';
 import { RiArticleFill } from 'react-icons/ri';
-import { TbReportSearch } from 'react-icons/tb';
+import { TbReportMoneyFilled, TbReportSearch } from 'react-icons/tb';
 import { HiUsers } from 'react-icons/hi2';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -20,6 +20,7 @@ import {
 import {
   ADMIN_BLOGS_PATH,
   ADMIN_OVERVIEW_PATH,
+  ADMIN_PAYMENTS_PATH,
   ADMIN_REPORTS_PATH,
   ADMIN_SETTINGS_PATH,
   ADMIN_USERS_PATH,
@@ -39,6 +40,11 @@ export const ADMIN_NAV_GROUPS: { label: string; items: MenuItem[] }[] = [
         icon: <LayoutDashboardIcon />,
         label: 'Dashboard',
         href: ADMIN_OVERVIEW_PATH,
+      },
+      {
+        icon: <TbReportMoneyFilled />,
+        label: 'Payments',
+        href: ADMIN_PAYMENTS_PATH,
       },
     ],
   },

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { BsThreeDotsVertical } from 'react-icons/bs';
-import { FaEye, FaSignOutAlt, FaUserSlash } from 'react-icons/fa';
+import { FaEye, FaSignOutAlt, FaStripeS, FaUserSlash } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { authClient } from '@/lib/auth-client';
+import { STRIPE_DASHBOARD_URL } from '@/lib/constants';
 import ConfirmActionDialog from './confirm-action-dialog';
 
 const ICON_CLASS = 'size-4';
@@ -23,9 +24,15 @@ type UserActionsMenuProps = {
   userId: string;
   name: string;
   banned: boolean | null;
+  stripeCustomerId: string | null;
 };
 
-const UserActionsMenu = ({ userId, name, banned }: UserActionsMenuProps) => {
+const UserActionsMenu = ({
+  userId,
+  name,
+  banned,
+  stripeCustomerId,
+}: UserActionsMenuProps) => {
   const [openDialog, setOpenDialog] = useState<'ban' | 'revoke' | null>(null);
   const queryClient = useQueryClient();
 
@@ -82,6 +89,21 @@ const UserActionsMenu = ({ userId, name, banned }: UserActionsMenuProps) => {
             <FaEye className={ICON_CLASS} />
             View User
           </DropdownMenuItem>
+          {/* The column is nullable, so the item only shows for users Stripe knows about. */}
+          {stripeCustomerId && (
+            <DropdownMenuItem
+              render={
+                <a
+                  href={`${STRIPE_DASHBOARD_URL}/customers/${encodeURIComponent(stripeCustomerId)}`}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                />
+              }
+            >
+              <FaStripeS className={`${ICON_CLASS} text-[#635BFF]`} />
+              View Customer
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant='destructive'

@@ -164,7 +164,7 @@ describe('AdminService', () => {
       mockRetrieveBalance.mockResolvedValue({ available: [] });
     };
 
-    it('returns the seven dashboard analytics', async () => {
+    it('returns the eight dashboard analytics', async () => {
       // user.count is called twice: total users first, then active users.
       prisma.user.count
         .mockResolvedValueOnce(42) // totalUsers
@@ -174,7 +174,10 @@ describe('AdminService', () => {
       prisma.report.count
         .mockResolvedValueOnce(3) // totalReports
         .mockResolvedValueOnce(1); // pendingReports
-      prisma.subscription.count.mockResolvedValue(5);
+      // subscription.count likewise: every subscriber first, then the ones set to cancel.
+      prisma.subscription.count
+        .mockResolvedValueOnce(5) // totalSubscribers
+        .mockResolvedValueOnce(2); // cancelingSubscribers
       mockRetrieveBalance.mockResolvedValue({
         object: 'balance',
         available: [
@@ -192,6 +195,7 @@ describe('AdminService', () => {
         totalReports: 3,
         pendingReports: 1,
         totalSubscribers: 5,
+        cancelingSubscribers: 2,
         totalActiveUsers: 17,
         availableBalance: [{ amount: 666670, currency: 'usd' }],
       });
@@ -214,8 +218,22 @@ describe('AdminService', () => {
 
       await service.getDashboardAnalytics();
 
-      expect(prisma.subscription.count).toHaveBeenCalledWith({
+      expect(prisma.subscription.count).toHaveBeenNthCalledWith(1, {
         where: { status: { in: ['active', 'trialing'] } },
+      });
+    });
+
+    it('counts active subscriptions set to cancel, at the period end or on a date', async () => {
+      mockZeroCounts();
+
+      await service.getDashboardAnalytics();
+
+      // `canceled` ones are left out: those users are already gone.
+      expect(prisma.subscription.count).toHaveBeenNthCalledWith(2, {
+        where: {
+          status: 'active',
+          OR: [{ cancelAtPeriodEnd: true }, { cancelAt: { not: null } }],
+        },
       });
     });
 
@@ -251,7 +269,7 @@ describe('AdminService', () => {
       expect(prisma.user.count).toHaveBeenCalledTimes(2);
       expect(prisma.blog.count).toHaveBeenCalledTimes(1);
       expect(prisma.report.count).toHaveBeenCalledTimes(2);
-      expect(prisma.subscription.count).toHaveBeenCalledTimes(1);
+      expect(prisma.subscription.count).toHaveBeenCalledTimes(2);
       expect(mockRetrieveBalance).toHaveBeenCalledTimes(1);
 
       release.forEach((resolve) => resolve(0));

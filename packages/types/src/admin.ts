@@ -10,6 +10,7 @@ interface User {
   createdAt: Date;
   banned: boolean | null;
   role: string | null;
+  stripeCustomerId: string | null;
   _count: {
     comments: number;
     blogs: number;
@@ -96,6 +97,8 @@ export interface AdminDashboardAnalytics {
   pendingReports: number;
   /** Subscriptions that are `active` or `trialing`. */
   totalSubscribers: number;
+  /** `active` subscriptions set to cancel, at the period end or on a `cancelAt` date. */
+  cancelingSubscribers: number;
   /** Users whose last activity falls within the past 30 days. */
   totalActiveUsers: number;
   /** Stripe's `available` balance, one entry per currency; `null` when Stripe can't be reached. */
