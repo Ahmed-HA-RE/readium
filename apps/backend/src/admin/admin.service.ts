@@ -121,6 +121,7 @@ export class AdminService {
       pendingReports,
       totalActiveUsers,
       totalSubscribers,
+      cancelingSubscribers,
       availableBalance,
     ] = await Promise.all([
       this.prisma.user.count(),
@@ -133,6 +134,13 @@ export class AdminService {
       this.prisma.subscription.count({
         where: { status: { in: PRO_STATUSES } },
       }),
+
+      this.prisma.subscription.count({
+        where: {
+          status: 'active',
+          OR: [{ cancelAtPeriodEnd: true }, { cancelAt: { not: null } }],
+        },
+      }),
       this.getAvailableBalance(),
     ]);
 
@@ -144,6 +152,7 @@ export class AdminService {
       totalReports,
       pendingReports,
       totalSubscribers,
+      cancelingSubscribers,
       totalActiveUsers,
       availableBalance,
     };

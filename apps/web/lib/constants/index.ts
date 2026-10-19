@@ -23,3 +23,9 @@ export const ACCOUNT_DELETION_CONSEQUENCES = [
 // NEXT_PUBLIC_BETTER_AUTH_URL and already ends in /api/auth.
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+
+// The live account in production, the sandbox everywhere else; the admin UI never says which.
+export const STRIPE_DASHBOARD_URL =
+  process.env.NODE_ENV === 'production'
+    ? process.env.NEXT_PUBLIC_STRIPE_LIVE_URL
+    : process.env.NEXT_PUBLIC_STRIPE_TEST_URL;

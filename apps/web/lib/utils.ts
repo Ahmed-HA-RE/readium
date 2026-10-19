@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { differenceInDays, format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
-import type { MyBlogsStatus } from '@repo/types';
+import type { MyBlogsStatus, StripeBalanceAmount } from '@repo/types';
 
 export { cn } from 'cn';
 
@@ -30,6 +30,8 @@ export const getBlogPath = (authorName: string, slug: string) =>
   `${getProfilePath(authorName)}/${encodeURIComponent(slug)}`;
 
 export const ADMIN_OVERVIEW_PATH = '/admin/dashboard';
+
+export const ADMIN_PAYMENTS_PATH = '/admin/dashboard/payments';
 
 export const ADMIN_SETTINGS_PATH = '/admin/dashboard/settings';
 
@@ -68,4 +70,20 @@ export const formatPublishedAt = (date: Date | string) => {
   return differenceInDays(new Date(), parsed) < 30
     ? formatDistanceToNow(parsed, { addSuffix: true })
     : format(parsed, 'MMM d');
+};
+
+// Stripe sends the smallest unit (cents), so it's divided by the currency's own decimal places.
+export const formatBalance = (balance: StripeBalanceAmount[] | null) => {
+  if (!balance?.length) return '—';
+
+  return balance
+    .map(({ amount, currency }) => {
+      const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency.toUpperCase(),
+      });
+      const { maximumFractionDigits = 2 } = formatter.resolvedOptions();
+      return formatter.format(amount / 10 ** maximumFractionDigits);
+    })
+    .join(' · ');
 };

@@ -2,9 +2,10 @@ import type { IconType } from 'react-icons';
 import { FaCrown, FaUserCheck, FaUsers } from 'react-icons/fa';
 import { FaMoneyBillTrendUp, FaNewspaper } from 'react-icons/fa6';
 import { TbReportSearch } from 'react-icons/tb';
-import type { AdminDashboardAnalytics, StripeBalanceAmount } from '@repo/types';
+import type { AdminDashboardAnalytics } from '@repo/types';
 import { cn } from 'cn';
 import { Card, CardContent } from '@/components/ui/card';
+import { formatBalance } from '@/lib/utils';
 
 type AnalyticCard = {
   label: string;
@@ -12,22 +13,6 @@ type AnalyticCard = {
   Icon: IconType;
   // Full class names, so Tailwind picks them up at build time.
   iconClassName: string;
-};
-
-// Stripe sends the smallest unit (cents), so it's divided by the currency's own decimal places.
-const formatBalance = (balance: StripeBalanceAmount[] | null) => {
-  if (!balance?.length) return '—';
-
-  return balance
-    .map(({ amount, currency }) => {
-      const formatter = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency.toUpperCase(),
-      });
-      const { maximumFractionDigits = 2 } = formatter.resolvedOptions();
-      return formatter.format(amount / 10 ** maximumFractionDigits);
-    })
-    .join(' · ');
 };
 
 const getCards = (analytics: AdminDashboardAnalytics): AnalyticCard[] => [
