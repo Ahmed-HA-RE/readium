@@ -10,6 +10,7 @@ type SecuritySettingsProps = {
   accounts: LinkedAccount[];
   currentSessionId: string;
   isTwoFactorEnabled: boolean;
+  isAdmin?: boolean;
 };
 
 const SecuritySettings = ({
@@ -17,6 +18,7 @@ const SecuritySettings = ({
   accounts,
   currentSessionId,
   isTwoFactorEnabled,
+  isAdmin = false,
 }: SecuritySettingsProps) => {
   const hasPassword = accounts.some(
     ({ providerId }) => providerId === 'credential',
@@ -30,7 +32,7 @@ const SecuritySettings = ({
     <TwoFactorSection isEnabled={isTwoFactorEnabled} hasPassword={hasPassword} />
     {/* Wrapped so the row padding doesn't clash with the danger zone's own box. */}
     <div>
-      <DangerZoneSection email={email} />
+      <DangerZoneSection email={email} isAdmin={isAdmin} />
     </div>
   </div>
   );

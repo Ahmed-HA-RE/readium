@@ -41,6 +41,8 @@ const SettingsPage = async () => {
         membership: (
           <MembershipSettings isPro={user.isPro} subscription={subscription} />
         ),
+        // Empty until the mute system decides what notification preferences exist.
+        notifications: null,
       }}
     />
   );
