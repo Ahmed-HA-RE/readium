@@ -88,7 +88,7 @@ export class UsersController {
   // Method           GET /api/users/me/accounts
   // Description      Get the providers linked to the signed-in user, `credential` being the password
   @Get('me/accounts')
-  @Roles(['user'])
+  @Roles(['user', 'admin'])
   getMyAccounts(@Session() session: UserSession) {
     return this.usersService.getMyAccounts(session.user);
   }
@@ -97,7 +97,7 @@ export class UsersController {
   // Description      Update the signed-in user's own name, bio, website and avatar
   @Throttle({ default: { ttl: minutes(1), limit: 10 } })
   @Put('me')
-  @Roles(['user'])
+  @Roles(['user', 'admin'])
   @UseInterceptors(FileInterceptor('image'))
   updateUserProfile(
     @Session() session: UserSession,
