@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { formatPublishedAt, getBlogPath } from '@/lib/utils';
+import { formatPublishedAt } from '@/lib/utils';
+import { getBlogPath } from '@/lib/routes';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { getTrendingBlogs } from '@/lib/actions/blogs/getTrendingBlogs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';

@@ -6,7 +6,7 @@ import OAuthProviders from '../_components/oauth-providers';
 import OAuthErrorAlert from '../_components/oauth-error-alert';
 import LoginForm from './_components/login-form';
 import { toAbsoluteUrl, toSafeCallbackUrl } from '@/lib/absolute-url';
-import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH, getLoginPath } from '@/lib/routes';
 
 export const metadata: Metadata = {
   title: 'Sign in',
@@ -22,9 +22,7 @@ const LoginPage = async ({
   const { callbackUrl: rawCallbackUrl = '/', error } = await searchParams;
   const callbackUrl = toSafeCallbackUrl(rawCallbackUrl);
   // Also where a failed OAuth sign-in comes back to, with `&error=<code>` appended.
-  const loginUrl = toAbsoluteUrl(
-    `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`,
-  );
+  const loginUrl = toAbsoluteUrl(getLoginPath(callbackUrl));
 
   // Also where a successful sign-in lands, via the client's redirect to `verifyRedirectUrl` below.
   const session = await getCurrentLoggedInUser();

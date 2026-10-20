@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { SITE_NAME } from '@/lib/constants';
-import { getBlogPath } from '@/lib/utils';
+import { getBlogPath } from '@/lib/routes';
 import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
 import BlogContent from './_components/blog-content';
 

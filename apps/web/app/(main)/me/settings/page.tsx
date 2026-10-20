@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { ADMIN_SETTINGS_PATH } from '@/lib/utils';
+import { ADMIN_SETTINGS_PATH } from '@/lib/routes';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import { getMyAccounts } from '@/lib/actions/user/getMyAccounts';
 import { getActiveSubscription } from '@/lib/actions/subscription/getActiveSubscription';

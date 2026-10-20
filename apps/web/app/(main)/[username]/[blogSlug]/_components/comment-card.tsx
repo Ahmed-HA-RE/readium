@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { Comment } from '@repo/types';
 import { formatPublishedAt } from '@/lib/utils';
+import { getProfilePath } from '@/lib/routes';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ProBadge from '@/components/shared/pro-badge';
@@ -30,7 +32,7 @@ const CommentCard = ({
   const shownAt = isEdited ? updatedAt : createdAt;
 
   return (
-    <article className='flex gap-3 py-6'>
+    <article className='group/comment flex gap-3 py-6'>
       <Avatar>
         <AvatarImage src={author.image ?? DEFAULT_AVATAR} alt={author.name} />
         <AvatarFallback>{author.name.charAt(0).toUpperCase()}</AvatarFallback>
@@ -40,9 +42,12 @@ const CommentCard = ({
         <div className='flex items-start justify-between gap-2'>
           <div className='flex min-w-0 flex-col'>
             <span className='flex min-w-0 items-center gap-1'>
-              <span className='truncate text-sm font-medium'>
+              <Link
+                href={getProfilePath(author.name)}
+                className='truncate text-sm font-medium underline-offset-2 group-hover/comment:underline'
+              >
                 {isOwnComment ? 'Me' : author.name}
-              </span>
+              </Link>
               {author.isPro && <ProBadge className='size-3.5' />}
             </span>
             <span className='text-xs text-muted-foreground'>

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { ADMIN_OVERVIEW_PATH, getBlogPath } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH, getBlogPath } from '@/lib/routes';
 import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import BlogForm from '@/components/shared/blog-form';

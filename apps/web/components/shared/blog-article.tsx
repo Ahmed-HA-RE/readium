@@ -1,12 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Blog, BlogAuthor } from '@repo/types';
-import {
-  cn,
-  formatPublishedAt,
-  getProfilePath,
-  getReadingTime,
-} from '@/lib/utils';
+import { cn, formatPublishedAt, getReadingTime } from '@/lib/utils';
+import { getProfilePath } from '@/lib/routes';
 import { blogProseClassName } from '@/lib/blog-prose';
 import { highlightCodeBlocks } from '@/lib/highlight-code-blocks';
 import { DEFAULT_AVATAR } from '@/lib/constants';

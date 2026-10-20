@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
-import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
 import BlogForm from '@/components/shared/blog-form';
 
 export const metadata: Metadata = {

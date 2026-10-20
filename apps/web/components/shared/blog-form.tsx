@@ -13,12 +13,8 @@ import {
   type BlogModeration,
   type GetBlogBySlugResponse,
 } from '@repo/types';
-import {
-  cn,
-  getBlogPath,
-  getErrorMessage,
-  getMyStoriesPath,
-} from '@/lib/utils';
+import { cn, getErrorMessage } from '@/lib/utils';
+import { getBlogPath, getMyStoriesPath } from '@/lib/routes';
 import { createBlog } from '@/lib/actions/blogs/createBlog';
 import { updateBlog } from '@/lib/actions/blogs/updateBlog';
 import { blogSchema, type BlogFormData, type BlogValues } from '@/schema/blog';

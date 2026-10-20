@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { GetAllBlogsResponse } from '@repo/types';
-import { formatPublishedAt, getBlogPath, getProfilePath } from '@/lib/utils';
+import { formatPublishedAt } from '@/lib/utils';
+import { getBlogPath, getProfilePath } from '@/lib/routes';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -86,7 +87,6 @@ const BlogCard = ({ blog, viewerId, isAdmin, priority }: BlogCardProps) => {
         <p className='line-clamp-2 text-muted-foreground'>{shortDescription}</p>
 
         <div className='flex items-center justify-between gap-4'>
-       
           <div className='flex min-w-0 items-center gap-3'>
             <Link
               href={profileHref}

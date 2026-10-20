@@ -21,7 +21,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import UserSearchSuggestionSkeleton from '@/components/shared/user-search-suggestion-skeleton';
 import { DEFAULT_AVATAR, DEFAULT_BLOG_COVER } from '@/lib/constants';
 import { useSearchSuggestions } from '@/hooks/search';
-import { cn, getBlogPath, getProfilePath } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { getBlogPath, getProfilePath } from '@/lib/routes';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -143,7 +144,9 @@ const SearchCommand = ({ className }: { className?: string }) => {
                       <CommandItem
                         key={blog.id}
                         value={blog.id}
-                        onSelect={() => go(getBlogPath(blog.author.name, blog.slug))}
+                        onSelect={() =>
+                          go(getBlogPath(blog.author.name, blog.slug))
+                        }
                         className='gap-3'
                       >
                         <Image

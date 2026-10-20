@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { authClient } from '@/lib/auth-client';
+import { LOGIN_PATH } from '@/lib/routes';
 
 // Absolute, because Better Auth resolves `redirectTo` against its own baseURL —
 // the backend — and then puts it in the emailed link as `callbackURL`.
@@ -88,7 +89,7 @@ const ForgotPasswordForm = ({
         </Button>
 
         <Link
-          href='/login'
+          href={LOGIN_PATH}
           className={cn(
             buttonVariants({ size: 'lg', variant: 'ghost' }),
             'group h-10 w-full',

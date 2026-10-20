@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { LOGIN_PATH } from '@/lib/routes';
 import AuthHeader from '../_components/auth-header';
 import ResetPasswordForm from './_components/reset-password-form';
 
@@ -16,7 +17,7 @@ const ResetPasswordPage = async ({
   searchParams: Promise<{ token?: string; error?: string; mode?: string }>;
 }) => {
   const { token, error, mode } = await searchParams;
-  if (error || !token) redirect('/login');
+  if (error || !token) redirect(LOGIN_PATH);
 
   return (
     <>

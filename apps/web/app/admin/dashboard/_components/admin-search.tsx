@@ -23,6 +23,7 @@ import { InputGroupAddon } from '@/components/ui/input-group';
 import UserSearchSuggestionSkeleton from '@/components/shared/user-search-suggestion-skeleton';
 import { useAdminSuggestions } from '@/hooks/admin';
 import { DEFAULT_AVATAR } from '@/lib/constants';
+import { getAdminUserPath } from '@/lib/routes';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const HINT_ICON_CLASS = 'size-4';
@@ -46,7 +47,7 @@ const AdminSearch = ({ trigger, className }: AdminSearchProps) => {
   const goToUser = (username: string | null) => {
     if (!username) return;
     setOpen(false);
-    router.push(`/admin/dashboard/users/${encodeURIComponent(username)}`);
+    router.push(getAdminUserPath(username));
   };
 
   return (

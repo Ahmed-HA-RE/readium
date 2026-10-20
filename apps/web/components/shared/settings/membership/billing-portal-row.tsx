@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { TfiArrowTopRight } from 'react-icons/tfi';
 import { authClient } from '@/lib/auth-client';
 import { toAbsoluteUrl } from '@/lib/absolute-url';
+import { getMySettingsPath } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 
@@ -20,7 +21,7 @@ const BillingPortalRow = ({ title, summary }: BillingPortalRowProps) => {
   const openPortal = () => {
     startTransition(async () => {
       const { error } = await authClient.subscription.billingPortal({
-        returnUrl: toAbsoluteUrl('/me/settings?tab=membership'),
+        returnUrl: toAbsoluteUrl(getMySettingsPath('membership')),
       });
 
       if (error) toast.error(error.message);

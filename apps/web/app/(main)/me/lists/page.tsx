@@ -7,7 +7,7 @@ import {
   QueryClient,
 } from '@tanstack/react-query';
 import type { SearchParams } from 'nuqs/server';
-import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
 import { loadListsSearchParams, type ListsTab } from '@/lib/search-params';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import { getMyLikesOrBookmarks } from '@/lib/actions/user/getMyLikesOrBookmarks';

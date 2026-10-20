@@ -7,12 +7,13 @@ import { toast } from 'sonner';
 import type { LinkedAccount, OAuthProvider } from '@repo/types';
 import { authClient } from '@/lib/auth-client';
 import { toAbsoluteUrl } from '@/lib/absolute-url';
+import { getMySettingsPath } from '@/lib/routes';
 import { OAUTH_PROVIDERS } from '@/lib/oauth-providers';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 
-const SECURITY_TAB_URL = toAbsoluteUrl('/me/settings?tab=security');
+const SECURITY_TAB_URL = toAbsoluteUrl(getMySettingsPath('security'));
 
 type ProviderCardProps = {
   provider: OAuthProvider;

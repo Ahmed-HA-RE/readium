@@ -5,7 +5,12 @@ import { MdAdminPanelSettings } from 'react-icons/md';
 import { APP_LOGO } from '@repo/assets';
 import { cn } from 'cn';
 import { buttonVariants } from '@/components/ui/button';
-import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
+import {
+  ADMIN_OVERVIEW_PATH,
+  LOGIN_PATH,
+  NEW_STORY_PATH,
+  SIGN_UP_PATH,
+} from '@/lib/routes';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import SidebarTrigger from './sidebar-trigger';
 import SearchCommand from './search-command';
@@ -44,7 +49,7 @@ const Header = async () => {
             <>
               {/* Admins moderate rather than write, so their slot leads back to the dashboard. */}
               <Link
-                href={isAdmin ? ADMIN_OVERVIEW_PATH : '/new-story'}
+                href={isAdmin ? ADMIN_OVERVIEW_PATH : NEW_STORY_PATH}
                 className={cn(
                   buttonVariants({ variant: 'ghost-plain', size: 'lg' }),
                   'text-muted-foreground  max-lg:hidden text-base font-normal px-0',
@@ -77,7 +82,7 @@ const Header = async () => {
               {/* No profile dropdown to fold into, so it stays visible at every width. */}
               <ThemeToggle />
               <Link
-                href='/login'
+                href={LOGIN_PATH}
                 className={cn(
                   buttonVariants({ variant: 'ghost-plain', size: 'lg' }),
                 )}
@@ -85,7 +90,7 @@ const Header = async () => {
                 Sign in
               </Link>
               <Link
-                href='/sign-up'
+                href={SIGN_UP_PATH}
                 className={cn(buttonVariants({ size: 'lg' }), 'rounded-full')}
               >
                 Get started

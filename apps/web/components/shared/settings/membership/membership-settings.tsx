@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { TfiArrowTopRight } from 'react-icons/tfi';
 import type { Subscription } from '@better-auth/stripe';
 import { SITE_NAME } from '@/lib/constants';
+import { PLANS_PATH } from '@/lib/routes';
 import BillingPortalRow from './billing-portal-row';
 
 type MembershipSettingsProps = {
@@ -32,7 +33,7 @@ const MembershipSettings = ({ isPro, subscription }: MembershipSettingsProps) =>
   <section className='flex flex-col divide-y pt-2 *:py-5'>
     {!isPro && (
       <Link
-        href='/plans'
+        href={PLANS_PATH}
         className='flex w-full items-start justify-between gap-5 outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
       >
         <span className='flex min-w-0 flex-col gap-1'>

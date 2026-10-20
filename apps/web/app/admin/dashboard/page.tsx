@@ -18,7 +18,7 @@ import {
   ADMIN_BLOGS_PATH,
   ADMIN_REPORTS_PATH,
   ADMIN_USERS_PATH,
-} from '@/lib/utils';
+} from '@/lib/routes';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard',

@@ -8,7 +8,7 @@ import { IoHome, IoNewspaperOutline } from 'react-icons/io5';
 import { MdLibraryBooks } from 'react-icons/md';
 import { FaRegHeart, FaRegUser } from 'react-icons/fa';
 import { APP_LOGO } from '@repo/assets';
-import { getProfilePath } from '@/lib/utils';
+import { getProfilePath, MY_LISTS_PATH, MY_STORIES_PATH } from '@/lib/routes';
 import type { ListsTab } from '@/lib/search-params';
 import {
   Sidebar,
@@ -36,9 +36,9 @@ type NavItem = {
 // Users only: the layout doesn't render the sidebar for admins.
 const getNavItems = (username: string): NavItem[] => [
   { path: '/', label: 'Home', Icon: IoHome, exact: true },
-  { path: '/me/stories', label: 'Stories', Icon: IoNewspaperOutline },
-  { path: '/me/lists', label: 'Library', Icon: MdLibraryBooks },
-  { path: '/me/lists', tab: 'likes', label: 'Likes', Icon: FaRegHeart },
+  { path: MY_STORIES_PATH, label: 'Stories', Icon: IoNewspaperOutline },
+  { path: MY_LISTS_PATH, label: 'Library', Icon: MdLibraryBooks },
+  { path: MY_LISTS_PATH, tab: 'likes', label: 'Likes', Icon: FaRegHeart },
   {
     path: getProfilePath(username),
     label: 'Profile',

@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { authClient } from '@/lib/auth-client';
 import { STRIPE_DASHBOARD_URL } from '@/lib/constants';
+import { getAdminUserPath } from '@/lib/routes';
 import ConfirmActionDialog from './confirm-action-dialog';
 
 const ICON_CLASS = 'size-4';
@@ -82,7 +83,7 @@ const UserActionsMenu = ({
           <DropdownMenuItem
             render={
               <Link
-                href={`/admin/dashboard/users/${encodeURIComponent(name)}`}
+                href={getAdminUserPath(name)}
               />
             }
           >

@@ -3,9 +3,10 @@ import { FaArrowLeft } from 'react-icons/fa6';
 import { IoShieldCheckmark } from 'react-icons/io5';
 import { cn } from 'cn';
 import { buttonVariants } from '@/components/ui/button';
+import { getLoginPath, getMySettingsPath, LOGIN_PATH } from '@/lib/routes';
 
 // Resetting signs the user out everywhere, so setup sends them back to the Security tab after signing in.
-const SECURITY_TAB_LOGIN = `/login?callbackUrl=${encodeURIComponent('/me/settings?tab=security')}`;
+const SECURITY_TAB_LOGIN = getLoginPath(getMySettingsPath('security'));
 
 const ResetPasswordConfirmation = ({ isSetup }: { isSetup: boolean }) => {
   return (
@@ -25,7 +26,7 @@ const ResetPasswordConfirmation = ({ isSetup }: { isSetup: boolean }) => {
       )}
 
       <Link
-        href={isSetup ? SECURITY_TAB_LOGIN : '/login'}
+        href={isSetup ? SECURITY_TAB_LOGIN : LOGIN_PATH}
         className={cn(
           buttonVariants({ size: 'lg', variant: 'outline' }),
           'group h-10 w-full border-emerald-600 text-emerald-600 hover:bg-emerald-600/10 hover:text-emerald-600',

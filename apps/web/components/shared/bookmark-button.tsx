@@ -7,6 +7,7 @@ import { LuBookmarkPlus } from 'react-icons/lu';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cn, getErrorMessage } from '@/lib/utils';
+import { getLoginPath } from '@/lib/routes';
 import { bookmarkBlog } from '@/lib/actions/blogs/bookmarkBlog';
 import { unbookmarkBlog } from '@/lib/actions/blogs/unbookmarkBlog';
 import { Button } from '@/components/ui/button';
@@ -39,7 +40,7 @@ const BookmarkButton = ({
 
   const toggleBookmark = () => {
     if (!isSignedIn) {
-      router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+      router.push(getLoginPath(pathname));
       return;
     }
 

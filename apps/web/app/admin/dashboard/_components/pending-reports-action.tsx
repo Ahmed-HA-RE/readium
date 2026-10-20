@@ -5,7 +5,7 @@ import { ReportStatus, type AdminDashboardAnalytics } from '@repo/types';
 import { cn } from 'cn';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import { ADMIN_REPORTS_PATH } from '@/lib/utils';
+import { ADMIN_REPORTS_PATH } from '@/lib/routes';
 
 // Awaits the page's analytics request, so it streams in on its own without a second call.
 const PendingReportsAction = async ({
