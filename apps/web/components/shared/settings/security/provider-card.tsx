@@ -1,19 +1,16 @@
 'use client';
 
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import type { LinkedAccount, OAuthProvider } from '@repo/types';
 import { authClient } from '@/lib/auth-client';
 import { toAbsoluteUrl } from '@/lib/absolute-url';
-import { getMySettingsPath } from '@/lib/routes';
 import { OAUTH_PROVIDERS } from '@/lib/oauth-providers';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-
-const SECURITY_TAB_URL = toAbsoluteUrl(getMySettingsPath('security'));
 
 type ProviderCardProps = {
   provider: OAuthProvider;
@@ -24,6 +21,8 @@ type ProviderCardProps = {
 
 const ProviderCard = ({ provider, account, canUnlink }: ProviderCardProps) => {
   const router = useRouter();
+  // Built from the pathname so admins come back to their own settings route.
+  const securityTabUrl = toAbsoluteUrl(`${usePathname()}?tab=security`);
   const [isPending, startTransition] = useTransition();
   const { label, Icon, iconClassName } = OAUTH_PROVIDERS[provider];
 
@@ -33,8 +32,8 @@ const ProviderCard = ({ provider, account, canUnlink }: ProviderCardProps) => {
       await authClient.linkSocial(
         {
           provider,
-          callbackURL: SECURITY_TAB_URL,
-          errorCallbackURL: SECURITY_TAB_URL,
+          callbackURL: securityTabUrl,
+          errorCallbackURL: securityTabUrl,
         },
         {
           onError: ({ error }) => {
