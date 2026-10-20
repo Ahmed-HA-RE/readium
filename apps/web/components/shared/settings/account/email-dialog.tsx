@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { authClient } from '@/lib/auth-client';
 import { toAbsoluteUrl } from '@/lib/absolute-url';
-import { getProfilePath } from '@/lib/utils';
+import { getProfilePath } from '@/lib/routes';
 import { updateEmailSchema, type UpdateEmailFormData } from '@/schema/account';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';

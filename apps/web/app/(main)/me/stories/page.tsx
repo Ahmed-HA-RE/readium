@@ -9,7 +9,8 @@ import {
 } from '@tanstack/react-query';
 import type { SearchParams } from 'nuqs/server';
 import type { BlogAuthor } from '@repo/types';
-import { ADMIN_OVERVIEW_PATH, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
 import { loadMyStoriesSearchParams } from '@/lib/search-params';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import {

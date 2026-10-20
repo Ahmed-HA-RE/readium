@@ -1,6 +1,6 @@
 import type { GetBlogBySlugResponse } from '@repo/types';
 import { SITE_URL } from '@/lib/constants';
-import { getBlogPath } from '@/lib/utils';
+import { getBlogPath } from '@/lib/routes';
 import { sanitizeBlogHtml } from '@/lib/sanitize-html';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import BlogArticle from '@/components/shared/blog-article';

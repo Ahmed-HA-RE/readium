@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/sidebar';
 import ThemeToggle from '@/components/shared/theme-toggle';
 import { DEFAULT_AVATAR } from '@/lib/constants';
-import { ADMIN_NOTIFICATIONS_PATH, ADMIN_OVERVIEW_PATH } from '@/lib/utils';
+import { ADMIN_NOTIFICATIONS_PATH, ADMIN_OVERVIEW_PATH } from '@/lib/routes';
 import AdminBreadcrumb from './admin-breadcrumb';
 import AdminSearch from './admin-search';
 import AdminUserMenu from './admin-user-menu';

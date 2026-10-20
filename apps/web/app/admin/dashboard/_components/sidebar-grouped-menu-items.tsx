@@ -24,7 +24,7 @@ import {
   ADMIN_REPORTS_PATH,
   ADMIN_SETTINGS_PATH,
   ADMIN_USERS_PATH,
-} from '@/lib/utils';
+} from '@/lib/routes';
 
 export type MenuItem = {
   icon: ReactElement;

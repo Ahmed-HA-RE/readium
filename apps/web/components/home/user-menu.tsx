@@ -22,7 +22,7 @@ import {
   ADMIN_OVERVIEW_PATH,
   ADMIN_SETTINGS_PATH,
   getProfilePath,
-} from '@/lib/utils';
+} from '@/lib/routes';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ICON_CLASS = 'size-4';

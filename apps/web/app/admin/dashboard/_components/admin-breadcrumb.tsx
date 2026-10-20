@@ -10,7 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { ADMIN_NOTIFICATIONS_PATH, ADMIN_OVERVIEW_PATH } from '@/lib/utils';
+import { ADMIN_NOTIFICATIONS_PATH, ADMIN_OVERVIEW_PATH } from '@/lib/routes';
 import { ADMIN_NAV_GROUPS, isActivePath } from './sidebar-grouped-menu-items';
 
 // Every sidebar route but the overview, plus the bell's route, which has no sidebar item.

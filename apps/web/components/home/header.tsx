@@ -5,7 +5,7 @@ import { MdAdminPanelSettings } from 'react-icons/md';
 import { APP_LOGO } from '@repo/assets';
 import { cn } from 'cn';
 import { buttonVariants } from '@/components/ui/button';
-import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import SidebarTrigger from './sidebar-trigger';
 import SearchCommand from './search-command';

@@ -8,7 +8,7 @@ import { IoHome, IoNewspaperOutline } from 'react-icons/io5';
 import { MdLibraryBooks } from 'react-icons/md';
 import { FaRegHeart, FaRegUser } from 'react-icons/fa';
 import { APP_LOGO } from '@repo/assets';
-import { getProfilePath } from '@/lib/utils';
+import { getProfilePath } from '@/lib/routes';
 import type { ListsTab } from '@/lib/search-params';
 import {
   Sidebar,

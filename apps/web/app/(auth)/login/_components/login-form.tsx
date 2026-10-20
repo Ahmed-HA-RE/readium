@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { authClient } from '@/lib/auth-client';
 import { toAbsoluteUrl } from '@/lib/absolute-url';
-import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
 import { Spinner } from '@/components/ui/spinner';
 
 interface LoginFormProps {

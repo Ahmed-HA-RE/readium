@@ -6,7 +6,7 @@ import OAuthProviders from '../_components/oauth-providers';
 import OAuthErrorAlert from '../_components/oauth-error-alert';
 import LoginForm from './_components/login-form';
 import { toAbsoluteUrl, toSafeCallbackUrl } from '@/lib/absolute-url';
-import { ADMIN_OVERVIEW_PATH } from '@/lib/utils';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
 
 export const metadata: Metadata = {
   title: 'Sign in',

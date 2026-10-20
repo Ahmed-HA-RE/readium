@@ -38,7 +38,7 @@ import {
 import SearchInput from '@/components/shared/search-input';
 import { adminReportsParsers } from '@/lib/search-params';
 import { DEFAULT_AVATAR } from '@/lib/constants';
-import { ADMIN_BLOGS_PATH } from '@/lib/utils';
+import { ADMIN_BLOGS_PATH } from '@/lib/routes';
 import { MIN_ADMIN_TABLE_SEARCH_LENGTH, useAdminReports } from '@/hooks/admin';
 import DataTable from './data-table';
 import TableFooter from './table-footer';
