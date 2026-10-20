@@ -1,17 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { usePathname } from 'next/navigation';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { authClient } from '@/lib/auth-client';
 import { toAbsoluteUrl } from '@/lib/absolute-url';
-import {
-  ADMIN_OVERVIEW_PATH,
-  ADMIN_SETTINGS_PATH,
-  getProfilePath,
-} from '@/lib/routes';
+import { ADMIN_SETTINGS_PATH, getProfilePath } from '@/lib/routes';
 import { updateEmailSchema, type UpdateEmailFormData } from '@/schema/account';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -20,12 +15,13 @@ import AccountFieldDialog from './account-field-dialog';
 type EmailDialogProps = {
   email: string;
   username: string;
+  isAdmin: boolean;
 };
 
-const EmailDialog = ({ email, username }: EmailDialogProps) => {
+const EmailDialog = ({ email, username, isAdmin }: EmailDialogProps) => {
   const [open, setOpen] = useState(false);
   // Admins have no public profile, so the confirmation link brings them back to their settings.
-  const callbackPath = usePathname().startsWith(ADMIN_OVERVIEW_PATH)
+  const callbackPath = isAdmin
     ? ADMIN_SETTINGS_PATH
     : getProfilePath(username);
 

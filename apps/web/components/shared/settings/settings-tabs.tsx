@@ -1,6 +1,5 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { useQueryStates } from 'nuqs';
 import {
   MdCreditCard,
@@ -8,7 +7,6 @@ import {
   MdNotifications,
   MdSecurity,
 } from 'react-icons/md';
-import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
 import { settingsParsers, type SettingsTab } from '@/lib/search-params';
 import DashboardTabs, {
   type DashboardTab,
@@ -28,15 +26,13 @@ export type SettingsPanels = Record<
 > & { membership?: React.ReactNode };
 
 // Every panel arrives rendered, so switching is client-only and never shows the previous tab.
+// Only the panels a page passes get a tab, so the admin page drops Membership by leaving it out.
 const SettingsTabs = ({ panels }: { panels: SettingsPanels }) => {
   const [{ tab }, setParams] = useQueryStates(settingsParsers);
-  const isAdmin = usePathname().startsWith(ADMIN_OVERVIEW_PATH);
 
-  const tabs = isAdmin
-    ? TABS.filter(({ value }) => value !== 'membership')
-    : TABS;
+  const tabs = TABS.filter(({ value }) => value in panels);
   // A hand-typed `?tab=membership` on the admin route falls back to the first tab.
-  const activeTab = tabs.some(({ value }) => value === tab) ? tab : 'account';
+  const activeTab = tab in panels ? tab : 'account';
 
   return (
     <DashboardTabs
