@@ -158,8 +158,10 @@ export const auth = betterAuth({
     deleteUser: {
       enabled: true,
       deleteTokenExpiresIn: 3600, // 1 hr
+      // `user` is the full session user, but the option's type is core `User`, without the admin plugin's `role`.
       sendDeleteAccountVerification: async ({ user, url }) => {
-        void sendDeleteAccountConfirmation(user.email, url);
+        const { role } = user as typeof user & { role?: string | null };
+        void sendDeleteAccountConfirmation(user.email, url, role === 'admin');
         return Promise.resolve();
       },
       // The cascade removes the blog rows, so their keys are read here while they still exist.

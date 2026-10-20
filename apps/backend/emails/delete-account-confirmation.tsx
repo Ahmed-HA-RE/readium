@@ -17,11 +17,13 @@ import ExpireToken from './components/expire-token';
 
 interface DeleteAccountConfirmationProps {
   url: string;
+  isAdmin: boolean;
 }
 
 // Sent by Better Auth's `sendDeleteAccountVerification`; the account is only deleted once the link is opened.
 const DeleteAccountConfirmation = ({
   url,
+  isAdmin,
 }: DeleteAccountConfirmationProps): React.ReactNode => (
   <Tailwind
     config={{
@@ -55,9 +57,11 @@ const DeleteAccountConfirmation = ({
                 </Text>
 
                 <Text className="m-0 mt-6 text-gray-500">
-                  Someone asked to permanently delete your {APP_NAME} account.
-                  Your stories, responses, likes, bookmarks and reports will be
-                  deleted with it, and you will be signed out everywhere.
+                  Someone asked to permanently delete your {APP_NAME}{' '}
+                  {isAdmin ? 'admin account' : 'account'}.{' '}
+                  {isAdmin
+                    ? 'Your profile data, sign-in methods and access to the admin dashboard will be removed, and you will be signed out everywhere. Your moderation decisions stay in place.'
+                    : 'Your stories, responses, likes, bookmarks and reports will be deleted with it, and you will be signed out everywhere.'}
                 </Text>
 
                 <Text className="m-0 mt-4 font-semibold text-red-600">
@@ -88,6 +92,7 @@ const DeleteAccountConfirmation = ({
 
 DeleteAccountConfirmation.PreviewProps = {
   url: 'https://example.com/',
+  isAdmin: false,
 } satisfies DeleteAccountConfirmationProps;
 
 export default DeleteAccountConfirmation;

@@ -1,6 +1,7 @@
 export const SITE_NAME = 'Readium';
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
 // Shown for a user who has never uploaded an avatar. Served from `public/`.
 export const DEFAULT_AVATAR = '/default_avatar.png';
@@ -10,13 +11,21 @@ export const DEFAULT_BLOG_COVER = '/default_blog_cover.jpg';
 
 // What deleting an account removes, one entry per `onDelete: Cascade` relation on `User` in `schema.prisma`.
 export const ACCOUNT_DELETION_CONSEQUENCES = [
-  'Your profile, name, bio, website and avatar',
+  'Your profile data',
   'Every story you wrote, drafts included, along with the responses, likes and bookmarks other readers left on them',
   'Every response you wrote on other stories',
   'Your likes and bookmarked reading list',
   'The reports you filed',
   'Your password and every linked Google, GitHub or Twitch account',
   'Every active session, so you are signed out on all devices',
+] as const;
+
+// Admins can't write, respond, like, bookmark or report, so only the account itself goes.
+export const ADMIN_ACCOUNT_DELETION_CONSEQUENCES = [
+  'Your profile data',
+  'Your password, two-factor setup and every linked Google, GitHub or Twitch account',
+  'Every active session, so you are signed out on all devices',
+  'Your access to the admin dashboard',
 ] as const;
 
 // The NestJS API, not better-auth's own mount point — that one is

@@ -5,7 +5,10 @@ import { toast } from 'sonner';
 import { FiAlertTriangle } from 'react-icons/fi';
 import { authClient } from '@/lib/auth-client';
 import { toAbsoluteUrl } from '@/lib/absolute-url';
-import { ACCOUNT_DELETION_CONSEQUENCES } from '@/lib/constants';
+import {
+  ACCOUNT_DELETION_CONSEQUENCES,
+  ADMIN_ACCOUNT_DELETION_CONSEQUENCES,
+} from '@/lib/constants';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -21,9 +24,17 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 
 // Only sends the confirmation email; the account is deleted once its link is opened.
-const DeleteAccountDialog = ({ email }: { email: string }) => {
+type DeleteAccountDialogProps = {
+  email: string;
+  isAdmin: boolean;
+};
+
+const DeleteAccountDialog = ({ email, isAdmin }: DeleteAccountDialogProps) => {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const consequences = isAdmin
+    ? ADMIN_ACCOUNT_DELETION_CONSEQUENCES
+    : ACCOUNT_DELETION_CONSEQUENCES;
 
   const sendConfirmation = () => {
     startTransition(async () => {
@@ -67,7 +78,7 @@ const DeleteAccountDialog = ({ email }: { email: string }) => {
         <div className='grid gap-1.5 text-sm'>
           <p className='font-medium'>You will lose</p>
           <ul className='list-disc space-y-1 ps-5 text-muted-foreground'>
-            {ACCOUNT_DELETION_CONSEQUENCES.map((consequence) => (
+            {consequences.map((consequence) => (
               <li key={consequence}>{consequence}</li>
             ))}
           </ul>

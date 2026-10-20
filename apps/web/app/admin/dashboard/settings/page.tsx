@@ -8,7 +8,6 @@ import SecuritySettings from '@/components/shared/settings/security/security-set
 
 export const metadata: Metadata = { title: 'Settings' };
 
-// The layout already rejects non-admins; `SettingsTabs` drops the membership tab on this route.
 const AdminSettingsPage = async () => {
   const session = await getCurrentLoggedInUser();
   if (!session) redirect('/');
@@ -29,6 +28,7 @@ const AdminSettingsPage = async () => {
             accounts={accounts}
             currentSessionId={session.session.id}
             isTwoFactorEnabled={!!user.twoFactorEnabled}
+            isAdmin
           />
         ),
         // Empty until the mute system decides what notification preferences exist.
