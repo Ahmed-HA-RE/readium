@@ -4,10 +4,11 @@ import { buttonVariants } from '@/components/ui/button';
 import { cn } from 'cn';
 import Image from 'next/image';
 import { APP_LOGO } from '@repo/assets';
+import { LOGIN_PATH, SIGN_UP_PATH } from '@/lib/routes';
 
 const LINKS = {
-  'sign-in': { href: '/login', label: 'Sign in' },
-  'sign-up': { href: '/sign-up', label: 'Create an account' },
+  'sign-in': { href: LOGIN_PATH, label: 'Sign in' },
+  'sign-up': { href: SIGN_UP_PATH, label: 'Create an account' },
 } as const;
 
 interface AuthHeaderProps {

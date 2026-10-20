@@ -10,7 +10,7 @@ import {
 import type { SearchParams } from 'nuqs/server';
 import type { BlogAuthor } from '@repo/types';
 import { cn } from '@/lib/utils';
-import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
+import { ADMIN_OVERVIEW_PATH, NEW_STORY_PATH } from '@/lib/routes';
 import { loadMyStoriesSearchParams } from '@/lib/search-params';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import {
@@ -68,7 +68,7 @@ const MyStoriesPage = async ({
         <h1 className='text-3xl font-bold tracking-tight'>Stories</h1>
 
         <Link
-          href='/new-story'
+          href={NEW_STORY_PATH}
           className={cn(buttonVariants({ size: 'lg' }), 'rounded-full')}
         >
           Create a story

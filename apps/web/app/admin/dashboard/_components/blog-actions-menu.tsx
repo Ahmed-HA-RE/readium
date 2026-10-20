@@ -18,6 +18,7 @@ import {
 import ConfirmDeleteDialog from '@/components/shared/confirm-delete-dialog';
 import { updateAdminBlogStatus } from '@/lib/actions/admin/updateAdminBlogStatus';
 import { deleteAdminBlog } from '@/lib/actions/admin/deleteAdminBlog';
+import { getAdminBlogPath } from '@/lib/routes';
 
 const ICON_CLASS = 'size-4';
 
@@ -92,7 +93,7 @@ const BlogActionsMenu = ({
           <DropdownMenuItem
             render={
               <Link
-                href={`/admin/dashboard/blogs/${encodeURIComponent(slug)}`}
+                href={getAdminBlogPath(slug)}
               />
             }
           >

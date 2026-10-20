@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { authClient } from '@/lib/auth-client';
 import { toAbsoluteUrl } from '@/lib/absolute-url';
-import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
+import { ADMIN_OVERVIEW_PATH, FORGOT_PASSWORD_PATH } from '@/lib/routes';
 import { Spinner } from '@/components/ui/spinner';
 
 interface LoginFormProps {
@@ -87,7 +87,7 @@ const LoginForm = ({ verifyRedirectUrl }: LoginFormProps) => {
               <div className='flex items-center justify-between gap-2'>
                 <FieldLabel htmlFor={field.name}>Password</FieldLabel>
                 <Link
-                  href='/forgot-password'
+                  href={FORGOT_PASSWORD_PATH}
                   className='text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline'
                 >
                   Forgot password?

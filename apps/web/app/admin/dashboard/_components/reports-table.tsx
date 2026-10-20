@@ -38,7 +38,7 @@ import {
 import SearchInput from '@/components/shared/search-input';
 import { adminReportsParsers } from '@/lib/search-params';
 import { DEFAULT_AVATAR } from '@/lib/constants';
-import { ADMIN_BLOGS_PATH } from '@/lib/routes';
+import { getAdminBlogPath } from '@/lib/routes';
 import { MIN_ADMIN_TABLE_SEARCH_LENGTH, useAdminReports } from '@/hooks/admin';
 import DataTable from './data-table';
 import TableFooter from './table-footer';
@@ -161,7 +161,7 @@ const columns: ColumnDef<AdminTableFeatures, AdminReport>[] = [
     cell: ({ row }) => (
       <div className='flex min-w-0 flex-col'>
         <Link
-          href={`${ADMIN_BLOGS_PATH}/${encodeURIComponent(row.original.blog.slug)}`}
+          href={getAdminBlogPath(row.original.blog.slug)}
           className='line-clamp-2 font-medium whitespace-normal hover:underline'
         >
           {row.original.blog.title}
@@ -221,7 +221,6 @@ const columns: ColumnDef<AdminTableFeatures, AdminReport>[] = [
   },
 ];
 
-
 const OVERVIEW_HIDDEN_COLUMNS: ColumnVisibilityState = {
   createdAt: false,
 };
@@ -235,7 +234,6 @@ const OVERVIEW_PARAMS = {
 };
 
 type ReportsTableProps = {
-
   showControls?: boolean;
 };
 

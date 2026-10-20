@@ -21,7 +21,11 @@ import { DEFAULT_AVATAR } from '@/lib/constants';
 import {
   ADMIN_OVERVIEW_PATH,
   ADMIN_SETTINGS_PATH,
+  getMySettingsPath,
   getProfilePath,
+  NEW_STORY_PATH,
+  NOTIFICATIONS_PATH,
+  PLANS_PATH,
 } from '@/lib/routes';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -35,13 +39,13 @@ const getCollapsedLinks = (isAdmin: boolean) => [
         label: 'Dashboard',
         Icon: MdAdminPanelSettings,
       }
-    : { href: '/new-story', label: 'Write', Icon: FaEdit },
-  { href: '/notifications', label: 'Notifications', Icon: GoBell },
+    : { href: NEW_STORY_PATH, label: 'Write', Icon: FaEdit },
+  { href: NOTIFICATIONS_PATH, label: 'Notifications', Icon: GoBell },
 ];
 
 const getAccountLinks = (isAdmin: boolean) => [
   {
-    href: isAdmin ? ADMIN_SETTINGS_PATH : '/me/settings',
+    href: isAdmin ? ADMIN_SETTINGS_PATH : getMySettingsPath(),
     label: 'Settings',
     Icon: GoGear,
   },
@@ -127,7 +131,7 @@ const UserMenu = ({ name, image, isPro, isAdmin }: UserMenuProps) => {
         ))}
 
         {!isPro && (
-          <DropdownMenuItem render={<Link href='/plans' />} className='mt-1'>
+          <DropdownMenuItem render={<Link href={PLANS_PATH} />} className='mt-1'>
             {/* Admins get Pro through their role, so the link is only for checking the page. */}
             {isAdmin ? (
               <>

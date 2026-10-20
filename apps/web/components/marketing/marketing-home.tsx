@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import HeroHomepageIcon1 from '@/components/icons/hero-homepage-icon-1';
 import HeroHomePageIcon2 from '@/components/icons/hero-homepage-icon-2';
+import { SIGN_UP_PATH } from '@/lib/routes';
 import BrandMarquee from './brand-marquee';
 
 const MarketingHome = () => (
@@ -44,7 +45,7 @@ const MarketingHome = () => (
     </p>
 
     <Link
-      href='/sign-up'
+      href={SIGN_UP_PATH}
       className={cn(buttonVariants({ size: 'xl' }), 'mt-10 rounded-full ')}
     >
       Start reading

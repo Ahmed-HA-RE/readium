@@ -9,6 +9,7 @@ import LikeButton, {
 import BookmarkButton from '@/components/shared/bookmark-button';
 import BlogActionsMenu from '@/components/shared/blog-actions-menu';
 import { cn } from 'cn';
+import { MY_STORIES_PATH } from '@/lib/routes';
 import ShareBlogDialog from './share-blog-dialog';
 
 type BlogActionBarProps = {
@@ -67,7 +68,6 @@ const BlogActionBar = ({
     </div>
 
     <div className='flex items-center gap-1'>
-     
       {!isAdmin && (
         <BookmarkButton
           slug={slug}
@@ -90,7 +90,7 @@ const BlogActionBar = ({
           title={title}
           counts={counts}
           isOwnBlog={isOwnBlog}
-          redirectOnDelete='/me/stories'
+          redirectOnDelete={MY_STORIES_PATH}
         />
       )}
     </div>

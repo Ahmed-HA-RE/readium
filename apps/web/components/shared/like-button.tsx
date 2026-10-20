@@ -7,6 +7,7 @@ import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cn, getErrorMessage } from '@/lib/utils';
+import { getLoginPath } from '@/lib/routes';
 import { likeBlog } from '@/lib/actions/blogs/likeBlog';
 import { unlikeBlog } from '@/lib/actions/blogs/unlikeBlog';
 import { Button } from '@/components/ui/button';
@@ -88,7 +89,7 @@ const LikeButton = ({
 
   const toggleLike = () => {
     if (!isSignedIn) {
-      router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+      router.push(getLoginPath(pathname));
       return;
     }
 

@@ -3,13 +3,14 @@ import { FaLock } from 'react-icons/fa6';
 import { SITE_NAME } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
+import { getLoginPath, PLANS_PATH } from '@/lib/routes';
 
 type BlogPaywallProps = {
   isSignedIn: boolean;
 };
 
 // Signed-out readers sign in first, and the login page sends them on to the plans.
-const UPGRADE_SIGNED_OUT_PATH = `/login?callbackUrl=${encodeURIComponent('/plans')}`;
+const UPGRADE_SIGNED_OUT_PATH = getLoginPath(PLANS_PATH);
 
 // Covers the end of a pro story's first half, which is all the API sends.
 const BlogPaywall = ({ isSignedIn }: BlogPaywallProps) => (
@@ -26,12 +27,12 @@ const BlogPaywall = ({ isSignedIn }: BlogPaywallProps) => (
           This story is for Pro members
         </h2>
         <p className='text-sm text-muted-foreground'>
-          Upgrade to Pro to keep reading it, along with every other Pro story
-          on {SITE_NAME}.
+          Upgrade to Pro to keep reading it, along with every other Pro story on{' '}
+          {SITE_NAME}.
         </p>
       </div>
       <Link
-        href={isSignedIn ? '/plans' : UPGRADE_SIGNED_OUT_PATH}
+        href={isSignedIn ? PLANS_PATH : UPGRADE_SIGNED_OUT_PATH}
         className={cn(buttonVariants({ size: 'lg' }), 'rounded-full')}
       >
         Upgrade now

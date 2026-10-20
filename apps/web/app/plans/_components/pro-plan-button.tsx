@@ -5,11 +5,12 @@ import { toast } from 'sonner';
 import { FaArrowRight } from 'react-icons/fa6';
 import { authClient } from '@/lib/auth-client';
 import { toAbsoluteUrl } from '@/lib/absolute-url';
+import { getMySettingsPath, PLANS_PATH } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import type { BillingPeriod } from '@/lib/plans';
 
-const MEMBERSHIP_URL = '/me/settings?tab=membership&payment';
+const MEMBERSHIP_URL = `${getMySettingsPath('membership')}&payment`;
 
 type ProPlanButtonProps = {
   billingPeriod: BillingPeriod;
@@ -26,7 +27,7 @@ const ProPlanButton = ({ billingPeriod, isAdmin }: ProPlanButtonProps) => {
         plan: 'pro',
         annual: billingPeriod === 'yearly',
         successUrl: toAbsoluteUrl(MEMBERSHIP_URL),
-        cancelUrl: toAbsoluteUrl('/plans'),
+        cancelUrl: toAbsoluteUrl(PLANS_PATH),
       });
 
       if (error) toast.error(error.message);

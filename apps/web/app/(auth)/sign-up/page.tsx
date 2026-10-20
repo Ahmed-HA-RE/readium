@@ -6,6 +6,7 @@ import OAuthProviders from '../_components/oauth-providers';
 import OAuthErrorAlert from '../_components/oauth-error-alert';
 import SignUpForm from './_components/sign-up-form';
 import { toAbsoluteUrl, toSafeCallbackUrl } from '@/lib/absolute-url';
+import { getSignUpPath, LOGIN_PATH } from '@/lib/routes';
 
 export const metadata: Metadata = {
   title: 'Create an account',
@@ -42,11 +43,9 @@ const SignUpPage = async ({
           <OAuthErrorAlert error={error} />
           <OAuthProviders
             callbackUrl={toAbsoluteUrl(callbackUrl)}
-            errorCallbackUrl={toAbsoluteUrl(
-              `/sign-up?callbackUrl=${encodeURIComponent(callbackUrl)}`,
-            )}
+            errorCallbackUrl={toAbsoluteUrl(getSignUpPath(callbackUrl))}
           />
-          <SignUpForm verifyRedirectUrl={toAbsoluteUrl('/login')} />
+          <SignUpForm verifyRedirectUrl={toAbsoluteUrl(LOGIN_PATH)} />
         </div>
       </div>
     </>
