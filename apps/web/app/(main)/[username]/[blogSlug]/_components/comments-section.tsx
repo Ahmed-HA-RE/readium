@@ -2,9 +2,11 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useInView } from 'react-intersection-observer';
 import { TriangleAlertIcon } from 'lucide-react';
 import { getErrorMessage } from '@/lib/utils';
+import { getLoginPath } from '@/lib/routes';
 import { useBlogComments } from '@/hooks/comments';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { buttonVariants } from '@/components/ui/button';
@@ -29,6 +31,7 @@ const CommentsSection = ({
   commentsCount,
   viewer,
 }: CommentsSectionProps) => {
+  const pathname = usePathname();
   const {
     data,
     error,
@@ -73,7 +76,7 @@ const CommentsSection = ({
             Sign in to share your thoughts on this story.
           </p>
           <Link
-            href={`/login?callbackUrl=${encodeURIComponent(`/${slug}`)}`}
+            href={getLoginPath(pathname)}
             className={buttonVariants({
               size: 'sm',
               className: 'rounded-full',
