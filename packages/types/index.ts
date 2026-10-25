@@ -5,3 +5,4 @@ export * from './src/admin';
 export * from './src/users';
 export * from './src/security';
 export * from './src/search';
+export * from './src/notification';

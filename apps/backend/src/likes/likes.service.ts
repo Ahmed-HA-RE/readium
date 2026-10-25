@@ -5,10 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class LikesService {
-  constructor(private readonly prisma: DatabaseService) {}
+  constructor(
+    private readonly prisma: DatabaseService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   private readonly logger = new Logger(LikesService.name);
 
@@ -84,6 +88,12 @@ export class LikesService {
       }),
     ]);
 
+    await this.notificationsService.createLikeNotification(
+      userId,
+      blogExists.authorId,
+      blogExists.id,
+    );
+
     return { isLiked: true };
   }
 
@@ -115,6 +125,12 @@ export class LikesService {
         data: { likesCount: { decrement: 1 } },
       }),
     ]);
+
+    await this.notificationsService.deleteLikeNotification(
+      userId,
+      blog.authorId,
+      blog.id,
+    );
 
     return { isLiked: false };
   }

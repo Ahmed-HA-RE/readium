@@ -3,8 +3,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CommentsService } from './comments.service';
 import { DatabaseService } from '../database/database.service';
 import { S3ServiceService } from '../s3-service/s3-service.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CommentQueryDto } from './dto/comment-query-dto';
 import { PRO_STATUSES } from '../../lib/constants';
+
+// The real gateway imports `better-auth`, which is ESM-only and Jest cannot parse.
+jest.mock('../notifications/notifications.gateway', () => ({
+  NotificationsGateway: class {},
+}));
 
 type CommentFindManyArgs = {
   where: unknown;
@@ -55,6 +61,12 @@ describe('CommentsService', () => {
   let service: CommentsService;
   let prisma: PrismaMocks;
   let s3: { getSignedUrl: jest.Mock };
+  let notifications: {
+    createCommentNotification: jest.Mock<
+      Promise<unknown>,
+      [string, string, string, string]
+    >;
+  };
 
   const findManyArgs = () =>
     prisma.comment.findMany.mock.calls[0][0] as CommentFindManyArgs;
@@ -64,7 +76,7 @@ describe('CommentsService', () => {
       blog: {
         findUnique: jest
           .fn<Promise<unknown>, [unknown]>()
-          .mockResolvedValue({ id: 'blog-1' }),
+          .mockResolvedValue({ id: 'blog-1', authorId: 'author-1' }),
       },
       comment: {
         findMany: jest
@@ -100,11 +112,18 @@ describe('CommentsService', () => {
 
     s3 = { getSignedUrl: jest.fn((key: string) => `signed:${key}`) };
 
+    notifications = {
+      createCommentNotification: jest
+        .fn<Promise<unknown>, [string, string, string, string]>()
+        .mockResolvedValue(null),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CommentsService,
         { provide: DatabaseService, useValue: prisma },
         { provide: S3ServiceService, useValue: s3 },
+        { provide: NotificationsService, useValue: notifications },
       ],
     }).compile();
 
@@ -315,6 +334,17 @@ describe('CommentsService', () => {
       expect(comment.author.image).toBe('signed:avatar-key');
     });
 
+    it('notifies the blog author about the new comment', async () => {
+      await service.createComment({ content: 'Great read' }, SLUG, 'user-1');
+
+      expect(notifications.createCommentNotification).toHaveBeenCalledWith(
+        'user-1',
+        'author-1',
+        'blog-1',
+        'new-comment',
+      );
+    });
+
     it('throws NotFoundException for an unknown blog', async () => {
       prisma.blog.findUnique.mockResolvedValue(null);
 
@@ -322,6 +352,7 @@ describe('CommentsService', () => {
         service.createComment({ content: 'Great read' }, 'missing', 'user-1'),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(prisma.comment.create).not.toHaveBeenCalled();
+      expect(notifications.createCommentNotification).not.toHaveBeenCalled();
     });
   });
 

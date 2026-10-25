@@ -17,6 +17,7 @@ import { LastActivityInterceptor } from './common/interceptors/last-activity.int
 import { UsersModule } from './users/users.module';
 import { CustomThrottlerGuard } from './custom-throttler.guard';
 import { SearchModule } from './search/search.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { SearchModule } from './search/search.module';
     AdminModule,
     UsersModule,
     SearchModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

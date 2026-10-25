@@ -9,6 +9,7 @@ import { Comment, GetBlogCommentsResponse } from '@repo/types';
 import { CreateCommentDto } from './dto/create-comment-dto';
 import { UserSession } from '@thallesp/nestjs-better-auth';
 import { S3ServiceService } from '../s3-service/s3-service.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PRO_STATUSES } from '../../lib/constants';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class CommentsService {
   constructor(
     private readonly prisma: DatabaseService,
     private readonly s3Service: S3ServiceService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // `author.image` is an S3 key, except for OAuth sign-ups where it is already
@@ -68,7 +70,7 @@ export class CommentsService {
     // A draft answers 404: it has no comment thread.
     const blog = await this.prisma.blog.findUnique({
       where: { slug: blogSlug, isPublished: true },
-      select: { id: true },
+      select: { id: true, authorId: true },
     });
 
     if (!blog) {
@@ -168,6 +170,14 @@ export class CommentsService {
     });
 
     const [commentWithProStatus] = await this.attachProStatus([newComment]);
+
+    // Notify the blog author about the new comment
+    await this.notificationsService.createCommentNotification(
+      newComment.authorId,
+      blog.authorId,
+      blog.id,
+      newComment.id,
+    );
 
     return this.presignAuthorImage(commentWithProStatus);
   }
