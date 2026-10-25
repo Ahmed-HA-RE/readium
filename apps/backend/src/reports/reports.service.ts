@@ -5,13 +5,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { Report, ReportReason, ReportStatus } from '@repo/types';
 import { CreateReportDto } from './dto/create-report-dto';
 import sendReportConfirmation from '../../mails/send-report-confirmation';
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: DatabaseService) {}
+  constructor(
+    private readonly prisma: DatabaseService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   private logger = new Logger(ReportsService.name);
 
@@ -95,6 +99,12 @@ export class ReportsService {
           error instanceof Error ? error.message : String(error)
         }`,
       ),
+    );
+
+    await this.notificationsService.createReportNotificationForAdmins(
+      newReport.userId,
+      newReport.blogId,
+      newReport.id,
     );
 
     const response: Report = {

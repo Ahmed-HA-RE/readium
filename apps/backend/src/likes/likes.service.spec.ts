@@ -2,6 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LikesService } from './likes.service';
 import { DatabaseService } from '../database/database.service';
+import { NotificationsService } from '../notifications/notifications.service';
+
+// The real gateway imports `better-auth`, which is ESM-only and Jest cannot parse.
+jest.mock('../notifications/notifications.gateway', () => ({
+  NotificationsGateway: class {},
+}));
+
+type NotificationsMocks = {
+  createLikeNotification: jest.Mock<Promise<unknown>, [string, string, string]>;
+  deleteLikeNotification: jest.Mock<Promise<void>, [string, string, string]>;
+};
 
 type PrismaMocks = {
   blog: {
@@ -23,8 +34,18 @@ const AUTHOR_ID = 'author-1';
 describe('LikesService', () => {
   let service: LikesService;
   let prisma: PrismaMocks;
+  let notifications: NotificationsMocks;
 
   beforeEach(async () => {
+    notifications = {
+      createLikeNotification: jest
+        .fn<Promise<unknown>, [string, string, string]>()
+        .mockResolvedValue(null),
+      deleteLikeNotification: jest
+        .fn<Promise<void>, [string, string, string]>()
+        .mockResolvedValue(undefined),
+    };
+
     prisma = {
       blog: {
         findUnique: jest
@@ -47,7 +68,11 @@ describe('LikesService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [LikesService, { provide: DatabaseService, useValue: prisma }],
+      providers: [
+        LikesService,
+        { provide: DatabaseService, useValue: prisma },
+        { provide: NotificationsService, useValue: notifications },
+      ],
     }).compile();
 
     service = module.get<LikesService>(LikesService);
@@ -62,6 +87,26 @@ describe('LikesService', () => {
       expect(prisma.like.create).toHaveBeenCalledWith({
         data: { blogId: 'blog-1', userId: READER_ID },
       });
+    });
+
+    it('notifies the blog author once the like is saved', async () => {
+      await service.likeBlog(SLUG, READER_ID);
+
+      expect(notifications.createLikeNotification).toHaveBeenCalledWith(
+        READER_ID,
+        AUTHOR_ID,
+        'blog-1',
+      );
+    });
+
+    it('sends no notification when the like is rejected', async () => {
+      prisma.like.findUnique.mockResolvedValue({ id: 'like-1' });
+
+      await expect(service.likeBlog(SLUG, READER_ID)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(notifications.createLikeNotification).not.toHaveBeenCalled();
     });
 
     // `blog.likesCount` is denormalised from the `like` rows, so the two must
@@ -139,6 +184,19 @@ describe('LikesService', () => {
       expect(prisma.like.delete).toHaveBeenCalledWith({
         where: { id: 'like-1' },
       });
+    });
+
+    // Without this, like → unlike → like would stack up notifications for the author.
+    it('removes the like notification along with the like', async () => {
+      prisma.like.findUnique.mockResolvedValue({ id: 'like-1' });
+
+      await service.unlikeBlog(SLUG, READER_ID);
+
+      expect(notifications.deleteLikeNotification).toHaveBeenCalledWith(
+        READER_ID,
+        AUTHOR_ID,
+        'blog-1',
+      );
     });
 
     it('decrements the denormalised counter in the same transaction', async () => {
