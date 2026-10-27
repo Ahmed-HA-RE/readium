@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import Header from '@/components/home/header';
 import HomeSidebar from '@/components/home/home-sidebar';
-import NotificationSocket from '@/components/shared/notification-socket';
+import NotificationSocket from '@/components/shared/notifications/notification-socket';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 
 const MainLayout = async ({ children }: { children: React.ReactNode }) => {

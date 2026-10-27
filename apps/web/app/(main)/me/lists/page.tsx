@@ -30,18 +30,22 @@ const ListsSection = async ({ tab, page, viewer }: ListsSectionProps) => {
   const queryClient = new QueryClient();
 
   // Literal twins of the keys in `useMyComments` and `useMyLikesOrBookmarks`.
-  // `prefetch*` never throws, so a failed fetch falls to the list's error state.
+  // `query` and `infiniteQuery` throw, so each failure is caught and falls to the list's error state.
   if (tab === 'comments') {
-    await queryClient.prefetchInfiniteQuery({
-      queryKey: ['comments', 'me'],
-      queryFn: ({ pageParam }) => getMyComments(pageParam),
-      initialPageParam: undefined as string | undefined,
-    });
+    await queryClient
+      .infiniteQuery({
+        queryKey: ['comments', 'me'],
+        queryFn: ({ pageParam }) => getMyComments(pageParam),
+        initialPageParam: undefined as string | undefined,
+      })
+      .catch(() => undefined);
   } else {
-    await queryClient.prefetchQuery({
-      queryKey: ['blogs', 'me', tab, { page }],
-      queryFn: () => getMyLikesOrBookmarks(tab, page),
-    });
+    await queryClient
+      .query({
+        queryKey: ['blogs', 'me', tab, { page }],
+        queryFn: () => getMyLikesOrBookmarks(tab, page),
+      })
+      .catch(() => undefined);
   }
 
   return (

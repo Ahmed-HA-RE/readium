@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
-import NotificationSocket from '@/components/shared/notification-socket';
+import NotificationSocket from '@/components/shared/notifications/notification-socket';
 import AdminShell from './_components/admin-shell';
 
 // Every admin route sits under this layout, so the role is checked once here.

@@ -14,7 +14,7 @@ import {
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import SidebarTrigger from './sidebar-trigger';
 import SearchCommand from './search-command';
-import NotificationsBell from '@/components/shared/notifications-bell';
+import NotificationsBell from '@/components/shared/notifications/notifications-bell';
 import ThemeToggle from '@/components/shared/theme-toggle';
 import UserMenu from './user-menu';
 

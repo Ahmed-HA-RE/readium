@@ -1,12 +1,9 @@
 'use client';
 
-import { useTransition } from 'react';
 import Link from 'next/link';
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
-import { useQueryClient } from '@tanstack/react-query';
 import { GoCheck } from 'react-icons/go';
 import { IoEllipsisHorizontalSharp } from 'react-icons/io5';
-import { toast } from 'sonner';
 import type { Notification } from '@repo/types';
 import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
@@ -16,9 +13,8 @@ import {
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { Spinner } from '@/components/ui/spinner';
-import NotificationSummary from '@/components/shared/notification-summary';
-import { markNotificationAsRead } from '@/lib/actions/notifications/markNotificationAsRead';
-import { markNotificationReadInCache } from '@/lib/notifications';
+import NotificationSummary from '@/components/shared/notifications/notification-summary';
+import { useMarkNotificationAsRead } from '@/hooks/notifications';
 
 type NotificationMenuItemProps = {
   notification: Notification;
@@ -30,18 +26,7 @@ const NotificationMenuItem = ({
   notification,
   href,
 }: NotificationMenuItemProps) => {
-  const queryClient = useQueryClient();
-  const [isPending, startTransition] = useTransition();
-
-  const markAsRead = () =>
-    startTransition(async () => {
-      const { error } = await markNotificationAsRead(notification.id);
-      if (error) {
-        toast.error(error);
-        return;
-      }
-      markNotificationReadInCache(queryClient, notification.id);
-    });
+  const { markAsRead, isPending } = useMarkNotificationAsRead(notification.id);
 
   return (
     <div

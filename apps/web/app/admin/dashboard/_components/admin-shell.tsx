@@ -19,7 +19,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import NotificationsBell from '@/components/shared/notifications-bell';
+import NotificationsBell from '@/components/shared/notifications/notifications-bell';
 import ThemeToggle from '@/components/shared/theme-toggle';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
