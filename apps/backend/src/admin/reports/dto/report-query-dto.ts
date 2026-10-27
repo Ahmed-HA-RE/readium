@@ -4,6 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
   MinLength,
@@ -30,6 +31,11 @@ export class ReportQueryDto {
   @IsOptional()
   @IsEnum(ReportStatus as object)
   status: ReportStatus;
+
+  // Set by a report notification's link, so the table opens on that one report.
+  @IsOptional()
+  @IsUUID('4')
+  reportId?: string;
 
   @Type(() => Number)
   @IsOptional()
