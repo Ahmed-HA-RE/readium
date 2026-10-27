@@ -34,6 +34,17 @@ export class CommentsController {
     return this.commentsService.getCommentsForBlog(query, blogSlug);
   }
 
+  // Method      GET /api/blogs/:blogSlug/comments/:commentId
+  // Description Get one comment of a blog post, pinned when opened from a notification
+  @Get('/:commentId')
+  @AllowAnonymous()
+  getComment(
+    @Param('blogSlug') blogSlug: string,
+    @Param('commentId', ParseUUIDPipe) commentId: string,
+  ) {
+    return this.commentsService.getCommentById(blogSlug, commentId);
+  }
+
   // Method      POST /api/blogs/:blogSlug/comments
   // Description Create a new comment for a blog post
 

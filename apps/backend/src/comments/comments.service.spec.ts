@@ -311,6 +311,53 @@ describe('CommentsService', () => {
     });
   });
 
+  describe('getCommentById', () => {
+    const findUniqueArgs = () =>
+      prisma.comment.findUnique.mock.calls[0][0] as { where: unknown };
+
+    // A comment on a draft, or on a different blog than the URL names, must not come back.
+    it('scopes the comment to the published blog with the slug', async () => {
+      await service.getCommentById(SLUG, 'comment-1');
+
+      expect(findUniqueArgs().where).toEqual({
+        id: 'comment-1',
+        blog: { slug: SLUG, isPublished: true },
+      });
+    });
+
+    it('throws NotFoundException when no comment matches', async () => {
+      prisma.comment.findUnique.mockResolvedValue(null);
+
+      await expect(service.getCommentById(SLUG, 'missing')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('returns the comment with a signed avatar and its pro status', async () => {
+      prisma.subscription.findMany.mockResolvedValue([
+        { referenceId: 'user-1' },
+      ]);
+
+      const comment = await service.getCommentById(SLUG, 'comment-1');
+
+      expect(comment.id).toBe('comment-1');
+      expect(comment.author).toMatchObject({
+        image: 'signed:avatar-key',
+        isPro: true,
+      });
+    });
+
+    it('returns an OAuth avatar URL unsigned', async () => {
+      const url = 'https://lh3.googleusercontent.com/a/photo.jpg';
+      prisma.comment.findUnique.mockResolvedValue(commentRow('comment-1', url));
+
+      const comment = await service.getCommentById(SLUG, 'comment-1');
+
+      expect(comment.author.image).toBe(url);
+      expect(s3.getSignedUrl).not.toHaveBeenCalled();
+    });
+  });
+
   describe('createComment', () => {
     it('saves the comment against the blog and the caller', async () => {
       await service.createComment({ content: 'Great read' }, SLUG, 'user-1');

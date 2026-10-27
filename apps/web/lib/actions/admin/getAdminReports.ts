@@ -12,6 +12,7 @@ export type GetAdminReportsParams = {
   search: string;
   reason: ReportReason | null;
   status: ReportStatus | null;
+  reportId: string | null;
   page: number;
   limit: number;
 };
@@ -20,6 +21,7 @@ export const getAdminReports = async ({
   search,
   reason,
   status,
+  reportId,
   page,
   limit,
 }: GetAdminReportsParams): Promise<GetAllReportsWithFilters> => {
@@ -28,6 +30,7 @@ export const getAdminReports = async ({
       reporterName: search || undefined,
       reason,
       status,
+      reportId,
       page,
       limit,
     },

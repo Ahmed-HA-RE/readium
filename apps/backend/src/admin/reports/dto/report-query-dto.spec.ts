@@ -60,6 +60,22 @@ describe('ReportQueryDto', () => {
     expect(dto.limit).toBeUndefined();
   });
 
+  describe('reportId', () => {
+    it('accepts a v4 UUID', () => {
+      const { dto, errors } = parse({
+        reportId: '3f1c2b7e-9a4d-4c1e-8b2f-5d6a7e8f9012',
+      });
+
+      expect(errors).toHaveLength(0);
+      expect(dto.reportId).toBe('3f1c2b7e-9a4d-4c1e-8b2f-5d6a7e8f9012');
+    });
+
+    // A hand-edited notification link must answer 400, not reach Prisma.
+    it.each(['report-1', '123', ''])('rejects reportId=%s', (reportId) => {
+      expect(parse({ reportId }).errors).toHaveLength(1);
+    });
+  });
+
   it('still validates the filters alongside pagination', () => {
     expect(parse({ reason: 'NOT_A_REASON' }).errors).toHaveLength(1);
     expect(parse({ status: 'NOT_A_STATUS' }).errors).toHaveLength(1);

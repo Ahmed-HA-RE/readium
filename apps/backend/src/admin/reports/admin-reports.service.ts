@@ -35,7 +35,7 @@ export class AdminReportsService {
   async getAllReportsAsAdmin(
     query: ReportQueryDto,
   ): Promise<GetAllReportsWithFilters> {
-    const { reporterName, reason, status, page, limit } = query;
+    const { reporterName, reason, status, reportId, page, limit } = query;
 
     // Build the filter system based on the provided query parameters
     const reporterNameFilter: Prisma.ReportWhereInput = reporterName
@@ -61,10 +61,17 @@ export class AdminReportsService {
         }
       : {};
 
+    const reportIdFilter: Prisma.ReportWhereInput = reportId
+      ? {
+          id: reportId,
+        }
+      : {};
+
     const filter: Prisma.ReportWhereInput = {
       ...reporterNameFilter,
       ...reasonFilter,
       ...statusFilter,
+      ...reportIdFilter,
     };
 
     const limitValue = limit ?? DEFAULT_ADMIN_TABLE_PAGE_SIZE;

@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import Header from '@/components/home/header';
 import HomeSidebar from '@/components/home/home-sidebar';
+import NotificationSocket from '@/components/shared/notifications/notification-socket';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 
 const MainLayout = async ({ children }: { children: React.ReactNode }) => {
@@ -23,6 +24,8 @@ const MainLayout = async ({ children }: { children: React.ReactNode }) => {
       // takes a dedicated prop. See shadcn-ui/ui#5509.
       mobileSidebarWidth='20rem'
     >
+      {/* The gateway rejects a handshake without a session cookie, so anonymous visitors never connect. */}
+      {session && <NotificationSocket />}
       <div className='flex min-h-svh w-full flex-col'>
         <Header />
 

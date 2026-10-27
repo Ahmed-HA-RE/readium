@@ -149,6 +149,14 @@ describe('AdminReportsService', () => {
       });
     });
 
+    it('narrows to one report when a notification links to it', async () => {
+      await service.getAllReportsAsAdmin({
+        reportId: 'report-1',
+      } as ReportQueryDto);
+
+      expect(findManyArgs().where).toEqual({ id: 'report-1' });
+    });
+
     it('counts with the same filter it lists with', async () => {
       await service.getAllReportsAsAdmin({
         status: ReportStatus.PENDING,

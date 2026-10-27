@@ -1,4 +1,4 @@
-import type { GetBlogBySlugResponse } from '@repo/types';
+import type { Comment, GetBlogBySlugResponse } from '@repo/types';
 import { SITE_URL } from '@/lib/constants';
 import { getBlogPath } from '@/lib/routes';
 import { sanitizeBlogHtml } from '@/lib/sanitize-html';
@@ -11,11 +11,16 @@ import CommentsSection from './comments-section';
 type BlogContentProps = {
   data: GetBlogBySlugResponse;
   blogSlug: string;
+  pinnedComment: Comment | null;
 };
 
 // Serves the author and every reader; `isOwnBlog` decides which actions show.
 // The page has already fetched the blog and handled both redirects.
-const BlogContent = async ({ data, blogSlug }: BlogContentProps) => {
+const BlogContent = async ({
+  data,
+  blogSlug,
+  pinnedComment,
+}: BlogContentProps) => {
   const session = await getCurrentLoggedInUser();
 
   const {
@@ -75,6 +80,7 @@ const BlogContent = async ({ data, blogSlug }: BlogContentProps) => {
           slug={blogSlug}
           commentsCount={blog._count.comments}
           viewer={viewer}
+          pinnedComment={pinnedComment}
         />
       }
     />

@@ -33,6 +33,10 @@ export const ADMIN_ACCOUNT_DELETION_CONSEQUENCES = [
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
 
+// The backend origin with no path: socket.io reads a path as a namespace, so `API_URL` would ask for `/api`.
+export const SOCKET_URL =
+  process.env.NEXT_PUBLIC_SOCKET_URL ?? 'http://localhost:3001';
+
 // The live account in production, the sandbox everywhere else; the admin UI never says which.
 export const STRIPE_DASHBOARD_URL =
   process.env.NODE_ENV === 'production'

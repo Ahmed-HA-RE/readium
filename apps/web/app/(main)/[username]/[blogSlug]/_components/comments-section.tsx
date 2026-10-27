@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useInView } from 'react-intersection-observer';
 import { TriangleAlertIcon } from 'lucide-react';
+import { TbPinnedFilled } from 'react-icons/tb';
+import type { Comment } from '@repo/types';
 import { getErrorMessage } from '@/lib/utils';
 import { getLoginPath } from '@/lib/routes';
 import { useBlogComments } from '@/hooks/comments';
@@ -24,12 +26,15 @@ type CommentsSectionProps = {
     role: string | string[] | undefined;
     isPro: boolean;
   } | null;
+  // The comment a notification linked to, fetched by the page from `?commentId=`.
+  pinnedComment: Comment | null;
 };
 
 const CommentsSection = ({
   slug,
   commentsCount,
   viewer,
+  pinnedComment,
 }: CommentsSectionProps) => {
   const pathname = usePathname();
   const {
@@ -53,6 +58,10 @@ const CommentsSection = ({
   }, [inView, hasNextPage, isFetchingNextPage, isError, fetchNextPage]);
 
   const comments = data?.pages.flatMap((page) => page.data) ?? [];
+  // The pinned comment already shows above the thread, so the feed skips it when its page arrives.
+  const listedComments = pinnedComment
+    ? comments.filter(({ id }) => id !== pinnedComment.id)
+    : comments;
 
   // A failed first page also leaves `comments` empty, which is not "no comments".
   const isEmpty = comments.length === 0 && !isError;
@@ -87,6 +96,27 @@ const CommentsSection = ({
         </div>
       )}
 
+      {/* Outside the pending branch, so it is in the first HTML and the link's `#comment-<id>` scrolls to it. */}
+      {pinnedComment && (
+        <div
+          id={`comment-${pinnedComment.id}`}
+          className='scroll-mt-20 rounded-lg border-l-2 border-primary bg-primary/5 px-4'
+        >
+          <p className='flex items-center gap-1.5 pt-4 text-xs font-medium text-primary'>
+            <TbPinnedFilled className='size-3.5' />
+            Linked response
+          </p>
+          <CommentCard
+            slug={slug}
+            comment={pinnedComment}
+            isOwnComment={pinnedComment.author.id === viewer?.id}
+            canDelete={
+              pinnedComment.author.id === viewer?.id || viewer?.role === 'admin'
+            }
+          />
+        </div>
+      )}
+
       {isPending ? (
         <div className='flex justify-center py-8'>
           <Spinner />
@@ -100,9 +130,9 @@ const CommentsSection = ({
             </p>
           )}
 
-          {comments.length > 0 && (
+          {listedComments.length > 0 && (
             <div className='divide-y'>
-              {comments.map((comment) => (
+              {listedComments.map((comment) => (
                 <CommentCard
                   key={comment.id}
                   slug={slug}

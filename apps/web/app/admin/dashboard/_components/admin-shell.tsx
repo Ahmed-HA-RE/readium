@@ -1,12 +1,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { FaBell } from 'react-icons/fa';
 import { ArrowRightIcon } from 'lucide-react';
 import { IoSearch } from 'react-icons/io5';
 import { APP_LOGO } from '@repo/assets';
 import { APP_NAME } from '@repo/constants';
-import { cn } from 'cn';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,9 +19,10 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
+import NotificationsBell from '@/components/shared/notifications/notifications-bell';
 import ThemeToggle from '@/components/shared/theme-toggle';
 import { DEFAULT_AVATAR } from '@/lib/constants';
-import { ADMIN_NOTIFICATIONS_PATH, ADMIN_OVERVIEW_PATH } from '@/lib/routes';
+import { ADMIN_OVERVIEW_PATH } from '@/lib/routes';
 import AdminBreadcrumb from './admin-breadcrumb';
 import AdminSearch from './admin-search';
 import AdminUserMenu from './admin-user-menu';
@@ -143,15 +142,12 @@ const AdminShell = ({ user, children }: AdminShellProps) => {
                 />
               </div>
               <div className='flex items-center gap-1.5'>
-                <Link
-                  href={ADMIN_NOTIFICATIONS_PATH}
-                  className={cn(
-                    buttonVariants({ variant: 'ghost', size: 'icon' }),
-                  )}
-                >
-                  <FaBell />
-                  <span className='sr-only'>Notifications</span>
-                </Link>
+          
+                <NotificationsBell
+                  username={user.name}
+                  isAdmin
+                  className='max-lg:hidden'
+                />
                 <ThemeToggle />
                 <AdminUserMenu
                   name={user.name}

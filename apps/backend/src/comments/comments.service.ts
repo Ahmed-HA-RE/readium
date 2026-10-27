@@ -143,6 +143,31 @@ export class CommentsService {
     };
   }
 
+  // Backs a comment notification's link, so the comment can be pinned without paging the feed to it.
+  // Scoped like the feed: a comment on a draft or on another blog answers 404.
+  async getCommentById(blogSlug: string, commentId: string): Promise<Comment> {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId, blog: { slug: blogSlug, isPublished: true } },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundException(`Comment with ID ${commentId} not found`);
+    }
+
+    const [commentWithProStatus] = await this.attachProStatus([comment]);
+
+    return this.presignAuthorImage(commentWithProStatus);
+  }
+
   async createComment(
     createCommentDto: CreateCommentDto,
     blogSlug: string,

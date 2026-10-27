@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
@@ -37,6 +38,7 @@ const EditCommentForm = ({
   onClose,
 }: EditCommentFormProps) => {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const fieldId = useId();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -62,8 +64,9 @@ const EditCommentForm = ({
     try {
       await updateComment({ slug, commentId, content });
 
-      // The count is unchanged, so unlike create and delete no refresh is needed.
+      // The feed is a client query; the refresh re-fetches a pinned comment, which is a server prop.
       await queryClient.invalidateQueries({ queryKey: ['comments'] });
+      router.refresh();
       onClose();
       toast.success('Comment updated successfully');
     } catch (error) {

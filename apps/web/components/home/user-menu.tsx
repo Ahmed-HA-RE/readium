@@ -19,6 +19,7 @@ import {
 import LogoutAction from '@/components/shared/logout-action';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import {
+  ADMIN_NOTIFICATIONS_PATH,
   ADMIN_OVERVIEW_PATH,
   ADMIN_SETTINGS_PATH,
   getMySettingsPath,
@@ -40,7 +41,11 @@ const getCollapsedLinks = (isAdmin: boolean) => [
         Icon: MdAdminPanelSettings,
       }
     : { href: NEW_STORY_PATH, label: 'Write', Icon: FaEdit },
-  { href: NOTIFICATIONS_PATH, label: 'Notifications', Icon: GoBell },
+  {
+    href: isAdmin ? ADMIN_NOTIFICATIONS_PATH : NOTIFICATIONS_PATH,
+    label: 'Notifications',
+    Icon: GoBell,
+  },
 ];
 
 const getAccountLinks = (isAdmin: boolean) => [
