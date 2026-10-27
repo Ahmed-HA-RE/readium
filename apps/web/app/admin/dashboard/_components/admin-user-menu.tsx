@@ -1,6 +1,8 @@
 import type { ReactElement } from 'react';
 import Link from 'next/link';
 import { FaHome } from 'react-icons/fa';
+import { GoBell } from 'react-icons/go';
+import { cn } from 'cn';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -14,6 +16,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import LogoutAction from '@/components/shared/logout-action';
 import { DEFAULT_AVATAR } from '@/lib/constants';
+import { ADMIN_NOTIFICATIONS_PATH } from '@/lib/routes';
 
 const ITEM_CLASS = 'gap-2 px-4 py-2.5 text-base';
 const ICON_CLASS = 'text-foreground size-5';
@@ -28,6 +31,12 @@ type AdminUserMenuProps = {
 const AdminUserMenu = ({ name, email, image, trigger }: AdminUserMenuProps) => {
   const links = [
     { href: '/', label: 'Back to Main Page', Icon: FaHome },
+    {
+      href: ADMIN_NOTIFICATIONS_PATH,
+      label: 'Notifications',
+      Icon: GoBell,
+      className: 'lg:hidden',
+    },
   ];
 
   return (
@@ -56,10 +65,10 @@ const AdminUserMenu = ({ name, email, image, trigger }: AdminUserMenuProps) => {
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          {links.map(({ href, label, Icon }) => (
+          {links.map(({ href, label, Icon, className }) => (
             <DropdownMenuItem
               key={href}
-              className={ITEM_CLASS}
+              className={cn(ITEM_CLASS, className)}
               render={<Link href={href} />}
             >
               <Icon className={ICON_CLASS} />

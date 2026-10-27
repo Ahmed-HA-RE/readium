@@ -14,7 +14,7 @@ import {
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import SidebarTrigger from './sidebar-trigger';
 import SearchCommand from './search-command';
-import NotificationsBell from './notifications-bell';
+import NotificationsBell from '@/components/shared/notifications-bell';
 import ThemeToggle from '@/components/shared/theme-toggle';
 import UserMenu from './user-menu';
 
@@ -67,7 +67,11 @@ const Header = async () => {
                   </>
                 )}
               </Link>
-              <NotificationsBell className='max-lg:hidden' />
+              <NotificationsBell
+                username={session.user.name}
+                isAdmin={isAdmin}
+                className='max-lg:hidden'
+              />
 
               <ThemeToggle className='max-lg:hidden' />
               <UserMenu

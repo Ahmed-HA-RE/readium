@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
+import NotificationSocket from '@/components/shared/notification-socket';
 import AdminShell from './_components/admin-shell';
 
 // Every admin route sits under this layout, so the role is checked once here.
@@ -13,7 +14,12 @@ const AdminDashboardLayout = async ({
 
   const { name, email, image } = session.user;
 
-  return <AdminShell user={{ name, email, image }}>{children}</AdminShell>;
+  return (
+    <>
+      <NotificationSocket />
+      <AdminShell user={{ name, email, image }}>{children}</AdminShell>
+    </>
+  );
 };
 
 export default AdminDashboardLayout;
