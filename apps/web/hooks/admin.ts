@@ -57,12 +57,18 @@ export const useAdminReports = ({
   search,
   reason,
   status,
+  reportId,
   page,
   limit,
 }: GetAdminReportsParams) =>
   useQuery({
-    queryKey: ['reports', 'admin', { search, reason, status, page, limit }],
-    queryFn: () => getAdminReports({ search, reason, status, page, limit }),
+    queryKey: [
+      'reports',
+      'admin',
+      { search, reason, status, reportId, page, limit },
+    ],
+    queryFn: () =>
+      getAdminReports({ search, reason, status, reportId, page, limit }),
     enabled: !search || search.length >= MIN_ADMIN_TABLE_SEARCH_LENGTH,
     placeholderData: keepPreviousData,
   });

@@ -1,8 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
+import type { SearchParams } from 'nuqs/server';
 import { SITE_NAME } from '@/lib/constants';
 import { getBlogPath } from '@/lib/routes';
+import { loadBlogPageSearchParams } from '@/lib/search-params';
 import { getBlogBySlug } from '@/lib/actions/blogs/getBlogBySlug';
+import { getBlogComment } from '@/lib/actions/comments/getBlogComment';
 import BlogContent from './_components/blog-content';
 
 type BlogPageParams = Promise<{ username: string; blogSlug: string }>;
@@ -58,10 +61,24 @@ export const generateMetadata = async ({
   };
 };
 
-const BlogPage = async ({ params }: { params: BlogPageParams }) => {
-  const { username, blogSlug } = await params;
-  // Shared with `generateMetadata` through `cache`, so this is not a second fetch.
-  const data = blogSlug ? await getBlogBySlug(blogSlug) : null;
+const BlogPage = async ({
+  params,
+  searchParams,
+}: {
+  params: BlogPageParams;
+  searchParams: Promise<SearchParams>;
+}) => {
+  const [{ username, blogSlug }, { commentId }] = await Promise.all([
+    params,
+    loadBlogPageSearchParams(searchParams),
+  ]);
+  // `getBlogBySlug` is shared with `generateMetadata` through `cache`, so this is not a second fetch.
+  const [data, pinnedComment] = await Promise.all([
+    blogSlug ? getBlogBySlug(blogSlug) : null,
+    blogSlug && commentId
+      ? getBlogComment({ slug: blogSlug, commentId })
+      : null,
+  ]);
 
   if (!data) notFound();
 
@@ -71,7 +88,9 @@ const BlogPage = async ({ params }: { params: BlogPageParams }) => {
     redirect(getBlogPath(data.blog.author.name, blogSlug));
   }
 
-  return <BlogContent data={data} blogSlug={blogSlug} />;
+  return (
+    <BlogContent data={data} blogSlug={blogSlug} pinnedComment={pinnedComment} />
+  );
 };
 
 export default BlogPage;

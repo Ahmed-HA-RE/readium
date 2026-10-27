@@ -71,9 +71,18 @@ export const adminReportsParsers = {
   search: parseAsString.withDefault(''),
   reason: parseAsStringEnum<ReportReason>(Object.values(ReportReason)),
   status: parseAsStringEnum<ReportStatus>(Object.values(ReportStatus)),
+  // Set by a report notification's link, so the table opens on that one report.
+  reportId: parseAsString,
   page: pageParser,
   limit: adminTableLimitParser,
 };
+
+// Set by a comment notification's link, so that comment is pinned above the thread.
+export const blogPageParsers = {
+  commentId: parseAsString,
+};
+
+export const loadBlogPageSearchParams = createLoader(blogPageParsers);
 
 export const userBlogsParsers = {
   search: parseAsString.withDefault(''),

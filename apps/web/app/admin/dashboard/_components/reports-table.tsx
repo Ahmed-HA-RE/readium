@@ -229,6 +229,7 @@ const OVERVIEW_PARAMS = {
   search: '',
   reason: null,
   status: ReportStatus.PENDING,
+  reportId: null,
   page: 1,
   limit: DEFAULT_ADMIN_TABLE_PAGE_SIZE,
 };
@@ -240,7 +241,7 @@ type ReportsTableProps = {
 const ReportsTable = ({ showControls = false }: ReportsTableProps) => {
   const [urlParams, setParams] = useQueryStates(adminReportsParsers);
   const params = showControls ? urlParams : OVERVIEW_PARAMS;
-  const { search, reason, status, page, limit } = params;
+  const { search, reason, status, reportId, page, limit } = params;
 
   const { data, isPending, isError, refetch } = useAdminReports(params);
 
@@ -255,7 +256,7 @@ const ReportsTable = ({ showControls = false }: ReportsTableProps) => {
     }
   }, [showControls, page, totalPages, setParams]);
 
-  const hasFilters = Boolean(search || reason || status);
+  const hasFilters = Boolean(search || reason || status || reportId);
 
   const emptyMessage = !showControls
     ? "No pending reports. You're all caught up."
@@ -272,7 +273,9 @@ const ReportsTable = ({ showControls = false }: ReportsTableProps) => {
               // Remounts the input when the filters are cleared, so its own state resets too.
               key={search ? 'search' : 'empty'}
               defaultValue={search}
-              onSearch={(next) => setParams({ search: next, page: 1 })}
+              onSearch={(next) =>
+                setParams({ search: next, reportId: null, page: 1 })
+              }
               placeholder='Search by reporter...'
               className='w-full max-w-72'
             />
@@ -284,6 +287,7 @@ const ReportsTable = ({ showControls = false }: ReportsTableProps) => {
                 onValueChange={(value) =>
                   setParams({
                     reason: value === ALL ? null : (value as ReportReason),
+                    reportId: null,
                     page: 1,
                   })
                 }
@@ -306,6 +310,7 @@ const ReportsTable = ({ showControls = false }: ReportsTableProps) => {
                 onValueChange={(value) =>
                   setParams({
                     status: value === ALL ? null : (value as ReportStatus),
+                    reportId: null,
                     page: 1,
                   })
                 }
@@ -328,7 +333,13 @@ const ReportsTable = ({ showControls = false }: ReportsTableProps) => {
                 aria-label='Clear filters'
                 disabled={!hasFilters}
                 onClick={() =>
-                  setParams({ search: '', reason: null, status: null, page: 1 })
+                  setParams({
+                    search: '',
+                    reason: null,
+                    status: null,
+                    reportId: null,
+                    page: 1,
+                  })
                 }
               >
                 <GrPowerReset />
@@ -340,6 +351,13 @@ const ReportsTable = ({ showControls = false }: ReportsTableProps) => {
             <p className='text-muted-foreground text-xs'>
               Type at least {MIN_ADMIN_TABLE_SEARCH_LENGTH} characters to
               search.
+            </p>
+          )}
+
+          {reportId && (
+            <p className='text-muted-foreground text-xs'>
+              Showing the report from a notification. Clear the filters to see
+              every report.
             </p>
           )}
         </div>
