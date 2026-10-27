@@ -12,18 +12,13 @@ const NotificationSocket = () => {
 
   // `queryClient` is the browser singleton, so this still runs once per mount.
   useEffect(() => {
-    // TODO: remove before production, so nothing about the connection reaches the browser console.
-    const onConnect = () => console.log('Socket connected:', socket.id);
-
     const onNotification = (notification: Notification) =>
       addNotificationToCache(queryClient, notification);
 
-    socket.on('connect', onConnect);
     socket.on('notification', onNotification);
     socket.connect();
 
     return () => {
-      socket.off('connect', onConnect);
       socket.off('notification', onNotification);
       socket.disconnect();
     };
