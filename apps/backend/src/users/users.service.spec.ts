@@ -821,10 +821,14 @@ describe('UsersService', () => {
 
     // The whole point of the endpoint: the author comes from the session, so
     // no caller-supplied identifier can widen the result set.
-    it('scopes the comments to the session user id', async () => {
+    // A blog the caller reported 404s for them, so its comments must not link to it.
+    it('scopes the comments to the session user id and leaves out blogs they reported', async () => {
       await myComments();
 
-      expect(findManyArgs().where).toEqual({ authorId: 'user-1' });
+      expect(findManyArgs().where).toEqual({
+        authorId: 'user-1',
+        blog: { report: { none: { userId: 'user-1' } } },
+      });
     });
 
     // History #2: ordering by createdAt alone leaves a cursor on `id` sitting
@@ -1007,12 +1011,14 @@ describe('UsersService', () => {
 
     // A blog unpublished after it was liked or bookmarked would otherwise
     // render a card linking to a dead page.
-    it('excludes unpublished blogs and blogs by a banned author', async () => {
+    // A blog the caller reported 404s for them, like an unpublished one, so neither may show as a card.
+    it('excludes unpublished blogs, blogs by a banned author and blogs the caller reported', async () => {
       await saved();
 
       expect(findManyArgs().where.blog).toEqual({
         isPublished: true,
         author: { NOT: { banned: true } },
+        report: { none: { userId: 'user-1' } },
       });
     });
 

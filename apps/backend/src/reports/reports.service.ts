@@ -63,26 +63,45 @@ export class ReportsService {
       `Creating report for blog: ${blogSlug} by user: ${userId} with reason (${reason})`,
     );
 
-    const newReport = await this.prisma.report.create({
-      data: {
-        reason,
-        blogId: blog.id,
-        userId,
-      },
-      include: {
-        blog: {
-          select: {
-            title: true,
+    // A report withdraws the reporter's like, which endorses what they just flagged. One transaction,
+    // so `likesCount` cannot drift from the rows; `deleteMany` avoids a find-then-delete race.
+    const { newReport, removedLikes } = await this.prisma.$transaction(
+      async (tx) => {
+        const report = await tx.report.create({
+          data: {
+            reason,
+            blogId: blog.id,
+            userId,
           },
-        },
-        user: {
-          select: {
-            email: true,
-            name: true,
+          include: {
+            blog: {
+              select: {
+                title: true,
+              },
+            },
+            user: {
+              select: {
+                email: true,
+                name: true,
+              },
+            },
           },
-        },
+        });
+
+        const { count } = await tx.like.deleteMany({
+          where: { userId, blogId: blog.id },
+        });
+
+        if (count > 0) {
+          await tx.blog.update({
+            where: { id: blog.id },
+            data: { likesCount: { decrement: count } },
+          });
+        }
+
+        return { newReport: report, removedLikes: count };
       },
-    });
+    );
 
     // Fire and forget: the report is already stored, so awaiting the mail only
     // delays the response. The `catch` is required — an unhandled rejection
@@ -106,6 +125,15 @@ export class ReportsService {
       newReport.blogId,
       newReport.id,
     );
+
+    // Same as `unlikeBlog`: the author is not left with a notification for a like that is gone.
+    if (removedLikes > 0) {
+      await this.notificationsService.deleteLikeNotification(
+        userId,
+        blog.authorId,
+        blog.id,
+      );
+    }
 
     const response: Report = {
       id: newReport.id,
