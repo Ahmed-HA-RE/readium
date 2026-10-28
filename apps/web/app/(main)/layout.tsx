@@ -3,7 +3,9 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import Header from '@/components/home/header';
 import HomeSidebar from '@/components/home/home-sidebar';
 import NotificationSocket from '@/components/shared/notifications/notification-socket';
+import WelcomeOfferBanner from '@/components/home/welcome-offer-banner';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
+import { isWelcomeOfferEligible } from '@/lib/plans';
 
 const MainLayout = async ({ children }: { children: React.ReactNode }) => {
   const [session, cookieStore] = await Promise.all([
@@ -28,6 +30,11 @@ const MainLayout = async ({ children }: { children: React.ReactNode }) => {
       {session && <NotificationSocket />}
       <div className='flex min-h-svh w-full flex-col'>
         <Header />
+        {session &&
+          isWelcomeOfferEligible({
+            hasSubscribedBefore: session.user.hasSubscribedBefore,
+            role: session.user.role,
+          }) && <WelcomeOfferBanner />}
 
         {/* The header spans the full width, so the sidebar and the content
             share a row below it rather than sitting beside the header. */}

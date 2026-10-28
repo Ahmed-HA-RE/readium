@@ -4,6 +4,7 @@ import { APP_NAME } from '@repo/constants';
 import { Badge } from '@/components/ui/badge';
 import { getCurrentLoggedInUser } from '@/lib/actions/user/getCurrentLoggedInUser';
 import { getLoginPath, getMySettingsPath, PLANS_PATH } from '@/lib/routes';
+import { isWelcomeOfferEligible } from '@/lib/plans';
 import PlansPricing from './_components/plans-pricing';
 
 export const metadata: Metadata = {
@@ -19,8 +20,7 @@ const PlansPage = async () => {
   // Admins get Pro through their role and keep the page; members manage their plan in settings.
   const isAdmin = role === 'admin';
   if (isPro && !isAdmin) redirect(getMySettingsPath('membership'));
-  // Matches the checkout hook, which applies the coupon only to a first subscription.
-  const showWelcomeOffer = !hasSubscribedBefore && !isAdmin;
+  const showWelcomeOffer = isWelcomeOfferEligible({ hasSubscribedBefore, role });
 
   return (
     <div className='mx-auto flex w-full max-w-5xl flex-col items-center gap-8 px-4 pt-8 pb-16 sm:px-6'>
