@@ -6,7 +6,7 @@ const MyCommentCardSkeleton = ({ count = 5 }: { count?: number }) => (
     {Array.from({ length: count }, (_, index) => (
       <div key={index} className='flex flex-col gap-4 py-6'>
         <div className='flex items-center gap-3'>
-          <Skeleton className='size-12 shrink-0 rounded-md' />
+          <Skeleton className='size-16 shrink-0 rounded-md' />
           <div className='flex flex-col gap-1.5'>
             <Skeleton className='h-4 w-64 max-w-full' />
             <Skeleton className='h-3 w-32' />

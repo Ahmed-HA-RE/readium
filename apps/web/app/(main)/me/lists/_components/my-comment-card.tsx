@@ -36,9 +36,9 @@ const MyCommentCard = memo(function MyCommentCard({
             <Image
               src={blog.coverImage}
               alt=''
-              width={48}
-              height={48}
-              className='size-12 shrink-0 rounded-md object-cover'
+              width={256}
+              height={256}
+              className='size-16 shrink-0 rounded-md object-cover'
             />
           )}
 

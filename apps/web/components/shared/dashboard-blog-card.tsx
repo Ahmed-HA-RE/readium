@@ -8,8 +8,6 @@ import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import BlogActionsMenu from './blog-actions-menu';
 
-const coverImageStyles = { width: '100%', height: 'auto' };
-
 type DashboardBlogCardProps = {
   // `_count` is absent on the likes and bookmarks lists.
   blog: Pick<
@@ -56,7 +54,6 @@ const DashboardBlogCard = ({
             height={164}
             priority={priority}
             className='size-full object-cover transition-transform duration-300 group-hover:scale-105'
-            style={coverImageStyles}
           />
         </Link>
       )}
