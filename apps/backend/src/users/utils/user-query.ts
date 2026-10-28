@@ -32,11 +32,16 @@ export const likesAndBookmarksSelect = {
   },
 } satisfies Prisma.BlogSelect;
 
-// Scoped to the caller's own id and to blogs that are still published, so no
-// card can link to a dead page. Structural type: `Like` and `Bookmark` differ.
+// Scoped to the caller's own id and to blogs that are still published and not reported by them,
+// so no card can link to a page that 404s for them. Structural type: `Like` and `Bookmark` differ.
 export const buildLikesAndBookmarksFilter = (userId: string) => ({
   userId,
-  blog: { isPublished: true, ...visibleAuthorFilter },
+  blog: {
+    isPublished: true,
+    ...visibleAuthorFilter,
+    // Hidden from the reporter only, matching the feed, trending, search and the blog page.
+    report: { none: { userId } },
+  },
 });
 
 // Newest saved first. The `id` tie-break keeps the order total — `createdAt`

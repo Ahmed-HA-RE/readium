@@ -132,7 +132,11 @@ const ReportMenu = ({ slug, className }: MenuProps) => {
   const onSubmit = async ({ reason }: ReportBlogFormData) => {
     try {
       await reportBlog({ slug, reason });
-      await queryClient.invalidateQueries({ queryKey: ['blogs'] });
+      // The reported blog leaves the reader's Library tabs, comments included, and their like is removed.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['blogs'] }),
+        queryClient.invalidateQueries({ queryKey: ['comments'] }),
+      ]);
       router.refresh();
 
       toast.success("Got it — thanks for flagging this. We'll review it soon.");

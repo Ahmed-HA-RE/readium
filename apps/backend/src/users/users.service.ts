@@ -287,7 +287,11 @@ export class UsersService {
     });
 
     const comments = await this.prisma.comment.findMany({
-      where: { authorId: user.id },
+      // A blog the caller reported 404s for them, so its comments are left out like its likes and bookmarks.
+      where: {
+        authorId: user.id,
+        blog: { report: { none: { userId: user.id } } },
+      },
       take,
       // `skip: 1` steps over the cursor row, which the client already has.
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
