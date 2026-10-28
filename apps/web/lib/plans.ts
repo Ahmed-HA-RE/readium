@@ -1,3 +1,5 @@
+import type { CurrentUser } from '@repo/types';
+
 export type BillingPeriod = 'monthly' | 'yearly';
 
 export type PlanId = 'free' | 'pro';
@@ -5,7 +7,17 @@ export type PlanId = 'free' | 'pro';
 export const PRO_PRICE = { monthly: 10, yearly: 100 } as const;
 
 // The first yearly plan is 20% off; renewals bill the full yearly price.
-export const PRO_FIRST_YEAR_PRICE = PRO_PRICE.yearly * 0.8;
+export const WELCOME_OFFER_DISCOUNT = 0.2;
+
+export const PRO_FIRST_YEAR_PRICE =
+  PRO_PRICE.yearly * (1 - WELCOME_OFFER_DISCOUNT);
+
+// Matches the checkout hook, which applies the coupon only to a first subscription.
+export const isWelcomeOfferEligible = ({
+  role,
+  hasSubscribedBefore,
+}: Pick<CurrentUser, 'role' | 'hasSubscribedBefore'>) =>
+  !hasSubscribedBefore && role !== 'admin';
 
 export const YEARLY_SAVINGS = PRO_PRICE.monthly * 12 - PRO_FIRST_YEAR_PRICE;
 
