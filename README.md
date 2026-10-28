@@ -1,159 +1,216 @@
-# Turborepo starter
+# Readium :bookmark_tabs:
 
-This Turborepo starter is maintained by the Turborepo core team.
+**A Full-stack publishing platform for writers and readers, inspired by Medium.**
 
-## Using this example
+Readium lets writers publish free or Pro-only stories, and readers discover, like, bookmark and discuss them. Readers subscribe through Stripe to unlock every Pro story, get real-time notifications as people interact with their work, and moderators keep the community clean from an admin dashboard. It is built as a TypeScript monorepo with a Next.js frontend and a NestJS API.
 
-Run the following command:
+> [!NOTE]
+> **Live demo:** [readium.ahmedrehandev.net](https://readium.ahmedrehandev.net)
+>
+> - **Cold starts:** the app is deployed on **Render's free tier**, which spins the server down when idle. The first request after a while can take **about 60 seconds** while it wakes up. After that, it's fast.
+> - **Sandbox payments:** subscriptions run in **Stripe's sandbox (test mode)**, so no real money is charged. Use the test card `4242 4242 4242 4242` with any future expiry date and any CVC.
 
-```sh
-npx create-turbo@latest
+## :camera_flash: Screenshots
+
+![Readium homepage with the notifications dropdown open](docs/app-homepage.png)
+
+|                             Plans                             |                        Settings                        |
+| :-----------------------------------------------------------: | :----------------------------------------------------: |
+| ![Plans page with the welcome offer](docs/app-plans-page.png) | ![User settings page](docs/app-user-settings-page.png) |
+
+## :bookmark: Features
+
+### Reading and discovery
+
+- Home feed with sorting, plus a **Trending** panel
+- Global search across stories and writers
+- Public author profiles at `/@username`
+- **Pro-only stories:** non-members get a preview, Pro members read in full
+- Share stories to social platforms or copy the link
+
+### Writing
+
+- Rich-text editor (Tiptap) with syntax-highlighted code blocks
+- Cover image uploads to AWS S3
+- Drafts and publishing, tags and slug-based URLs
+- A **Free / Pro-only** toggle on each story for Pro members
+- A dashboard to manage published stories and drafts
+
+### Community
+
+- Likes, bookmarks and comments
+- A personal **Library** of liked, bookmarked and commented stories
+- Content reporting: spam, harassment, rules violations and AI-generated content
+
+### Notifications
+
+- **Real-time** in-app notifications over WebSockets (Socket.io) for likes, comments and bookmarks
+- A full notifications page
+- Transactional emails with Resend and React Email: email verification and changes, two-factor codes, subscription welcome and cancellation, report confirmations, moderation warnings and bans
+
+### Authentication and security
+
+- Email and password sign-up with email verification and password reset
+- OAuth sign-in with **Google, GitHub and Twitch**
+- **Two-factor authentication** (TOTP authenticator apps with a QR code, plus backup codes)
+- Cookie-based sessions and role-based access control (members and admins)
+- Account bans, and rate limiting on both the API and the auth routes
+
+### Subscriptions
+
+- **Pro membership** through Stripe Checkout, billed monthly or yearly
+- A **welcome offer** for members who never subscribed: 20% off the first year, shown on the homepage and the plans page
+- Plan and billing management through the Stripe customer portal
+
+### Admin dashboard
+
+- Analytics overview of users, stories, reports and revenue
+- User management, including bans
+- Story moderation and a report review queue
+- Payments overview and a shared real-time notifications room for admins
+
+### SEO
+
+- Per-page metadata, Open Graph images, canonical URLs and `robots.txt`
+
+## :toolbox: Tech Stack
+
+| Layer          | Technologies                                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Monorepo**   | Turborepo, pnpm workspaces, TypeScript                                                                                                     |
+| **Frontend**   | Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui, TanStack Query, React Hook Form, Zod, nuqs, Tiptap, Motion, Socket.io client |
+| **Backend**    | NestJS, Prisma 7, Neon (PostgreSQL), Better Auth, Socket.io, class-validator                                                               |
+| **Payments**   | Stripe                                                                                                                                     |
+| **Email**      | Resend, React Email                                                                                                                        |
+| **Storage**    | AWS S3                                                                                                                                     |
+| **Testing**    | Jest                                                                                                                                       |
+| **Deployment** | Render, Vercel                                                                                                                             |
+
+### Project structure
+
+```
+readium/
+├── apps/
+│   ├── web/        # Next.js frontend (port 3000)
+│   └── backend/    # NestJS API, Prisma and Better Auth (port 3001)
+└── packages/
+    ├── types/      # Shared API response types
+    ├── constants/  # Shared constants
+    ├── assets/     # Shared images and logos
+    ├── eslint-config/
+    └── typescript-config/
 ```
 
-## What's inside?
+## :page_facing_up: Getting Started
 
-This Turborepo includes the following packages/apps:
+### Prerequisites
 
-### Apps and Packages
+- **Node.js 20.19+** (developed on Node 24)
+- **pnpm 11**
+- A **PostgreSQL** database (the project uses [Neon](https://neon.tech))
+- A **Stripe** account in test mode, and the [Stripe CLI](https://docs.stripe.com/stripe-cli) for local webhooks
+- A **Resend** account and an **AWS S3** bucket
+- _Optional:_ OAuth apps for Google, GitHub and Twitch
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+### Installation
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+1. **Clone the repository and install dependencies**
 
-### Utilities
+   ```bash
+   git clone https://github.com/Ahmed-HA-RE/readium.git
+   cd readium
+   pnpm install
+   ```
 
-This Turborepo has some additional tools already setup for you:
+2. **Set up the environment variables**
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+   The root [`.env.example`](.env.example) has two commented sections, **Backend** and **Frontend**. Each app reads its own file, so copy each section into its app and fill in the values:
 
-### Build
+   ```bash
+   # Backend section  →  apps/backend/.env
+   # Frontend section →  apps/web/.env
+   ```
 
-To build all apps and packages, run the following command:
+   See [Environment variables](#label-environment-variables) below for what each one does.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+3. **Set up the database**
 
-```sh
-cd my-turborepo
-turbo build
-```
+   ```bash
+   pnpm --filter backend exec prisma generate
+   pnpm --filter backend exec prisma migrate deploy
+   ```
 
-Without global `turbo`, use your package manager:
+4. **Forward Stripe webhooks** (in a separate terminal)
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
-```
+   ```bash
+   stripe listen --forward-to localhost:3001/api/auth/stripe/webhook
+   ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+   Copy the `whsec_...` signing secret it prints into `STRIPE_WEBHOOK_SECRET_DEV` in `apps/backend/.env`.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+5. **Start the apps**
 
-```sh
-turbo build --filter=docs
-```
+   ```bash
+   pnpm turbo dev
+   ```
 
-Without global `turbo`:
+   The frontend runs on [http://localhost:3000](http://localhost:3000) and the API on [http://localhost:3001](http://localhost:3001).
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+### Scripts
 
-### Develop
+| Command                      | What it does                                                        |
+| ---------------------------- | ------------------------------------------------------------------- |
+| `pnpm turbo dev`             | Runs the frontend and the backend in watch mode                     |
+| `pnpm turbo build`           | Builds every app (the backend build also applies Prisma migrations) |
+| `pnpm turbo lint`            | Lints every app                                                     |
+| `pnpm turbo check-types`     | Type-checks every app                                               |
+| `pnpm --filter backend test` | Runs the backend unit tests                                         |
 
-To develop all apps and packages, run the following command:
+## :label: Environment Variables
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+### Backend (`apps/backend/.env`)
 
-```sh
-cd my-turborepo
-turbo dev
-```
+| Variable                                     | Description                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------ |
+| `PORT`                                       | Port the API listens on (`3001` locally)                           |
+| `NODE_ENV`                                   | `development` or `production`                                      |
+| `DATABASE_URL`                               | PostgreSQL connection string                                       |
+| `BETTER_AUTH_SECRET`                         | Secret used to sign sessions; a long random string                 |
+| `BETTER_AUTH_URL`                            | Public URL of the backend                                          |
+| `COOKIE_DOMAIN`                              | Shared cookie domain in production; leave empty locally            |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`   | GitHub OAuth app credentials                                       |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`   | Google OAuth app credentials                                       |
+| `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`   | Twitch OAuth app credentials                                       |
+| `APP_BACKEND_URL`, `APP_FRONTEND_URL`        | App origins, used for CORS, Socket.io and email links              |
+| `RESEND_API_KEY`                             | Resend API key                                                     |
+| `EMAIL_DOMAIN`                               | Verified sending domain; emails come from `noreply@<EMAIL_DOMAIN>` |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | AWS credentials for S3 uploads                                     |
+| `AWS_REGION`, `AWS_BUCKET_NAME`              | Region and name of the S3 bucket                                   |
+| `STRIPE_SECRET_KEY`                          | Stripe secret key (`sk_test_...` locally)                          |
+| `STRIPE_WEBHOOK_SECRET`                      | Signing secret of the Stripe dashboard webhook (production)        |
+| `STRIPE_WEBHOOK_SECRET_DEV`                  | Signing secret printed by `stripe listen` (development)            |
+| `STRIPE_COUPON_ID_20`                        | ID of the 20% welcome-offer coupon                                 |
+| `PRO_PLAN_NAME`                              | Name of the Pro plan                                               |
+| `PRO_PLAN_PRICE_ID`                          | Stripe price ID of the monthly Pro plan                            |
+| `PRO_ANNUAL_DISCOUNT_PRICE_ID`               | Stripe price ID of the yearly Pro plan                             |
 
-Without global `turbo`, use your package manager:
+### Frontend (`apps/web/.env`)
 
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
+| Variable                      | Description                                                 |
+| ----------------------------- | ----------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`        | Public URL of the frontend                                  |
+| `NEXT_PUBLIC_API_URL`         | NestJS API base URL, ending in `/api`                       |
+| `NEXT_PUBLIC_BETTER_AUTH_URL` | Better Auth URL on the backend, ending in `/api/auth`       |
+| `NEXT_PUBLIC_SOCKET_URL`      | Backend origin with no path, for Socket.io                  |
+| `NEXT_PUBLIC_STRIPE_LIVE_URL` | Stripe dashboard link used by the admin pages in production |
+| `NEXT_PUBLIC_STRIPE_TEST_URL` | Stripe sandbox dashboard link used everywhere else          |
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## :scroll: Purpose and Inspiration
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+**Inspiration.** Readium is inspired by [Medium](https://medium.com). Medium's layout and user experience served as the baseline, not a pixel-perfect target: Readium makes its own decisions where they made sense, such as Pro-only stories, the welcome offer and its moderation flow.
 
-```sh
-turbo dev --filter=web
-```
+**Purpose.** The goal was to build a large, real-world product end to end, and to do it with an **AI-assisted, spec-driven workflow**. Each feature started as a written spec and plan, was built on its own branch with [Claude Code](https://claude.com/claude-code) as the pair programmer, and every change was reviewed before merging. I owned the architecture, the specs and the product decisions. The project was as much about learning how to lead that workflow as about the app itself.
 
-Without global `turbo`:
+## :ledger: License
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+© 2026 Ahmed Haitham. All rights reserved.
