@@ -30,7 +30,7 @@ const SettingsProfile = ({ user, className }: SettingsProfileProps) => {
             {email}
           </p>
           {bio && (
-            <p className='pt-2 text-base whitespace-pre-line text-muted-foreground'>
+            <p className='line-clamp-2 pt-2 text-base whitespace-pre-line text-muted-foreground'>
               {bio}
             </p>
           )}
